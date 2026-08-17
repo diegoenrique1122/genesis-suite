@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { ShieldCheck, CheckCircle2, Loader2, ArrowRight, Camera, AlertTriangle, LogOut } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Loader2, ArrowRight, Camera, AlertTriangle, LogOut, Scale } from 'lucide-react';
 
 export default function ClientOnboarding() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  const [step, setStep] = useState(1); // Paso 1: Código | Paso 2: Biometría | Paso 3: Fotos
+  const [step, setStep] = useState(1); // 1: Código | 2: Biometría | 3: Fotos | 4: Legal
   const [coachCode, setCoachCode] = useState('');
   
   const [fullName, setFullName] = useState('');
@@ -22,6 +22,9 @@ export default function ClientOnboarding() {
   const [frontFile, setFrontFile] = useState(null);
   const [sideFile, setSideFile] = useState(null);
   const [backFile, setBackFile] = useState(null);
+  
+  // ⚖️ ESTADO DEL ESCUDO LEGAL
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -32,7 +35,6 @@ export default function ClientOnboarding() {
     checkUser();
   }, [navigate]);
 
-  // 🚀 NUEVA FUNCIÓN: BOTÓN DE ESCAPE DE EMERGENCIA
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
@@ -51,7 +53,12 @@ export default function ClientOnboarding() {
     e.preventDefault();
     
     if (!frontFile || !sideFile || !backFile) {
-      alert("⚠️ ALERTA INNEGOCIABLE: Debes adjuntar las 3 fotos de inicio (Frente, Perfil y Espalda) para activar tu cuenta.");
+      alert("⚠️ ALERTA INNEGOCIABLE: Debes adjuntar las 3 fotos de inicio.");
+      return;
+    }
+    
+    if (!legalAccepted) {
+      alert("⚠️ ALERTA LEGAL: Debes aceptar los Términos de Servicio para continuar.");
       return;
     }
 
@@ -112,6 +119,7 @@ export default function ClientOnboarding() {
           goal: goal,
           injuries: injuries || 'Ninguna',
           is_onboarded: true,
+          legal_accepted: true, // ⚖️ SELLO LEGAL EN BASE DE DATOS
           program_start_date: null
         })
         .eq('user_id', currentUser.id);
@@ -122,11 +130,11 @@ export default function ClientOnboarding() {
         recipient_role: 'COACH',
         recipient_id: coachData.id,
         title: '¡Nuevo Atleta en Sala de Espera!',
-        message: `El atleta ${fullName} ha completado su biometría y subido sus fotos.`,
+        message: `El atleta ${fullName} ha completado su biometría, firmado el contrato y subido sus fotos.`,
         type: 'NEW_ATHLETE'
       });
 
-      alert("✅ Datos y fotos registrados con éxito. Redirigiendo a tu Portal...");
+      alert("✅ Contrato firmado y datos registrados con éxito. Redirigiendo a tu Portal...");
       navigate('/client');
 
     } catch (err) {
@@ -141,7 +149,6 @@ export default function ClientOnboarding() {
       <div className="w-full max-w-lg bg-[#111] border border-neutral-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500 opacity-5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
 
-        {/* 🚀 EL NUEVO BOTÓN SUPERIOR DE CERRAR SESIÓN */}
         <div className="flex justify-between items-center mb-6 border-b border-neutral-800/60 pb-4 relative z-20">
           <div className="flex items-center gap-2">
             <ShieldCheck size={28} className="text-amber-500" />
@@ -151,7 +158,6 @@ export default function ClientOnboarding() {
             type="button"
             onClick={handleLogout}
             className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-red-400 transition-colors font-mono bg-neutral-900/50 px-3 py-1.5 rounded-lg border border-neutral-800"
-            title="Cerrar sesión"
           >
             <LogOut size={14} /> Cerrar Sesión
           </button>
@@ -159,17 +165,18 @@ export default function ClientOnboarding() {
 
         <div className="text-center mb-8 relative z-10">
           <h1 className="text-2xl font-black uppercase tracking-widest">Configuración Inicial</h1>
-          <p className="text-xs text-neutral-500 font-mono mt-2">Paso {step} de 3: {step === 1 ? 'Tu Invitación' : step === 2 ? 'Métricas Clínicas' : 'Fotos Semanales'}</p>
+          <p className="text-xs text-neutral-500 font-mono mt-2">
+            Paso {step} de 4: {step === 1 ? 'Tu Invitación' : step === 2 ? 'Métricas Clínicas' : step === 3 ? 'Fotos Semanales' : 'Contrato Legal'}
+          </p>
         </div>
 
-        <form onSubmit={step === 1 ? (e) => { e.preventDefault(); setStep(2); } : step === 2 ? (e) => { e.preventDefault(); setStep(3); } : handleCompleteOnboarding} className="space-y-5 relative z-10">
+        <form onSubmit={step === 1 ? (e) => { e.preventDefault(); setStep(2); } : step === 2 ? (e) => { e.preventDefault(); setStep(3); } : step === 3 ? (e) => { e.preventDefault(); setStep(4); } : handleCompleteOnboarding} className="space-y-5 relative z-10">
           
           {step === 1 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
               <div>
                 <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">Código de Invitación del Coach</label>
                 <input type="text" value={coachCode} onChange={(e) => setCoachCode(e.target.value.toUpperCase())} required placeholder="Ej: PRO-123456" className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm font-mono text-amber-500 outline-none focus:border-amber-500 uppercase"/>
-                <p className="text-[9px] text-neutral-500 mt-1.5">Si no tienes un código, puedes cerrar sesión arriba y regresar después.</p>
               </div>
               <div>
                 <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">Nombre Completo Real</label>
@@ -222,7 +229,7 @@ export default function ClientOnboarding() {
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setStep(1)} className="w-1/3 bg-neutral-900 text-neutral-400 font-bold uppercase text-[10px] py-4 rounded-xl hover:text-white transition-colors">Atrás</button>
                 <button type="submit" className="w-2/3 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-[10px] tracking-widest py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg">
-                  Carga de Fotos <ArrowRight size={16}/>
+                  Siguiente <ArrowRight size={16}/>
                 </button>
               </div>
             </div>
@@ -268,8 +275,54 @@ export default function ClientOnboarding() {
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setStep(2)} className="w-1/3 bg-neutral-900 text-neutral-400 font-bold uppercase text-[10px] py-4 rounded-xl hover:text-white transition-colors">Atrás</button>
-                <button type="submit" disabled={loading || !frontFile || !sideFile || !backFile} className="w-2/3 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  {loading ? <Loader2 size={16} className="animate-spin"/> : <><CheckCircle2 size={16}/> Finalizar y Entrar</>}
+                <button type="submit" disabled={!frontFile || !sideFile || !backFile} className="w-2/3 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  Siguiente <ArrowRight size={16}/>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ⚖️ PASO 4: CONTRATO LEGAL (FLORIDA JURISDICTION) */}
+          {step === 4 && (
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-neutral-900 flex items-center justify-center border border-neutral-700">
+                  <Scale className="text-white" size={20}/>
+                </div>
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-white">Términos de Servicio</h2>
+                  <p className="text-[10px] text-neutral-500 font-mono">Jurisdicción: Estado de Florida, EE.UU.</p>
+                </div>
+              </div>
+
+              <div className="bg-black border border-neutral-800 rounded-2xl p-4 h-48 overflow-y-auto font-mono text-[10px] text-neutral-400 space-y-3 scrollbar-hide shadow-inner">
+                <p><strong className="text-white">1. MEDICAL DISCLAIMER & ASSUMPTION OF RISK</strong><br/>
+                The information provided by Genesis OS and its affiliated coaches is for educational and informational purposes only and is not intended as medical advice. You acknowledge that participating in exercise and diet programs involves inherent risks of physical injury. You assume all responsibility for your own health and safety.</p>
+                
+                <p><strong className="text-white">2. WAIVER OF LIABILITY</strong><br/>
+                By checking the box below, you release, waive, and discharge Genesis OS, its creators, and your assigned coach from any and all liability, claims, or causes of action arising out of or related to any loss, damage, or injury sustained while participating in the programs.</p>
+
+                <p><strong className="text-white">3. NO REFUND POLICY (TIME-BOXING)</strong><br/>
+                You acknowledge that all payments made to your coach or the platform are final. Programs are strictly time-boxed (e.g., 12 weeks). Pauses, extensions, or refunds are not permitted under any circumstances.</p>
+
+                <p><strong className="text-white">4. GOVERNING LAW</strong><br/>
+                This agreement shall be governed by and construed in accordance with the laws of the State of Florida, United States, without giving effect to any principles of conflicts of law.</p>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer group p-2 rounded-xl hover:bg-neutral-900/50 transition-colors">
+                <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${legalAccepted ? 'bg-amber-500 border-amber-500' : 'bg-black border-neutral-700 group-hover:border-amber-500'}`}>
+                  {legalAccepted && <CheckCircle2 size={14} className="text-black" />}
+                </div>
+                <span className="text-[11px] font-mono text-neutral-300 leading-relaxed">
+                  He leído cuidadosamente, entiendo y acepto voluntariamente el <strong>Descargo de Responsabilidad Médica</strong> y la Renuncia de Responsabilidad.
+                </span>
+                <input type="checkbox" className="hidden" checked={legalAccepted} onChange={(e) => setLegalAccepted(e.target.checked)} />
+              </label>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setStep(3)} className="w-1/3 bg-neutral-900 text-neutral-400 font-bold uppercase text-[10px] py-4 rounded-xl hover:text-white transition-colors">Atrás</button>
+                <button type="submit" disabled={loading || !legalAccepted} className="w-2/3 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-[10px] py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {loading ? <Loader2 size={16} className="animate-spin"/> : <><Scale size={16}/> Firmar y Acceder</>}
                 </button>
               </div>
             </div>
