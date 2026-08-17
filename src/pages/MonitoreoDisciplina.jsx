@@ -6,7 +6,7 @@ import { uploadAthletePhoto } from '../services/storageService';
 import { 
   ArrowLeft, Droplet, Moon, Footprints, Camera, 
   CheckCircle2, AlertTriangle, Loader2, Calendar, Scale, Save,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Activity, Utensils, Image as ImageIcon
 } from 'lucide-react';
 
 export default function MonitoreoDisciplina() {
@@ -24,7 +24,17 @@ export default function MonitoreoDisciplina() {
   const [trainingDone, setTrainingDone] = useState('YES');
   const [difficultyNote, setDifficultyNote] = useState('');
   
-  // Variables del Foto Informe
+  // 🍎 EVIDENCIA NUTRICIONAL (RESTAURADA)
+  const [meals, setMeals] = useState([
+    { meal_num: 1, status: 'PENDING', photo_url: null },
+    { meal_num: 2, status: 'PENDING', photo_url: null },
+    { meal_num: 3, status: 'PENDING', photo_url: null },
+    { meal_num: 4, status: 'PENDING', photo_url: null },
+    { meal_num: 5, status: 'PENDING', photo_url: null }
+  ]);
+  const [uploadingMeal, setUploadingMeal] = useState(false);
+  
+  // Variables del Foto Informe (Acordeón)
   const [showPhotoPanel, setShowPhotoPanel] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(1);
   const [weight, setWeight] = useState('');
@@ -69,6 +79,16 @@ export default function MonitoreoDisciplina() {
           setTrainingDone(profile.discipline_metrics.training.completed || 'YES');
           setDifficultyNote(profile.discipline_metrics.training.difficulty_note || '');
         }
+        
+        // Cargar las comidas si ya se habían registrado hoy
+        if (profile.discipline_metrics?.meals && profile.discipline_metrics.meals.length > 0) {
+          const savedMeals = profile.discipline_metrics.meals;
+          const mergedMeals = [1, 2, 3, 4, 5].map(num => {
+            const found = savedMeals.find(m => m.meal_num === num);
+            return found || { meal_num: num, status: 'PENDING', photo_url: null };
+          });
+          setMeals(mergedMeals);
+        }
       }
     } catch (error) {
       console.error("Error cargando disciplina:", error);
@@ -77,14 +97,47 @@ export default function MonitoreoDisciplina() {
     }
   };
 
+  // 🍎 FUNCIÓN PARA SUBIR FOTO DE COMIDA
+  const handleMealPhotoUpload = async (e, mealNum) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingMeal(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `meal_${mealNum}_${Date.now()}.${fileExt}`;
+      const filePath = `${athlete.id}/daily_meals/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('athlete_evidence')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('athlete_evidence').getPublicUrl(filePath);
+
+      const newMeals = meals.map(m =>
+        m.meal_num === mealNum ? { ...m, photo_url: data.publicUrl, status: 'YES' } : m
+      );
+      setMeals(newMeals);
+    } catch (error) {
+      alert("❌ Error subiendo foto de comida: " + error.message);
+    } finally {
+      setUploadingMeal(false);
+    }
+  };
+
+  const handleMealStatus = (mealNum, status) => {
+    setMeals(meals.map(m => m.meal_num === mealNum ? { ...m, status } : m));
+  };
+
   const handleSaveDailyMetrics = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       const payload = {
-        ...athlete.discipline_metrics, 
         metrics: { water, sleep, steps },
         training: { completed: trainingDone, difficulty_note: difficultyNote },
+        meals: meals, // 🍎 SE GUARDAN LAS COMIDAS
         last_updated: new Date().toISOString()
       };
 
@@ -110,14 +163,13 @@ export default function MonitoreoDisciplina() {
 
     setUploadingCheckIn(true);
     try {
-      // Usamos el servicio de Storage V5.0
       if(frontFile) await uploadAthletePhoto(frontFile, athlete.id, athlete.coach_id, 'front', currentWeek, weight);
       if(sideFile) await uploadAthletePhoto(sideFile, athlete.id, athlete.coach_id, 'side', currentWeek, weight);
       if(backFile) await uploadAthletePhoto(backFile, athlete.id, athlete.coach_id, 'back', currentWeek, weight);
 
-      alert("✅ Informe Fotográfico enviado exitosamente. Tu Coach ha recibido tu actualización de la semana.");
+      alert("✅ Informe Fotográfico enviado exitosamente. Tu Coach ha recibido tu actualización.");
       setFrontFile(null); setSideFile(null); setBackFile(null); setWeight('');
-      setShowPhotoPanel(false); // Cerramos el panel automáticamente al terminar
+      setShowPhotoPanel(false); 
     } catch (err) {
       alert("❌ Error enviando informe: " + err.message);
     } finally {
@@ -165,7 +217,7 @@ export default function MonitoreoDisciplina() {
               </div>
               <div>
                 <h2 className="text-sm font-black uppercase tracking-widest text-white">Foto Informe para Coach</h2>
-                <p className="text-[10px] font-mono text-neutral-400 mt-1">Despliega este panel solo cuando tu Coach te solicite el informe visual.</p>
+                <p className="text-[10px] font-mono text-neutral-400 mt-1">Despliega este panel solo cuando tu Coach te solicite el informe visual corporal.</p>
               </div>
             </div>
             {showPhotoPanel ? <ChevronUp className="text-neutral-500" /> : <ChevronDown className="text-neutral-500" />}
@@ -211,8 +263,45 @@ export default function MonitoreoDisciplina() {
           )}
         </div>
 
+        {/* 🍎 EVIDENCIA NUTRICIONAL (COMIDAS) */}
+        <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl relative backdrop-blur-md">
+          <h2 className="text-sm font-black uppercase tracking-widest text-neutral-400 mb-6 flex items-center gap-2">
+            <Utensils size={18} style={{ color: theme?.brandColor || '#f59e0b' }}/> Evidencia Nutricional
+          </h2>
+          
+          <div className="space-y-4">
+            {meals.map((meal) => (
+              <div key={meal.meal_num} className="bg-black border border-neutral-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4">
+                
+                {/* Info de la comida */}
+                <div className="flex-1">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white mb-1">Comida {meal.meal_num}</h3>
+                  <p className="text-[10px] text-neutral-500 font-mono">Sube la foto de tu plato antes de ingerirlo.</p>
+                </div>
+
+                {/* Subida de foto */}
+                <div className="flex items-center gap-4">
+                  <label className={`w-14 h-14 rounded-xl border border-dashed flex items-center justify-center cursor-pointer transition-colors shrink-0 overflow-hidden ${meal.photo_url ? 'border-green-500 bg-green-500/10' : 'border-neutral-600 bg-neutral-900 hover:border-white'}`}>
+                    {uploadingMeal ? <Loader2 size={16} className="animate-spin text-neutral-500" /> : 
+                     meal.photo_url ? <img src={meal.photo_url} alt="Meal" className="w-full h-full object-cover" /> : 
+                     <ImageIcon size={16} className="text-neutral-500" />}
+                    <input type="file" accept="image/*" onChange={(e) => handleMealPhotoUpload(e, meal.meal_num)} className="hidden" disabled={uploadingMeal} />
+                  </label>
+
+                  {/* Botones de Estado */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button type="button" onClick={() => handleMealStatus(meal.meal_num, 'YES')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${meal.status === 'YES' ? 'bg-green-500/20 text-green-500 border border-green-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>Cumplí</button>
+                    <button type="button" onClick={() => handleMealStatus(meal.meal_num, 'PARTIAL')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${meal.status === 'PARTIAL' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>A Medias</button>
+                    <button type="button" onClick={() => handleMealStatus(meal.meal_num, 'NO')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${meal.status === 'NO' ? 'bg-red-500/20 text-red-500 border border-red-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>Fallé</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* 📊 FORMULARIO DIARIO (PASOS, AGUA, SUEÑO) */}
-        <div className="bg-[#111] border border-neutral-800 rounded-3xl p-8 shadow-xl relative backdrop-blur-md">
+        <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl relative backdrop-blur-md">
           <h2 className="text-sm font-black uppercase tracking-widest text-neutral-400 mb-6 flex items-center gap-2">
             <Calendar size={18} style={{ color: theme?.brandColor || '#f59e0b' }}/> Reporte de Hábitos de Hoy
           </h2>

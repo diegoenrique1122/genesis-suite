@@ -1,193 +1,293 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient';
-import { Send, ArrowLeft, Loader2, User, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import { useTheme } from '../contexts/ThemeContext';
+import { 
+  ArrowLeft, Send, Users, MessageSquare, 
+  ShieldCheck, Loader2, User 
+} from 'lucide-react';
 
 export default function Chat() {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [contacts, setContacts] = useState([]);
-  const [activeContact, setActiveContact] = useState(null);
+  const { theme } = useTheme();
+  
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  
+  const [activeTab, setActiveTab] = useState('PRIVATE'); // 'PRIVATE' o 'TRIBE'
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  
+  // Exclusivo para el Coach: Lista de sus atletas para el chat privado
+  const [athletesList, setAthletesList] = useState([]);
+  const [selectedAthleteUserId, setSelectedAthleteUserId] = useState(null);
+
   const messagesEndRef = useRef(null);
+  const chatSubscriptionRef = useRef(null);
 
   useEffect(() => {
     initChat();
+    return () => {
+      // Limpiar la conexión realtime al salir
+      if (chatSubscriptionRef.current) {
+        supabase.removeChannel(chatSubscriptionRef.current);
+      }
+    };
   }, []);
 
-  // Escuchar mensajes en tiempo real
+  // Volver a cargar los mensajes si cambias de pestaña o de atleta seleccionado
   useEffect(() => {
-    if (!activeContact || !currentUser) return;
-    
-    // Cargar historial inicial
-    fetchMessages(currentUser.id, activeContact.user_id);
+    if (profile) fetchMessages();
+  }, [activeTab, selectedAthleteUserId]);
 
-    // Suscripción a nuevos mensajes (Supabase Realtime)
-    const channel = supabase.channel('chat_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
-        const msg = payload.new;
-        if (
-          (msg.sender_id === activeContact.user_id && msg.receiver_id === currentUser.id) ||
-          (msg.sender_id === currentUser.id && msg.receiver_id === activeContact.user_id)
-        ) {
-          setMessages(prev => [...prev, msg]);
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [activeContact, currentUser]);
-
-  // Hacer scroll hacia abajo al recibir mensajes
+  // Auto-scroll hacia abajo cada vez que llega un mensaje nuevo
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const initChat = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return navigate('/');
-    setCurrentUser(session.user);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return navigate('/');
+      
+      const userId = session.user.id;
+      const { data: masterUser } = await supabase.from('users_master').select('role').eq('id', userId).single();
+      
+      let pInfo = { userId, role: masterUser.role };
 
-    const { data: master } = await supabase.from('users_master').select('role').eq('id', session.user.id).single();
-    setRole(master.role);
-
-    // Cargar Contactos según el Rol
-    if (master.role === 'COACH' || master.role === 'SUPER_ADMIN') {
-      const { data: coach } = await supabase.from('coaches_profile').select('id').eq('user_id', session.user.id).single();
-      if (coach) {
-        const { data: athletes } = await supabase.from('athletes_profile').select('user_id, full_name').eq('coach_id', coach.id);
-        setContacts(athletes || []);
+      if (masterUser.role === 'ATHLETE') {
+        const { data: ath } = await supabase.from('athletes_profile').select('*').eq('user_id', userId).single();
+        const { data: coa } = await supabase.from('coaches_profile').select('user_id').eq('id', ath.coach_id).single();
+        
+        pInfo.name = ath.full_name;
+        pInfo.coachId = ath.coach_id; // ID interno de la tribu
+        pInfo.targetCoachUserId = coa.user_id; // Para mensajes directos
+        
+      } else if (masterUser.role === 'COACH') {
+        const { data: coa } = await supabase.from('coaches_profile').select('*').eq('user_id', userId).single();
+        pInfo.name = coa.full_name;
+        pInfo.coachId = coa.id; // Su propia tribu
+        
+        // Cargar su Roster de atletas para el chat privado
+        const { data: aths } = await supabase.from('athletes_profile').select('*').eq('coach_id', coa.id);
+        setAthletesList(aths || []);
+        if (aths && aths.length > 0) setSelectedAthleteUserId(aths[0].user_id);
       }
-    } else {
-      // Es atleta, buscamos a su coach
-      const { data: athlete } = await supabase.from('athletes_profile').select('coach_id').eq('user_id', session.user.id).single();
-      if (athlete?.coach_id) {
-        const { data: coach } = await supabase.from('coaches_profile').select('user_id, coach_code').eq('id', athlete.coach_id).single();
-        if (coach) setContacts([{ user_id: coach.user_id, full_name: `Coach Principal` }]);
-      }
+      
+      setProfile(pInfo);
+      setupRealtimeSubscription(pInfo);
+      
+    } catch (err) {
+      console.error("Error iniciando chat:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const fetchMessages = async (myId, otherId) => {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .or(`and(sender_id.eq.${myId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${myId})`)
-      .order('created_at', { ascending: true });
+  const fetchMessages = async () => {
+    let query = supabase.from('chat_messages').select('*').eq('coach_id', profile.coachId).order('created_at', { ascending: true });
+
+    if (activeTab === 'TRIBE') {
+      query = query.eq('is_community', true);
+    } else {
+      query = query.eq('is_community', false);
+      
+      if (profile.role === 'ATHLETE') {
+        query = query.or(`sender_id.eq.${profile.userId},recipient_id.eq.${profile.userId}`);
+      } else if (profile.role === 'COACH' && selectedAthleteUserId) {
+        query = query.or(`sender_id.eq.${selectedAthleteUserId},recipient_id.eq.${selectedAthleteUserId}`);
+      }
+    }
+
+    const { data } = await query;
     setMessages(data || []);
   };
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !activeContact) return;
+  const setupRealtimeSubscription = (pInfo) => {
+    const channel = supabase.channel('live-chat')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+        const newMsg = payload.new;
+        
+        // Evitar mensajes de otras tribus
+        if (newMsg.coach_id !== pInfo.coachId) return;
 
-    const msgData = {
-      sender_id: currentUser.id,
-      receiver_id: activeContact.user_id,
-      content: newMessage.trim()
-    };
-
-    setNewMessage(''); 
-    
-    const { error } = await supabase.from('chat_messages').insert(msgData);
-    if (error) console.error("Error enviando mensaje:", error);
+        setMessages((current) => {
+          // Evitar duplicados si re-renderiza
+          if (current.find(m => m.id === newMsg.id)) return current;
+          
+          // Lógica de filtrado en vivo para la pantalla actual
+          if (activeTab === 'TRIBE' && newMsg.is_community) {
+            return [...current, newMsg];
+          } 
+          if (activeTab === 'PRIVATE' && !newMsg.is_community) {
+            const isRelevantForAthlete = pInfo.role === 'ATHLETE' && (newMsg.sender_id === pInfo.userId || newMsg.recipient_id === pInfo.userId);
+            const isRelevantForCoach = pInfo.role === 'COACH' && (newMsg.sender_id === selectedAthleteUserId || newMsg.recipient_id === selectedAthleteUserId);
+            
+            if (isRelevantForAthlete || isRelevantForCoach || newMsg.sender_id === pInfo.userId) {
+              return [...current, newMsg];
+            }
+          }
+          return current;
+        });
+      })
+      .subscribe();
+      
+    chatSubscriptionRef.current = channel;
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[var(--primary-color)]" size={40}/></div>;
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !profile) return;
+
+    let targetRecipient = null;
+    if (activeTab === 'PRIVATE') {
+      targetRecipient = profile.role === 'ATHLETE' ? profile.targetCoachUserId : selectedAthleteUserId;
+    }
+
+    const payload = {
+      coach_id: profile.coachId,
+      sender_id: profile.userId,
+      sender_name: profile.name,
+      sender_role: profile.role,
+      is_community: activeTab === 'TRIBE',
+      recipient_id: targetRecipient,
+      message: newMessage.trim()
+    };
+
+    setNewMessage(''); // Limpiamos el input instantáneamente para dar fluidez
+
+    try {
+      const { error } = await supabase.from('chat_messages').insert(payload);
+      if (error) throw error;
+    } catch (err) {
+      alert("Error enviando mensaje: " + err.message);
+    }
+  };
+
+  if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500" size={40}/></div>;
 
   return (
-    <div className="min-h-screen text-white p-4 sm:p-8 font-sans flex flex-col items-center">
-      <div className="w-full max-w-5xl h-[85vh] flex flex-col md:flex-row card-container rounded-3xl overflow-hidden shadow-2xl">
-        
-        {/* PANEL LATERAL: CONTACTOS */}
-        <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-neutral-800 flex flex-col bg-black/20">
-          <div className="p-6 border-b border-neutral-800 flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-neutral-500 hover:text-white transition-colors"><ArrowLeft size={20}/></button>
-            <h2 className="text-sm font-black uppercase tracking-widest text-white">Mensajería Segura</h2>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {contacts.length === 0 && <p className="text-xs text-neutral-600 font-mono text-center mt-4">Sin contactos asignados.</p>}
-            {contacts.map(contact => (
-              <button 
-                type="button"
-                key={contact.user_id}
-                onClick={() => setActiveContact(contact)}
-                className={`w-full text-left p-4 rounded-2xl flex items-center gap-3 transition-all ${activeContact?.user_id === contact.user_id ? 'bg-[var(--primary-color-glow)] border border-[var(--primary-color)]' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800'}`}
-              >
-                <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center border border-neutral-700">
-                  {role === 'ATHLETE' ? <ShieldCheck size={18} className="text-[var(--primary-color)]"/> : <User size={18} className="text-neutral-400"/>}
-                </div>
-                <div>
-                  <p className="text-sm font-bold uppercase truncate text-white">{contact.full_name}</p>
-                  <p className="text-[10px] text-neutral-500 font-mono">Toque para abrir chat</p>
-                </div>
-              </button>
-            ))}
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col relative overflow-hidden">
+      
+      {/* Fondo Neón */}
+      <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none z-0" style={{ background: `radial-gradient(circle at top right, ${theme?.brandColor || '#f59e0b'}, transparent 50%)` }}></div>
+
+      {/* NAVBAR */}
+      <nav className="relative z-10 border-b border-neutral-800 bg-[#0a0a0a]/90 backdrop-blur-md sticky top-0 shrink-0">
+        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+          <button onClick={() => navigate(profile?.role === 'COACH' ? '/coach' : '/client')} className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest">
+            <ArrowLeft size={16} /> Volver
+          </button>
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} style={{ color: theme?.brandColor || '#f59e0b' }}/>
+            <span className="text-xs font-black uppercase tracking-widest text-neutral-300">Red de Comunicaciones</span>
           </div>
         </div>
+      </nav>
 
-        {/* PANEL PRINCIPAL: CHAT */}
-        <div className="w-full md:w-2/3 flex flex-col h-full bg-black/10">
-          {activeContact ? (
-            <>
-              {/* Header del Chat Activo */}
-              <div className="p-6 border-b border-neutral-800 flex justify-between items-center bg-black/40">
-                <h3 className="font-black uppercase tracking-widest text-[var(--primary-color)]">{activeContact.full_name}</h3>
-                <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-              </div>
-
-              {/* Área de Mensajes */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {messages.length === 0 && <p className="text-center text-xs text-neutral-600 font-mono mt-10">Inicio de conversación encriptada. Escribe el primer mensaje.</p>}
-                
-                {messages.map(msg => {
-                  const isMine = msg.sender_id === currentUser.id;
-                  return (
-                    <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] p-4 rounded-2xl ${isMine ? 'bg-[var(--primary-color)] text-black rounded-tr-sm' : 'bg-neutral-900 border border-neutral-800 text-white rounded-tl-sm'}`}>
-                        <p className={`text-sm ${isMine ? 'font-bold' : ''}`}>{msg.content}</p>
-                        <p className={`text-[8px] mt-2 font-mono ${isMine ? 'text-black/70' : 'text-neutral-500'}`}>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input de Envío */}
-              <form onSubmit={sendMessage} className="p-4 bg-black/40 border-t border-neutral-800 flex gap-3">
-                <input 
-                  type="text" 
-                  value={newMessage}
-                  onChange={e => setNewMessage(e.target.value)}
-                  placeholder="Escribe un mensaje..." 
-                  className="flex-1 bg-black border border-neutral-800 rounded-xl px-4 text-sm text-white outline-none focus:border-[var(--primary-color)]"
-                />
-                <button type="submit" disabled={!newMessage.trim()} className="bg-[var(--primary-color)] text-black p-4 rounded-xl hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Send size={18} />
-                </button>
-              </form>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-neutral-600">
-              <ShieldCheck size={48} className="mb-4 opacity-50"/>
-              <p className="text-sm font-black uppercase tracking-widest">Chat Encriptado B2B2C</p>
-              <p className="text-xs font-mono mt-2 text-center max-w-xs">Selecciona un contacto en el panel lateral para iniciar la comunicación.</p>
-            </div>
-          )}
+      {/* SELECTOR DE PESTAÑAS */}
+      <div className="relative z-10 max-w-4xl mx-auto w-full px-4 mt-4 shrink-0">
+        <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1">
+          <button onClick={() => setActiveTab('PRIVATE')} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === 'PRIVATE' ? 'bg-black text-white shadow-md' : 'text-neutral-500 hover:text-white'}`}>
+            <MessageSquare size={14}/> 1-a-1 Privado
+          </button>
+          <button onClick={() => setActiveTab('TRIBE')} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === 'TRIBE' ? 'bg-black text-white shadow-md' : 'text-neutral-500 hover:text-white'}`}>
+            <Users size={14}/> Muro de la Tribu
+          </button>
         </div>
-
       </div>
+
+      <main className="flex-1 max-w-4xl mx-auto w-full flex flex-col lg:flex-row gap-4 p-4 relative z-10 min-h-0">
+        
+        {/* PANEL LATERAL PARA EL COACH (LISTA DE ATLETAS) */}
+        {profile?.role === 'COACH' && activeTab === 'PRIVATE' && (
+          <div className="w-full lg:w-64 bg-[#111] border border-neutral-800 rounded-3xl p-4 shrink-0 overflow-y-auto hidden lg:block">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-4 border-b border-neutral-800 pb-2">Tu Roster</h3>
+            <div className="space-y-2">
+              {athletesList.map(ath => (
+                <button 
+                  key={ath.id} 
+                  onClick={() => setSelectedAthleteUserId(ath.user_id)}
+                  className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-colors ${selectedAthleteUserId === ath.user_id ? 'bg-neutral-800 text-white' : 'bg-transparent text-neutral-400 hover:bg-neutral-900'}`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center border border-neutral-700"><User size={14}/></div>
+                  <div className="truncate">
+                    <p className="text-xs font-bold uppercase truncate">{ath.full_name}</p>
+                    <p className="text-[9px] font-mono opacity-50">{ath.b2c_plan}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SELECTOR MÓVIL PARA EL COACH */}
+        {profile?.role === 'COACH' && activeTab === 'PRIVATE' && (
+          <div className="w-full lg:hidden bg-[#111] border border-neutral-800 rounded-xl p-2 shrink-0">
+            <select 
+              value={selectedAthleteUserId || ''} 
+              onChange={(e) => setSelectedAthleteUserId(e.target.value)}
+              className="w-full bg-black border border-neutral-700 rounded-lg p-2 text-xs font-bold uppercase text-white outline-none"
+            >
+              {athletesList.map(ath => (
+                <option key={ath.id} value={ath.user_id}>{ath.full_name} ({ath.b2c_plan})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* ÁREA DE CHAT (MENSAJES) */}
+        <div className="flex-1 bg-[#111] border border-neutral-800 rounded-3xl flex flex-col overflow-hidden min-h-[60vh]">
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-neutral-600 opacity-50">
+                {activeTab === 'TRIBE' ? <Users size={48} className="mb-4"/> : <MessageSquare size={48} className="mb-4"/>}
+                <p className="text-xs font-mono uppercase tracking-widest">No hay mensajes aún.</p>
+              </div>
+            ) : (
+              messages.map(msg => {
+                const isMe = msg.sender_id === profile.userId;
+                const isCoach = msg.sender_role === 'COACH';
+                return (
+                  <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <span className="text-[9px] font-black uppercase text-neutral-500 mb-1 flex items-center gap-1">
+                      {msg.sender_name} {isCoach && <ShieldCheck size={10} style={{ color: theme?.brandColor || '#f59e0b' }}/>}
+                    </span>
+                    <div className={`px-4 py-3 text-sm font-mono max-w-[85%] sm:max-w-[70%] shadow-lg ${isMe ? 'text-black rounded-2xl rounded-tr-sm' : 'bg-neutral-800 text-white rounded-2xl rounded-tl-sm border border-neutral-700'}`} style={{ backgroundColor: isMe ? (theme?.brandColor || '#f59e0b') : '' }}>
+                      {msg.message}
+                    </div>
+                    <span className="text-[8px] text-neutral-600 mt-1">
+                      {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* INPUT DE ESCRITURA */}
+          <form onSubmit={handleSendMessage} className="p-4 bg-black/40 border-t border-neutral-800 flex gap-2 shrink-0">
+            <input 
+              type="text" 
+              value={newMessage} 
+              onChange={(e) => setNewMessage(e.target.value)} 
+              placeholder={activeTab === 'TRIBE' ? "Escribe a toda la tribu..." : "Escribe un mensaje privado..."}
+              className="flex-1 bg-black border border-neutral-800 rounded-xl px-4 text-sm font-mono text-white outline-none focus:border-neutral-500 transition-colors"
+            />
+            <button 
+              type="submit" 
+              disabled={!newMessage.trim()}
+              className="w-12 h-12 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: theme?.brandColor || '#f59e0b', color: 'black' }}
+            >
+              <Send size={18} />
+            </button>
+          </form>
+
+        </div>
+      </main>
     </div>
   );
 }
