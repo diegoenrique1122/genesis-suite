@@ -5,7 +5,8 @@ import {
   ArrowLeft, User, Image as ImageIcon, BrainCircuit, Activity, 
   Loader2, Dumbbell, CheckCircle2, Lock, Plus, MessageSquareQuote, 
   Droplet, Moon, Footprints, Utensils, AlertTriangle, Scale, Target, 
-  TrendingUp, Droplets, Wind, Flame, LayoutDashboard, Camera
+  TrendingUp, Droplets, Wind, Flame, LayoutDashboard, Camera,
+  ShieldCheck, Save, Beaker // Añadidos para el módulo de nutrición
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -30,9 +31,23 @@ export default function ClientProfile() {
 
   const [activeTab, setActiveTab] = useState('OVERVIEW'); 
 
+  // 🍎 NUEVOS ESTADOS DEL MÓDULO DE NUTRICIÓN (COACH OVERRIDE)
+  const [editDietStatus, setEditDietStatus] = useState('PENDING_AUDIT');
+  const [editProtein, setEditProtein] = useState(0);
+  const [editCarbs, setEditCarbs] = useState(0);
+  const [editFats, setEditFats] = useState(0);
+  const [editCalories, setEditCalories] = useState(0);
+  const [isSavingDiet, setIsSavingDiet] = useState(false);
+
   useEffect(() => {
     fetchExpediente();
   }, [id]);
+
+  // Recalcular calorías automáticamente si el coach mueve los macros manuales
+  useEffect(() => {
+    const cals = Math.round((editProtein * 4) + (editCarbs * 4) + (editFats * 9));
+    setEditCalories(cals);
+  }, [editProtein, editCarbs, editFats]);
 
   const fetchExpediente = async () => {
     try {
@@ -48,6 +63,21 @@ export default function ClientProfile() {
       if (profileData.ai_diagnosis) setDiagnosis(profileData.ai_diagnosis);
       if (profileData.training_plan) setEditablePlan(profileData.training_plan);
       if (profileData.coach_note) setCoachNote(profileData.coach_note);
+
+      // 🍎 Cargar estados de nutrición
+      setEditDietStatus(profileData.diet_status || 'PENDING_AUDIT');
+      if (profileData.custom_macros) {
+        setEditProtein(profileData.custom_macros.totals.protein);
+        setEditCarbs(profileData.custom_macros.totals.carbs);
+        setEditFats(profileData.custom_macros.totals.fats);
+        setEditCalories(profileData.custom_macros.totals.calories);
+      } else {
+        const base = calculateBaseMacros(profileData.weight, profileData.goal);
+        setEditProtein(base.protein);
+        setEditCarbs(base.carbs);
+        setEditFats(base.fats);
+        setEditCalories(base.calories);
+      }
 
       if (profileData.program_start_date) {
         const start = new Date(profileData.program_start_date);
@@ -78,7 +108,56 @@ export default function ClientProfile() {
     }
   };
 
-  // 🚀 FUNCIÓN VIP: UPGRADE DE ATLETA (SOLO ÉLITE)
+  // 🧮 Función base de cálculo
+  const calculateBaseMacros = (weightKg, goal) => {
+    let proMultiplier = 2.2; let fatMultiplier = 0.8; let carbMultiplier = 3.0; 
+    if (goal === 'Pérdida de Grasa') { carbMultiplier = 1.5; proMultiplier = 2.5; } 
+    else if (goal === 'Ganancia Muscular') { carbMultiplier = 4.5; fatMultiplier = 1.0; }
+    const protein = Math.round(weightKg * proMultiplier);
+    const fats = Math.round(weightKg * fatMultiplier);
+    const carbs = Math.round(weightKg * carbMultiplier);
+    const calories = Math.round((protein * 4) + (carbs * 4) + (fats * 9));
+    return { calories, protein, carbs, fats };
+  };
+
+  // 🍎 GUARDAR OVERRIDE DE NUTRICIÓN
+  const handleSaveNutritionOverride = async () => {
+    setIsSavingDiet(true);
+    try {
+      const dist = [
+        { p: 0.2, c: 0.20, f: 0.25 }, { p: 0.2, c: 0.25, f: 0.30 },
+        { p: 0.2, c: 0.30, f: 0.00 }, { p: 0.2, c: 0.15, f: 0.25 },
+        { p: 0.2, c: 0.10, f: 0.20 }
+      ];
+      
+      const newMeals = dist.map(d => ({
+        p: Math.round(editProtein * d.p),
+        c: Math.round(editCarbs * d.c),
+        f: Math.round(editFats * d.f)
+      }));
+
+      const custom_macros = {
+        totals: { calories: editCalories, protein: editProtein, carbs: editCarbs, fats: editFats },
+        meals: newMeals
+      };
+
+      const { error } = await supabase.from('athletes_profile').update({
+        diet_status: editDietStatus,
+        coach_note: coachNote,
+        custom_macros: custom_macros
+      }).eq('id', athlete.id);
+
+      if (error) throw error;
+      
+      alert(`✅ Protocolo Nutricional Guardado. Estado: ${editDietStatus === 'APPROVED' ? 'DESBLOQUEADO' : 'BLOQUEADO'}`);
+      fetchExpediente(); 
+    } catch (err) {
+      alert("Error guardando cambios: " + err.message);
+    } finally {
+      setIsSavingDiet(false);
+    }
+  };
+
   const handleChangeAthletePlan = async (newPlan) => {
     if (!window.confirm(`¿Ascender/Degradar a este atleta al plan ${newPlan}?`)) return;
     try {
@@ -201,6 +280,10 @@ export default function ClientProfile() {
             <div className="flex overflow-x-auto w-full sm:w-auto gap-2 pb-1 scrollbar-hide">
               <button onClick={() => setActiveTab('OVERVIEW')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'OVERVIEW' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><LayoutDashboard size={14}/> General</button>
               <button onClick={() => setActiveTab('TRAINING')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'TRAINING' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Dumbbell size={14}/> Matriz Técnica</button>
+              
+              {/* 🍎 PESTAÑA NUTRICIÓN INYECTADA AQUÍ */}
+              <button onClick={() => setActiveTab('NUTRITION')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'NUTRITION' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Utensils size={14}/> Nutrición</button>
+              
               <button onClick={() => setActiveTab('DISCIPLINE')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'DISCIPLINE' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Activity size={14}/> Auditoría Diaria</button>
               <button onClick={() => setActiveTab('GALLERY')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'GALLERY' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Camera size={14}/> Galería Visual</button>
               <button onClick={() => setActiveTab('AI')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'AI' ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-neutral-900 text-blue-500 hover:text-white border border-blue-900/50'}`}><BrainCircuit size={14}/> Auditor IA</button>
@@ -214,7 +297,6 @@ export default function ClientProfile() {
         {activeTab === 'OVERVIEW' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             
-            {/* LADO IZQUIERDO: BIOMETRÍA Y SUSCRIPCIÓN */}
             <div className="space-y-6">
               <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl h-fit">
                 <h2 className="text-xs font-black uppercase text-neutral-400 mb-6 flex items-center gap-2"><User size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Biometría Base</h2>
@@ -227,7 +309,6 @@ export default function ClientProfile() {
                 </div>
               </div>
 
-              {/* 🚀 TARJETA DE GESTIÓN VIP (SOLO ÉLITE) */}
               {coachIsElite && (
                 <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme?.brandColor || '#f59e0b' }}></div>
@@ -253,7 +334,6 @@ export default function ClientProfile() {
               )}
             </div>
 
-            {/* LADO DERECHO: MÉTRICAS Y HORMONAS */}
             <div className="space-y-6">
               <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme?.brandColor || '#f59e0b' }}></div>
@@ -302,7 +382,91 @@ export default function ClientProfile() {
           </div>
         )}
 
-        {/* LAS OTRAS PESTAÑAS (TRAINING, DISCIPLINE, GALLERY, AI) PERMANECEN INTACTAS ABAJO... */}
+        {/* 🍎 PESTAÑA: NUTRICIÓN Y AUDITORÍA (MÓDULO INYECTADO) */}
+        {activeTab === 'NUTRITION' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            
+            {/* PANEL DE CONTROL: APROBACIÓN */}
+            <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+                  <ShieldCheck size={18} className="text-amber-500"/> Auditoría de Protocolo Nutricional
+                </h2>
+                <p className="text-[10px] text-neutral-500 font-mono mt-1">
+                  El atleta no podrá ver su dieta VIP hasta que tú apruebes el protocolo.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <select 
+                  value={editDietStatus}
+                  onChange={(e) => setEditDietStatus(e.target.value)}
+                  className={`w-full md:w-auto text-xs font-black uppercase tracking-widest p-3 rounded-xl outline-none appearance-none cursor-pointer transition-colors ${editDietStatus === 'APPROVED' ? 'bg-green-500/10 text-green-500 border border-green-500/30' : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/30'}`}
+                >
+                  <option value="PENDING_AUDIT">🔒 Bloqueado (En Auditoría)</option>
+                  <option value="APPROVED">✅ Aprobado (Desbloqueado)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* EDITOR DE MACROS */}
+              <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl">
+                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
+                  <Target size={14}/> Override Metabólico (Macros)
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black border border-neutral-800 rounded-xl p-3">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-blue-400 block mb-1">Proteína (g)</label>
+                      <input type="number" value={editProtein} onChange={(e)=>setEditProtein(Number(e.target.value))} className="w-full bg-transparent text-xl font-mono text-white outline-none focus:border-b focus:border-blue-500 transition-all"/>
+                    </div>
+                    <div className="bg-black border border-neutral-800 rounded-xl p-3">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-amber-500 block mb-1">Carbohidratos (g)</label>
+                      <input type="number" value={editCarbs} onChange={(e)=>setEditCarbs(Number(e.target.value))} className="w-full bg-transparent text-xl font-mono text-white outline-none focus:border-b focus:border-amber-500 transition-all"/>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black border border-neutral-800 rounded-xl p-3">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-red-400 block mb-1">Grasas (g)</label>
+                      <input type="number" value={editFats} onChange={(e)=>setEditFats(Number(e.target.value))} className="w-full bg-transparent text-xl font-mono text-white outline-none focus:border-b focus:border-red-500 transition-all"/>
+                    </div>
+                    <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-3 flex flex-col justify-center">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-neutral-500 block mb-1">Calorías Totales</label>
+                      <span className="text-2xl font-black text-white tracking-tighter">{editCalories} <span className="text-xs font-normal text-neutral-500">kcal</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* EDITOR DE PRESCRIPCIÓN CLÍNICA */}
+              <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl flex flex-col">
+                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
+                  <Beaker size={14}/> Prescripción y Suplementación
+                </h3>
+                <textarea 
+                  value={coachNote}
+                  onChange={(e) => setCoachNote(e.target.value)}
+                  placeholder="Ej: Agrega 5g de Creatina post-entreno. El domingo haremos una carga de carbohidratos extra..."
+                  className="flex-1 w-full bg-black border border-neutral-800 rounded-xl p-4 text-xs font-mono text-white outline-none focus:border-amber-500 transition-colors resize-none min-h-[150px]"
+                />
+              </div>
+
+            </div>
+
+            {/* BOTÓN DE GUARDADO GLOBAL */}
+            <button 
+              onClick={handleSaveNutritionOverride}
+              disabled={isSavingDiet}
+              className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest text-xs py-5 rounded-2xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSavingDiet ? <Loader2 size={18} className="animate-spin" /> : <><Save size={18}/> Aplicar Cambios Nutricionales y Guardar Estado</>}
+            </button>
+          </div>
+        )}
+
         {activeTab === 'TRAINING' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl relative overflow-hidden max-w-4xl mx-auto">
