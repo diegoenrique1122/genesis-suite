@@ -26,16 +26,12 @@ export default function ElArquitecto() {
   const [coachName, setCoachName] = useState('Coach Élite');
   const [macros, setMacros] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
   const [mealsData, setMealsData] = useState([]);
+  const [customWeeklyCalendar, setCustomWeeklyCalendar] = useState(null);
   
   const [activeTab, setActiveTab] = useState('plan');
   const [vipExpanded, setVipExpanded] = useState(false);
-  
-  // 🔒 ESTADO DE APROBACIÓN DEL COACH
   const [dietStatus, setDietStatus] = useState('PENDING_AUDIT');
-  
-  // Prescripción del Coach
   const [prescription, setPrescription] = useState('');
-  const [isSavingPrescription, setIsSavingPrescription] = useState(false);
 
   useEffect(() => {
     fetchAthleteData();
@@ -62,10 +58,12 @@ export default function ElArquitecto() {
           if(coachData) setCoachName(coachData.full_name);
         }
 
-        // Si el coach personalizó los macros, cargarlos. Si no, calculamos base.
         if (profile.custom_macros) {
             setMacros(profile.custom_macros.totals);
             setMealsData(profile.custom_macros.meals);
+            if (profile.custom_macros.weekly_calendar) {
+              setCustomWeeklyCalendar(profile.custom_macros.weekly_calendar);
+            }
         } else {
             calculateMacros(profile.weight, profile.goal, profile.gender);
         }
@@ -104,18 +102,6 @@ export default function ElArquitecto() {
     setMealsData(dist.map(d => ({ p: Math.round(protein * d.p), c: Math.round(carbs * d.c), f: Math.round(fats * d.f) })));
   };
 
-  const handleSavePrescription = async () => {
-    setIsSavingPrescription(true);
-    try {
-      await supabase.from('athletes_profile').update({ coach_note: prescription }).eq('id', athlete.id);
-      alert("✅ Prescripción guardada exitosamente.");
-    } catch (err) {
-      alert("Error guardando prescripción.");
-    } finally {
-      setIsSavingPrescription(false);
-    }
-  };
-
   const chartData = {
     labels: ['Semana 0', 'Semana 2', 'Semana 4', 'Semana 6', 'Semana 8', 'Semana 10', 'Semana 12'],
     datasets: [
@@ -126,7 +112,12 @@ export default function ElArquitecto() {
   };
   const chartOptions = { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', labels: { padding: 15, usePointStyle: true, boxWidth: 8, font: { size: 10 }, color: '#cbd5e1' } }, tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y} Kg` } } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Masa Muscular (Kg)', color: '#cbd5e1' }, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#888' } }, x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#888' } } } };
 
+  // 📅 SI EL COACH EDITÓ EL CALENDARIO, SE MOSTRARÁ ESE ESPECÍFICO
   const generateVipWeekData = () => {
+    if (customWeeklyCalendar && customWeeklyCalendar.length > 0) {
+      return customWeeklyCalendar;
+    }
+
     const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const tableRows = [];
     days.forEach(day => {
@@ -179,7 +170,6 @@ export default function ElArquitecto() {
             <h1 className="text-3xl font-black uppercase tracking-tight flex items-center gap-3">
               <Utensils style={{ color: theme?.brandColor || '#f59e0b' }} size={32}/> El Arquitecto
             </h1>
-            {/* BADGE DE ESTADO DE AUDITORÍA */}
             <div className={`px-4 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border ${dietStatus === 'APPROVED' ? 'bg-green-500/10 text-green-500 border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.2)]' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]'}`}>
               {dietStatus === 'APPROVED' ? <><ShieldCheck size={14}/> Dieta Aprobada por Coach</> : <><Timer size={14}/> Pendiente de Auditoría Clínica</>}
             </div>
@@ -208,7 +198,7 @@ export default function ElArquitecto() {
             <textarea 
               value={prescription}
               onChange={(e) => setPrescription(e.target.value)}
-              disabled={true} // El atleta solo lee, no edita
+              disabled={true} 
               placeholder="El coach aún no ha añadido notas o directrices específicas..."
               className="w-full bg-black/50 border border-neutral-800 rounded-xl p-4 text-xs font-mono text-neutral-300 outline-none min-h-[100px] resize-y opacity-90 cursor-default"
             />
@@ -233,7 +223,6 @@ export default function ElArquitecto() {
           {vipExpanded && athlete?.b2c_plan === 'ELITE' && (
             <div className="relative p-6 pt-0 animate-in slide-in-from-top-4 duration-300 border-t border-amber-500/20 mt-2">
               
-              {/* 🔒 CORTINA DE BLOQUEO (SI EL COACH NO HA APROBADO) */}
               {dietStatus === 'PENDING_AUDIT' && (
                 <div className="absolute inset-0 z-20 bg-[#0a0a0a]/70 backdrop-blur-[6px] flex flex-col items-center justify-center rounded-b-3xl">
                   <div className="bg-black/90 border border-amber-500/30 p-6 rounded-3xl text-center shadow-2xl max-w-sm mx-4 animate-pulse">
@@ -284,7 +273,6 @@ export default function ElArquitecto() {
         {/* 🧮 MACROS PRINCIPALES Y MENÚ BASE (SIN ALIMENTOS) */}
         <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-xl relative">
           
-          {/* CORTINA PARA MACROS BASE SI NO ESTÁ APROBADO */}
           {dietStatus === 'PENDING_AUDIT' && (
              <div className="absolute inset-0 z-20 bg-[#0a0a0a]/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl">
                 <ShieldCheck size={32} className="text-yellow-500 mb-2" />

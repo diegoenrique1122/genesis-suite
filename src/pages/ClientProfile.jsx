@@ -6,9 +6,11 @@ import {
   Loader2, Dumbbell, CheckCircle2, Lock, Plus, MessageSquareQuote, 
   Droplet, Moon, Footprints, Utensils, AlertTriangle, Scale, Target, 
   TrendingUp, Droplets, Wind, Flame, LayoutDashboard, Camera,
-  ShieldCheck, Save, Beaker // Añadidos para el módulo de nutrición
+  ShieldCheck, Save, Beaker, Calendar, FileText, FileSpreadsheet, Edit3
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+
+const roundToHalf = (num) => Math.round(num * 2) / 2;
 
 export default function ClientProfile() {
   const { id } = useParams();
@@ -31,12 +33,14 @@ export default function ClientProfile() {
 
   const [activeTab, setActiveTab] = useState('OVERVIEW'); 
 
-  // 🍎 NUEVOS ESTADOS DEL MÓDULO DE NUTRICIÓN (COACH OVERRIDE)
+  // 🍎 ESTADOS DEL MÓDULO DE NUTRICIÓN (COACH OVERRIDE + CALENDARIO EDITABLE)
   const [editDietStatus, setEditDietStatus] = useState('PENDING_AUDIT');
   const [editProtein, setEditProtein] = useState(0);
   const [editCarbs, setEditCarbs] = useState(0);
   const [editFats, setEditFats] = useState(0);
   const [editCalories, setEditCalories] = useState(0);
+  const [weeklyCalendar, setWeeklyCalendar] = useState([]);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState('Lunes');
   const [isSavingDiet, setIsSavingDiet] = useState(false);
 
   useEffect(() => {
@@ -64,20 +68,40 @@ export default function ClientProfile() {
       if (profileData.training_plan) setEditablePlan(profileData.training_plan);
       if (profileData.coach_note) setCoachNote(profileData.coach_note);
 
-      // 🍎 Cargar estados de nutrición
+      // 🍎 Cargar estados de nutrición y calendario VIP
       setEditDietStatus(profileData.diet_status || 'PENDING_AUDIT');
+      
+      let initialTotals;
+      let initialMeals;
+
       if (profileData.custom_macros) {
-        setEditProtein(profileData.custom_macros.totals.protein);
-        setEditCarbs(profileData.custom_macros.totals.carbs);
-        setEditFats(profileData.custom_macros.totals.fats);
-        setEditCalories(profileData.custom_macros.totals.calories);
+        initialTotals = profileData.custom_macros.totals;
+        initialMeals = profileData.custom_macros.meals;
+        
+        if (profileData.custom_macros.weekly_calendar && profileData.custom_macros.weekly_calendar.length > 0) {
+          setWeeklyCalendar(profileData.custom_macros.weekly_calendar);
+        } else {
+          setWeeklyCalendar(generateDefaultWeeklyCalendar(initialMeals));
+        }
       } else {
-        const base = calculateBaseMacros(profileData.weight, profileData.goal);
-        setEditProtein(base.protein);
-        setEditCarbs(base.carbs);
-        setEditFats(base.fats);
-        setEditCalories(base.calories);
+        initialTotals = calculateBaseMacros(profileData.weight, profileData.goal);
+        const dist = [
+          { p: 0.2, c: 0.20, f: 0.25 }, { p: 0.2, c: 0.25, f: 0.30 },
+          { p: 0.2, c: 0.30, f: 0.00 }, { p: 0.2, c: 0.15, f: 0.25 },
+          { p: 0.2, c: 0.10, f: 0.20 }
+        ];
+        initialMeals = dist.map(d => ({
+          p: Math.round(initialTotals.protein * d.p),
+          c: Math.round(initialTotals.carbs * d.c),
+          f: Math.round(initialTotals.fats * d.f)
+        }));
+        setWeeklyCalendar(generateDefaultWeeklyCalendar(initialMeals));
       }
+
+      setEditProtein(initialTotals.protein);
+      setEditCarbs(initialTotals.carbs);
+      setEditFats(initialTotals.fats);
+      setEditCalories(initialTotals.calories);
 
       if (profileData.program_start_date) {
         const start = new Date(profileData.program_start_date);
@@ -113,14 +137,49 @@ export default function ClientProfile() {
     let proMultiplier = 2.2; let fatMultiplier = 0.8; let carbMultiplier = 3.0; 
     if (goal === 'Pérdida de Grasa') { carbMultiplier = 1.5; proMultiplier = 2.5; } 
     else if (goal === 'Ganancia Muscular') { carbMultiplier = 4.5; fatMultiplier = 1.0; }
-    const protein = Math.round(weightKg * proMultiplier);
-    const fats = Math.round(weightKg * fatMultiplier);
-    const carbs = Math.round(weightKg * carbMultiplier);
+    const protein = Math.round((weightKg || 70) * proMultiplier);
+    const fats = Math.round((weightKg || 70) * fatMultiplier);
+    const carbs = Math.round((weightKg || 70) * carbMultiplier);
     const calories = Math.round((protein * 4) + (carbs * 4) + (fats * 9));
     return { calories, protein, carbs, fats };
   };
 
-  // 🍎 GUARDAR OVERRIDE DE NUTRICIÓN
+  // 📅 Generador de la plantilla base del calendario semanal
+  const generateDefaultWeeklyCalendar = (meals) => {
+    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const calendar = [];
+
+    days.forEach(day => {
+      meals.forEach((m, idx) => {
+        let foodItem = ""; let scaleGrams = ""; let why = "";
+        
+        if(idx === 0) { foodItem = "Huevos Enteros + Claras extras"; scaleGrams = `${Math.floor(m.f/5)} Enteros + ${Math.round(m.p/3.6)} Claras`; why = "Alto valor biológico al despertar"; }
+        if(idx === 1) { foodItem = day === 'Lunes' || day === 'Miércoles' || day === 'Viernes' ? "Pechuga de Pollo + Arroz Jazmín" : "Pescado Blanco + Papa/Camote"; scaleGrams = `${Math.round(m.p*4.5)}g Proteína / ${Math.round(m.c*3.5)}g Carbo`; why = "Carbohidratos complejos para energía sostenida"; }
+        if(idx === 2) { foodItem = "Aislado de Suero + Crema de Arroz"; scaleGrams = `${roundToHalf(m.p/25)} scoop(s) / ${Math.round(m.c*1.2)}g Crema`; why = "Absorción ultra-rápida (Peri-Entrenamiento)"; }
+        if(idx === 3) { foodItem = "Carne Magra o Lomo + Aguacate"; scaleGrams = `${Math.round(m.p*4.8)}g Carne / ${Math.round(m.f*6.6)}g Aguacate`; why = "Grasas saludables post-entrenamiento lejano"; }
+        if(idx === 4) { foodItem = "Queso Cottage + Almendras"; scaleGrams = `${Math.round(m.p*8.3)}g Cottage / ${Math.round(m.f*2)}g Almendras`; why = "Caseína (Digestión nocturna lenta)"; }
+
+        calendar.push({
+          day,
+          meal: `Comida ${idx + 1}`,
+          food: foodItem,
+          scale: scaleGrams,
+          macros: `${m.p}g P | ${m.c}g C | ${m.f}g G`,
+          reason: why
+        });
+      });
+    });
+    return calendar;
+  };
+
+  // 📝 Manejador de cambios inline en el calendario semanal
+  const handleCalendarCellChange = (indexInArray, field, value) => {
+    const updated = [...weeklyCalendar];
+    updated[indexInArray][field] = value;
+    setWeeklyCalendar(updated);
+  };
+
+  // 🍎 GUARDAR OVERRIDE DE NUTRICIÓN COMPLETO
   const handleSaveNutritionOverride = async () => {
     setIsSavingDiet(true);
     try {
@@ -138,7 +197,8 @@ export default function ClientProfile() {
 
       const custom_macros = {
         totals: { calories: editCalories, protein: editProtein, carbs: editCarbs, fats: editFats },
-        meals: newMeals
+        meals: newMeals,
+        weekly_calendar: weeklyCalendar // 💥 Guardamos el calendario editado a mano por el Coach
       };
 
       const { error } = await supabase.from('athletes_profile').update({
@@ -149,7 +209,7 @@ export default function ClientProfile() {
 
       if (error) throw error;
       
-      alert(`✅ Protocolo Nutricional Guardado. Estado: ${editDietStatus === 'APPROVED' ? 'DESBLOQUEADO' : 'BLOQUEADO'}`);
+      alert(`✅ Protocolo Nutricional Guardado. Estado: ${editDietStatus === 'APPROVED' ? 'DESBLOQUEADO PARA EL ATLETA' : 'BLOQUEADO'}`);
       fetchExpediente(); 
     } catch (err) {
       alert("Error guardando cambios: " + err.message);
@@ -250,6 +310,8 @@ export default function ClientProfile() {
   const hormonal = athlete?.hormonal_data;
   const hPhase = hormonal?.currentPhase ? PHASE_UI[hormonal.currentPhase] : null;
 
+  const daysList = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo', 'Todos'];
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20">
       
@@ -281,7 +343,7 @@ export default function ClientProfile() {
               <button onClick={() => setActiveTab('OVERVIEW')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'OVERVIEW' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><LayoutDashboard size={14}/> General</button>
               <button onClick={() => setActiveTab('TRAINING')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'TRAINING' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Dumbbell size={14}/> Matriz Técnica</button>
               
-              {/* 🍎 PESTAÑA NUTRICIÓN INYECTADA AQUÍ */}
+              {/* 🍎 PESTAÑA NUTRICIÓN Y EDITOR DE DIETA */}
               <button onClick={() => setActiveTab('NUTRITION')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'NUTRITION' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Utensils size={14}/> Nutrición</button>
               
               <button onClick={() => setActiveTab('DISCIPLINE')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'DISCIPLINE' ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-500 hover:text-white border border-neutral-800'}`}><Activity size={14}/> Auditoría Diaria</button>
@@ -382,7 +444,7 @@ export default function ClientProfile() {
           </div>
         )}
 
-        {/* 🍎 PESTAÑA: NUTRICIÓN Y AUDITORÍA (MÓDULO INYECTADO) */}
+        {/* 🍎 PESTAÑA: NUTRICIÓN, AUDITORÍA Y EDITAR CALENDARIO DÍA X DÍA */}
         {activeTab === 'NUTRITION' && (
           <div className="space-y-6 animate-in fade-in duration-300">
             
@@ -454,6 +516,89 @@ export default function ClientProfile() {
                 />
               </div>
 
+            </div>
+
+            {/* 👑 EDITOR INTERACTIVO DE COMIDAS DÍA X DÍA (VIP) */}
+            <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-800 pb-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+                    <Edit3 size={18} className="text-amber-500"/> Edición del Calendario Nutricional Semanal
+                  </h3>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-1">
+                    Cambia la fuente de alimentos, gramos en báscula o aporta razones clínicas para cualquier día.
+                  </p>
+                </div>
+
+                {/* SELECTOR DE DÍA */}
+                <div className="flex gap-1 overflow-x-auto w-full md:w-auto scrollbar-hide">
+                  {daysList.map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setSelectedCalendarDay(d)}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold uppercase transition-all whitespace-nowrap ${selectedCalendarDay === d ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-black text-neutral-400 border border-neutral-800 hover:text-white'}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* TABLA EDITABLE */}
+              <div className="space-y-4">
+                {weeklyCalendar
+                  .map((item, indexInArray) => ({ item, indexInArray }))
+                  .filter(({ item }) => selectedCalendarDay === 'Todos' || item.day === selectedCalendarDay)
+                  .map(({ item, indexInArray }) => (
+                    <div key={indexInArray} className="bg-black border border-neutral-800 rounded-2xl p-4 space-y-3 hover:border-neutral-700 transition-colors">
+                      <div className="flex justify-between items-center border-b border-neutral-800/80 pb-2">
+                        <span className="text-xs font-black uppercase text-amber-500 tracking-wider">
+                          {item.day} • {item.meal}
+                        </span>
+                        <input 
+                          type="text" 
+                          value={item.macros} 
+                          onChange={(e) => handleCalendarCellChange(indexInArray, 'macros', e.target.value)}
+                          placeholder="Aporte Macros (Ej: 35g P | 40g C | 10g G)"
+                          className="bg-neutral-900 border border-neutral-800 rounded px-2 py-1 text-[10px] font-mono text-blue-400 outline-none text-right focus:border-blue-500 w-48"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
+                        <div>
+                          <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Alimento Recomendado</label>
+                          <input 
+                            type="text" 
+                            value={item.food} 
+                            onChange={(e) => handleCalendarCellChange(indexInArray, 'food', e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white outline-none focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Gramaje en Báscula</label>
+                          <input 
+                            type="text" 
+                            value={item.scale} 
+                            onChange={(e) => handleCalendarCellChange(indexInArray, 'scale', e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white outline-none focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Justificación Clínica</label>
+                          <input 
+                            type="text" 
+                            value={item.reason} 
+                            onChange={(e) => handleCalendarCellChange(indexInArray, 'reason', e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-neutral-300 outline-none focus:border-amber-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
 
             {/* BOTÓN DE GUARDADO GLOBAL */}
