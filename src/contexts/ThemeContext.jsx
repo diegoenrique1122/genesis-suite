@@ -4,12 +4,19 @@ import { supabase } from '../supabaseClient';
 const ThemeContext = createContext();
 
 export default function ThemeProviderComponent({ children }) {
-  const defaultTheme = { brandColor: '#f59e0b', logoUrl: null }; // Identidad Génesis Original
+  // Ajustado a las columnas reales de tu base de datos
+  const defaultTheme = { 
+    brandColor: '#f59e0b', // Color por defecto
+    bgColor: 'black',
+    logoUrl: null,
+    watermarkText: '@genesis_os',
+    watermarkOpacity: 10
+  }; 
+  
   const [theme, setTheme] = useState(defaultTheme);
 
   const loadTheme = async (session) => {
     try {
-      // Si no hay sesión (se cerró sesión), reseteamos a Génesis por defecto
       if (!session) {
         setTheme(defaultTheme);
         return;
@@ -28,7 +35,8 @@ export default function ThemeProviderComponent({ children }) {
       if (userMaster.role === 'COACH' || userMaster.role === 'SUPER_ADMIN') {
         const { data } = await supabase
           .from('coaches_profile')
-          .select('brand_color, brand_logo_url')
+          // CORRECCIÓN: Nombres de columnas que coinciden con tu BD
+          .select('theme_color, bg_color, logo_url, watermark_text, watermark_opacity')
           .eq('user_id', session.user.id)
           .single();
         coachData = data;
@@ -42,7 +50,8 @@ export default function ThemeProviderComponent({ children }) {
         if (athlete && athlete.coach_id) {
           const { data } = await supabase
             .from('coaches_profile')
-            .select('brand_color, brand_logo_url')
+            // CORRECCIÓN: Nombres de columnas que coinciden con tu BD
+            .select('theme_color, bg_color, logo_url, watermark_text, watermark_opacity')
             .eq('id', athlete.coach_id)
             .single();
           coachData = data;
@@ -51,8 +60,11 @@ export default function ThemeProviderComponent({ children }) {
 
       if (coachData) {
         setTheme({
-          brandColor: coachData.brand_color || '#f59e0b',
-          logoUrl: coachData.brand_logo_url
+          brandColor: coachData.theme_color || '#f59e0b',
+          bgColor: coachData.bg_color || 'black',
+          logoUrl: coachData.logo_url,
+          watermarkText: coachData.watermark_text || '',
+          watermarkOpacity: coachData.watermark_opacity || 10
         });
       }
     } catch (err) {
@@ -61,10 +73,8 @@ export default function ThemeProviderComponent({ children }) {
   };
 
   useEffect(() => {
-    // Carga inicial
     supabase.auth.getSession().then(({ data: { session } }) => loadTheme(session));
 
-    // ESCUDO B2B: Escuchamos el cierre de sesión para limpiar el color del DOM
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       loadTheme(session);
     });
@@ -82,7 +92,22 @@ export default function ThemeProviderComponent({ children }) {
       setTheme, 
       refreshTheme: () => supabase.auth.getSession().then(({ data }) => loadTheme(data.session)) 
     }}>
-      {children}
+      {/* EL INYECTOR GLOBAL DE MARCA DE AGUA
+        Si hay un texto de marca de agua, lo inyecta sutilmente de fondo en toda la app 
+      */}
+      {theme.watermarkText && (
+        <div 
+          className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden"
+          style={{ opacity: theme.watermarkOpacity / 100 }}
+        >
+          <div className="text-[15vw] font-black text-white/50 -rotate-45 whitespace-nowrap select-none">
+            {theme.watermarkText}
+          </div>
+        </div>
+      )}
+      <div className="relative z-10 w-full min-h-screen" style={{ backgroundColor: theme.bgColor }}>
+        {children}
+      </div>
     </ThemeContext.Provider>
   );
 }
