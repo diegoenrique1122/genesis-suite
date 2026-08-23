@@ -1,17 +1,19 @@
 /**
  * GENESIS OS
  * APP ELIGIBILITY
- *
- * Reglas adicionales de elegibilidad
- * independientes del plan comercial.
  */
 
+
 function normalizeGender(gender) {
-  if (!gender) return null;
+
+  if (!gender) {
+    return null;
+  }
 
   const normalized = String(gender)
     .trim()
     .toUpperCase();
+
 
   if (
     normalized === 'FEMALE' ||
@@ -21,6 +23,7 @@ function normalizeGender(gender) {
     return 'FEMALE';
   }
 
+
   if (
     normalized === 'MALE' ||
     normalized === 'MASCULINO' ||
@@ -29,9 +32,25 @@ function normalizeGender(gender) {
     return 'MALE';
   }
 
+
   return normalized;
 }
 
+
+/**
+ * Regulación Hormonal
+ *
+ * Requisitos:
+ *
+ * - estar operando en ATHLETE MODE
+ * - entitlement ELITE
+ * - perfil femenino
+ *
+ * Puede aplicar a:
+ * - ATHLETE
+ * - COACH ELITE inmersivo
+ * - SUPER_ADMIN inmersivo
+ */
 
 export function canUseHormonal({
   role,
@@ -39,22 +58,20 @@ export function canUseHormonal({
   plan,
   gender,
 }) {
+
   const normalizedGender =
     normalizeGender(gender);
 
-  if (role === 'SUPER_ADMIN') {
-    return (
-      mode === 'ATHLETE' &&
-      plan === 'ELITE' &&
-      normalizedGender === 'FEMALE'
-    );
-  }
 
-  if (role !== 'ATHLETE') {
-    return false;
-  }
+  const allowedRole = [
+    'ATHLETE',
+    'COACH',
+    'SUPER_ADMIN',
+  ].includes(role);
+
 
   return (
+    allowedRole &&
     mode === 'ATHLETE' &&
     plan === 'ELITE' &&
     normalizedGender === 'FEMALE'

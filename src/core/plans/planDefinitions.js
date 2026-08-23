@@ -5,9 +5,13 @@
  * Fuente central de capacidades comerciales.
  */
 
+
 export const COACH_PLANS = {
+
   IGNICION: {
+
     id: 'IGNICION',
+
     name: 'Coach Ignición',
 
     athleteLimit: 5,
@@ -22,18 +26,27 @@ export const COACH_PLANS = {
     features: {
       chatPrivate: true,
       community: false,
+
       trainingOverride: false,
       nutritionOverride: false,
+
       clinicalAI: false,
+
       whiteLabel: false,
+
       wearables: false,
+
       immersiveAthleteMode: false,
+
       customInviteCodes: false,
     },
   },
 
+
   EVOLUCION: {
+
     id: 'EVOLUCION',
+
     name: 'Coach Evolución',
 
     athleteLimit: 50,
@@ -48,18 +61,27 @@ export const COACH_PLANS = {
     features: {
       chatPrivate: true,
       community: false,
+
       trainingOverride: true,
       nutritionOverride: true,
+
       clinicalAI: false,
+
       whiteLabel: false,
+
       wearables: false,
+
       immersiveAthleteMode: false,
+
       customInviteCodes: false,
     },
   },
 
+
   ELITE: {
+
     id: 'ELITE',
+
     name: 'Coach Élite',
 
     athleteLimit: Infinity,
@@ -74,12 +96,18 @@ export const COACH_PLANS = {
     features: {
       chatPrivate: true,
       community: true,
+
       trainingOverride: true,
       nutritionOverride: true,
+
       clinicalAI: true,
+
       whiteLabel: true,
+
       wearables: true,
+
       immersiveAthleteMode: true,
+
       customInviteCodes: true,
     },
   },
@@ -87,12 +115,23 @@ export const COACH_PLANS = {
 
 
 export const ATHLETE_PLANS = {
+
+  /**
+   * IGNITION
+   *
+   * Las dos aplicaciones están inicialmente
+   * en false porque selected_app_single
+   * decidirá cuál de las dos se habilita.
+   */
+
   IGNICION: {
+
     id: 'IGNICION',
+
     name: 'Atleta Ignición',
 
     apps: {
-      trainerPro: true,
+      trainerPro: false,
       architect: false,
       discipline: false,
       hormonal: false,
@@ -105,8 +144,11 @@ export const ATHLETE_PLANS = {
     },
   },
 
+
   EVOLUCION: {
+
     id: 'EVOLUCION',
+
     name: 'Atleta Evolución',
 
     apps: {
@@ -123,8 +165,11 @@ export const ATHLETE_PLANS = {
     },
   },
 
+
   ELITE: {
+
     id: 'ELITE',
+
     name: 'Atleta Élite',
 
     apps: {

@@ -132,7 +132,7 @@ export default function SuperAdminDashboard() {
 
   const handleToggleCoachStatus = async (coachId, currentStatus) => {
     try {
-      await supabase.from('users_master').update({ account_status: currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' }).eq('id', coachId);
+      await supabase.from('users_master').update({ account_status: currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }).eq('id', coachId);
       loadSuperAdminData();
     } catch (err) { alert("Error."); }
   };

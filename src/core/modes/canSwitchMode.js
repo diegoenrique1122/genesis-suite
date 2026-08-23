@@ -2,12 +2,11 @@ import { GENESIS_MODES } from './modeDefinitions';
 
 
 /**
- * Determina si un usuario puede cambiar
- * al modo solicitado.
+ * GENESIS OS
+ * MODE ACCESS ENGINE
  *
  * IMPORTANTE:
- * Cambiar de modo NO cambia el role real
- * almacenado en users_master.
+ * El modo operacional NO modifica users_master.role.
  */
 
 export function canSwitchMode({
@@ -19,15 +18,13 @@ export function canSwitchMode({
   /**
    * SUPER ADMIN
    *
-   * Puede utilizar:
-   *
-   * ADMIN
-   * COACH ELITE
-   * ATHLETE ELITE
+   * Puede operar como:
+   * - ADMIN
+   * - COACH ELITE
+   * - ATHLETE ELITE
    */
 
   if (role === 'SUPER_ADMIN') {
-
     return [
       GENESIS_MODES.ADMIN,
       GENESIS_MODES.COACH,
@@ -38,11 +35,6 @@ export function canSwitchMode({
 
   /**
    * COACH
-   *
-   * Todo Coach puede utilizar su modo Coach.
-   *
-   * Solo Elite puede utilizar
-   * el modo Athlete.
    */
 
   if (role === 'COACH') {
@@ -65,9 +57,14 @@ export function canSwitchMode({
   /**
    * ATHLETE
    *
-   * Un atleta no necesita hacer switch
-   * a otros roles.
+   * Puede permanecer únicamente
+   * en su modo ATHLETE.
    */
+
+  if (role === 'ATHLETE') {
+    return targetMode === GENESIS_MODES.ATHLETE;
+  }
+
 
   return false;
 }
