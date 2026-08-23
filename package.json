@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.112.2",
     "chart.js": "^4.5.1",
     "jspdf": "^4.2.1",
