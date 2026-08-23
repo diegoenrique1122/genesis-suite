@@ -7,9 +7,14 @@ import {
   Droplet, Moon, Footprints, Utensils, AlertTriangle, Target, 
   TrendingUp, Droplets, Wind, Flame, LayoutDashboard, Camera,
   ShieldCheck, Save, Beaker, Calendar, FileText, FileSpreadsheet, Edit3,
-  Bell, X, ShoppingCart, Info, Zap // <-- IMPORTACIÓN DE 'X' CORREGIDA ✅
+  Bell, X, ShoppingCart, Info, Zap
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+
+// 🔥 IMPORTACIONES CLAVE CORREGIDAS PARA EL PDF Y EXCEL
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const roundToHalf = (num) => Math.round(num * 2) / 2;
 
@@ -210,7 +215,7 @@ export default function ClientProfile() {
     } catch(err) { alert("Error al cambiar estado: " + err.message); }
   };
 
-  // 🍎 GUARDAR NUTRICIÓN Y UI (Respeta Anchor V4, guarda en custom_macros y coach_customizations)
+  // 🍎 GUARDAR NUTRICIÓN Y UI
   const handleSaveNutritionOverride = async () => {
     setIsSavingDiet(true);
     try {
@@ -228,7 +233,6 @@ export default function ClientProfile() {
     } catch (err) { alert("Error guardando cambios: " + err.message); } finally { setIsSavingDiet(false); }
   };
 
-  // ----------------- FUNCIONES DE LA APP ORIGINAL -----------------
   const handleChangeAthletePlan = async (newPlan) => {
     if (!window.confirm(`¿Ascender/Degradar a este atleta al plan ${newPlan}?`)) return;
     try {
@@ -254,7 +258,6 @@ export default function ClientProfile() {
     const newPlan = [...editablePlan]; newPlan[dayIndex].exercises.splice(exIndex, 1); setEditablePlan(newPlan);
   };
   
-  // ✅ FUNCIÓN CORREGIDA DEL CRASH: Aprobar rutina desde la pestaña Entrenamiento
   const handleApproveRoutine = async () => {
     try {
       const { error } = await supabase.from('athletes_profile').update({ 
@@ -269,20 +272,41 @@ export default function ClientProfile() {
     } catch (err) { alert("❌ Error de guardado."); }
   };
 
+  // 🔥 CORRECCIÓN EXACTA DE LA IA
   const handleGenerateDiagnosis = async () => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) return alert("⚠️ Falta API Key de Gemini");
+    
     setAiLoading(true);
+    
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: `Actúa como coach clínico. Atleta: ${athlete.full_name}, ${athlete.goal}. Genera diagnóstico de 3 párrafos.` }] }] })
+      const promptText = `Actúa como un entrenador y nutriólogo de nivel clínico/olímpico. Tengo un nuevo atleta con el siguiente perfil: Nombre: ${athlete.full_name}, Edad: ${athlete.age}, Peso: ${athlete.weight}kg, Objetivo: ${athlete.goal}. Genera un "Diagnóstico Asistido por IA" para mí de máximo 3 párrafos con Puntos Críticos y Enfoque de Protocolo. Tono clínico, agresivo, directo y científico.`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
       });
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message);
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Error conectando con la IA");
+      }
+
       const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!aiText) throw new Error("La IA no devolvió contenido válido.");
+
       setDiagnosis(aiText);
       await supabase.from('athletes_profile').update({ ai_diagnosis: aiText }).eq('id', athlete.id);
-    } catch (error) { alert(`❌ Error IA: ${error.message}`); } finally { setAiLoading(false); }
+
+    } catch (error) {
+      alert(`❌ Error IA: ${error.message}`);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Activity className="animate-spin text-amber-500" size={40}/></div>;
@@ -314,8 +338,6 @@ export default function ClientProfile() {
   const hormonal = athlete?.hormonal_data;
   const hPhase = hormonal?.currentPhase ? PHASE_UI[hormonal.currentPhase] : null;
 
-  const daysList = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo', 'Todos'];
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20">
       
@@ -324,7 +346,7 @@ export default function ClientProfile() {
         <div className="max-w-6xl mx-auto">
           <button onClick={() => navigate('/coach')} className="flex items-center gap-2 text-neutral-500 hover:text-white mb-2 text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={14} /> Volver al Roster</button>
           
-          {/* PANEL DE CONTROL SUPERIOR (ESTADO GLOBAL ANCHOR V4) */}
+          {/* PANEL DE CONTROL SUPERIOR */}
           <div className="flex flex-col md:flex-row justify-between items-center bg-[#111] border border-neutral-800 rounded-3xl p-4 shadow-xl gap-4 mb-6 mt-4">
             <div>
               <h2 className="text-sm md:text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
@@ -502,7 +524,7 @@ export default function ClientProfile() {
               </div>
             </div>
 
-            {/* 3. CAJA DE HERRAMIENTAS CLÍNICAS (MODALES Y BOTONES) */}
+            {/* 3. CAJA DE HERRAMIENTAS CLÍNICAS */}
             <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-800 pb-4">
                 <div>
@@ -525,14 +547,14 @@ export default function ClientProfile() {
                         </select>
                       </div>
                       <div className="w-2/3">
-                        <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Nombre Corto (Botón)</label>
+                        <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Nombre Corto</label>
                         <input type="text" value={tool.shortTitle} onChange={(e) => handleToolChange(tool.id, 'shortTitle', e.target.value)} placeholder="Ej: Pesaje" className="w-full bg-neutral-900 border border-neutral-700 rounded p-1.5 text-[10px] font-bold text-white outline-none"/>
                       </div>
                     </div>
 
                     <div className="space-y-3 border-t border-neutral-800 pt-3">
                       <div>
-                        <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Título Grande (Dentro del Pop-up)</label>
+                        <label className="text-[8px] uppercase font-bold text-neutral-500 block mb-1">Título Grande</label>
                         <input type="text" value={tool.title} onChange={(e) => handleToolChange(tool.id, 'title', e.target.value)} placeholder="Ej: Reglas de Pesaje Semanal" className="w-full bg-neutral-900 border border-neutral-700 rounded p-2 text-xs font-bold text-white outline-none"/>
                       </div>
                       <div>
@@ -541,7 +563,7 @@ export default function ClientProfile() {
                       </div>
                       <label className="flex items-center gap-2 cursor-pointer mt-2 bg-neutral-950 p-2 rounded-lg border border-neutral-800">
                         <input type="checkbox" checked={tool.showChart} onChange={(e) => handleToolChange(tool.id, 'showChart', e.target.checked)} className="w-3 h-3 rounded bg-neutral-900 border-neutral-700 text-blue-500 focus:ring-0"/>
-                        <span className="text-[9px] font-bold uppercase text-neutral-400">Mostrar Gráfica Interactiva en esta Herramienta</span>
+                        <span className="text-[9px] font-bold uppercase text-neutral-400">Mostrar Gráfica Interactiva</span>
                       </label>
                     </div>
                   </div>
@@ -549,7 +571,7 @@ export default function ClientProfile() {
               </div>
             </div>
 
-            {/* 4. CONSTRUCTOR DE LA GRÁFICA (Solo visible si alguna herramienta la pide) */}
+            {/* 4. CONSTRUCTOR DE LA GRÁFICA */}
             {editTools.some(t => t.showChart) && (
               <div className="bg-[#111] border border-blue-900/30 rounded-3xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 opacity-10 bg-blue-500 rounded-full blur-3xl"></div>
@@ -609,7 +631,7 @@ export default function ClientProfile() {
               </div>
             )}
 
-            {/* 5. EDITOR DEL CALENDARIO VIP */}
+            {/* 5. EDITOR DEL CALENDARIO VIP Y BOTÓN DE PDF (AQUÍ CORREGIMOS EL AUTO-TABLE) */}
             <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-800 pb-4">
                 <div>
@@ -623,6 +645,38 @@ export default function ClientProfile() {
                     <button key={d} type="button" onClick={() => setSelectedCalendarDay(d)} className={`px-3 py-1.5 rounded-xl text-[10px] font-mono font-bold uppercase transition-all whitespace-nowrap ${selectedCalendarDay === d ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-black text-neutral-400 border border-neutral-800 hover:text-white'}`}>{d}</button>
                   ))}
                 </div>
+              </div>
+
+              {/* 🔥 BOTÓN DE PDF CORREGIDO */}
+              <div className="flex gap-2">
+                <button onClick={() => {
+                  const doc = new jsPDF('landscape'); 
+                  doc.setFillColor(10, 10, 10); doc.rect(0, 0, 300, 30, 'F'); 
+                  doc.setTextColor(245, 158, 11); doc.setFontSize(18); doc.text('CALENDARIO NUTRICIONAL VIP', 14, 20);
+                  const rows = weeklyCalendar.map(r => [r.day, r.meal, r.food, r.scale, r.macros, r.reason]);
+                  
+                  // Sintaxis correcta para autoTable
+                  autoTable(doc, { 
+                    startY: 40, 
+                    head: [['Día', 'Comida', 'Alimentos Sugeridos', 'Gr. Báscula', 'Aporte Macros', 'Justificación Clínica']], 
+                    body: rows, 
+                    theme: 'grid', 
+                    styles: { fontSize: 8, cellPadding: 3 }, 
+                    headStyles: { fillColor: [20, 20, 20], textColor: [245, 158, 11] }, 
+                    columnStyles: { 0: { fontStyle: 'bold' }, 4: { fontStyle: 'bold', textColor: [59, 130, 246] } } 
+                  });
+                  doc.save(`Calendario_VIP_${athlete?.full_name?.replace(/\s+/g, '_')}.pdf`);
+                }} className="bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2">
+                  <FileText size={14}/> PDF
+                </button>
+                
+                <button onClick={() => {
+                  const rows = weeklyCalendar.map(r => ({ 'Día': r.day, 'Comida': r.meal, 'Alimentos Recomendados': r.food, 'Gramaje en Báscula': r.scale, 'Aporte Real (Macros)': r.macros, 'Propósito Clínico': r.reason }));
+                  const ws = XLSX.utils.json_to_sheet(rows); ws['!cols'] = [{wch: 10}, {wch: 10}, {wch: 35}, {wch: 25}, {wch: 20}, {wch: 40}];
+                  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Calendario VIP"); XLSX.writeFile(wb, `Calendario_VIP_${athlete?.full_name?.replace(/\s+/g, '_')}.xlsx`);
+                }} className="bg-green-500/10 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2">
+                  <FileSpreadsheet size={14}/> Excel
+                </button>
               </div>
 
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">

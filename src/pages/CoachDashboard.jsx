@@ -3,20 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Users, Link as LinkIcon, ShieldCheck, Clock, CheckCircle2, 
-  Settings, LogOut, Copy, Lock, Loader2, Dumbbell, PlayCircle, AtSign 
+  Users, Activity, Loader2, ArrowRight, ShieldCheck, 
+  Settings, UserPlus, LogOut, MessageSquare, Globe
 } from 'lucide-react';
 
 export default function CoachDashboard() {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  
   const [loading, setLoading] = useState(true);
+  const [coachProfile, setCoachProfile] = useState(null);
+  const [roster, setRoster] = useState([]);
   
-  const [coach, setCoach] = useState(null);
-  const [athletes, setAthletes] = useState([]);
-  const [pendingAthletes, setPendingAthletes] = useState([]);
-  
-  const [globalSettings, setGlobalSettings] = useState(null);
+  // Estadísticas rápidas
+  const [stats, setStats] = useState({ total: 0, pending: 0, active: 0 });
 
   useEffect(() => {
     fetchDashboardData();
@@ -27,58 +27,37 @@ export default function CoachDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return navigate('/');
 
-      const { data: globals } = await supabase.from('super_admin_settings').select('*').eq('id', 1).maybeSingle();
-      if (globals) setGlobalSettings(globals);
-
-      const { data: profileData, error: profileErr } = await supabase
+      // 1. Obtener perfil del Coach
+      const { data: coachData, error: coachErr } = await supabase
         .from('coaches_profile')
         .select('*')
         .eq('user_id', session.user.id)
         .single();
-      
-      if (profileErr) throw profileErr;
-      setCoach(profileData);
 
+      if (coachErr || !coachData) throw new Error("Perfil de coach no encontrado");
+      setCoachProfile(coachData);
+
+      // 2. Obtener Roster de Atletas (Radar Global)
       const { data: athletesData } = await supabase
         .from('athletes_profile')
-        .select('*')
-        .eq('coach_id', profileData.id)
+        .select('id, full_name, b2c_plan, routine_status, program_start_date, discipline_metrics')
+        .eq('coach_id', coachData.id)
         .order('created_at', { ascending: false });
 
-      const allAthletes = athletesData || [];
-      
-      setPendingAthletes(allAthletes.filter(a => !a.program_start_date || a.routine_status === 'PENDING_AUDIT'));
-      setAthletes(allAthletes.filter(a => a.program_start_date));
+      if (athletesData) {
+        setRoster(athletesData);
+        setStats({
+          total: athletesData.length,
+          pending: athletesData.filter(a => a.routine_status === 'PENDING_AUDIT').length,
+          active: athletesData.filter(a => a.program_start_date !== null).length
+        });
+      }
 
-    } catch (error) {
-      console.error("Error Dashboard:", error);
+    } catch (err) {
+      console.error("Error cargando Command Center:", err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleActivateAthlete = async (athleteId) => {
-    if(!window.confirm("¿Seguro que deseas activar a este atleta? Su cronómetro de 12 semanas iniciará en este preciso instante.")) return;
-    
-    try {
-      setLoading(true);
-      const { error } = await supabase.from('athletes_profile').update({
-        program_start_date: new Date().toISOString()
-      }).eq('id', athleteId);
-      
-      if (error) throw error;
-      alert("✅ Atleta activado. El protocolo innegociable de 12 semanas ha comenzado.");
-      fetchDashboardData(); 
-    } catch (error) {
-      alert("❌ Error al activar: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCopy = (code) => {
-    navigator.clipboard.writeText(code);
-    alert(`✅ Código copiado: ${code}\nEnvíalo a tu atleta para que se registre en su plan.`);
   };
 
   const handleLogout = async () => {
@@ -86,168 +65,180 @@ export default function CoachDashboard() {
     navigate('/');
   };
 
-  if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="animate-spin" color={theme?.brandColor || '#f59e0b'} size={40}/></div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-500" size={40} />
+      </div>
+    );
+  }
 
-  const baseCode = coach?.coach_code || '123456';
-  const planB2B = coach?.b2b_plan?.toUpperCase() || 'IGNICION';
-  const isElite = planB2B === 'ELITE';
-  
-  const canSellEvo = planB2B === 'EVOLUCION' || planB2B === 'ELITE';
-  const canSellElite = planB2B === 'ELITE'; 
+  const brand = theme?.brandColor || '#3b82f6';
+  const isElite = coachProfile?.b2b_plan === 'ELITE';
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20 selection:bg-neutral-800">
       
-      {/* 🔮 RENDERIZADOR CONDICIONAL DE MARCA DE AGUA (FIJADA Y VISIBLE) */}
-      {isElite && coach?.brand_logo_url ? (
-         <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 opacity-10">
-           <img src={coach.brand_logo_url} alt="Coach Logo" className="w-1/2 object-contain grayscale" />
-         </div>
-      ) : (!isElite && globalSettings) ? (
-         <div className="fixed inset-0 pointer-events-none flex flex-col items-center justify-center z-0" style={{ opacity: (globalSettings.watermark_opacity || 15) / 100 }}>
-           {globalSettings.watermark_url && (
-             <img src={globalSettings.watermark_url} alt="Genesis Global" style={{ width: `${globalSettings.watermark_size || 50}%`, objectFit: 'contain' }} className="blur-[1px] drop-shadow-2xl" />
-           )}
-           {globalSettings.instagram_handle && (
-             <div className="flex items-center gap-3 mt-6 text-4xl sm:text-6xl font-black tracking-widest text-white/40 drop-shadow-lg">
-               <AtSign size={48} /> {globalSettings.instagram_handle.replace('@', '')}
-             </div>
-           )}
-         </div>
-      ) : null}
+      {/* Background Glow */}
+      <div 
+        className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none"
+        style={{ background: `linear-gradient(180deg, ${brand} 0%, transparent 100%)` }}
+      ></div>
 
-      <div className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none z-0" style={{ background: `linear-gradient(180deg, ${theme?.brandColor || '#f59e0b'} 0%, transparent 100%)` }}></div>
-
-      {/* NAVBAR */}
-      <nav className="relative z-10 border-b border-neutral-800 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      {/* NAVBAR B2B */}
+      <nav className="border-b border-neutral-800 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={20} style={{ color: theme?.brandColor || '#f59e0b' }} />
-            <span className="text-xs font-black uppercase tracking-widest text-neutral-300">Command Center</span>
+            <ShieldCheck size={20} style={{ color: brand }} />
+            <span className="text-sm font-black uppercase tracking-widest text-white">
+              Command Center
+            </span>
+            <span className="text-[9px] bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded font-mono ml-2">
+              {coachProfile?.b2b_plan}
+            </span>
           </div>
-          <div className="flex gap-4">
-            <button onClick={() => navigate('/coach/settings')} className="text-neutral-500 hover:text-white transition-colors"><Settings size={18} /></button>
-            <button onClick={handleLogout} className="text-neutral-500 hover:text-white transition-colors"><LogOut size={18} /></button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate('/coach/settings')} className="text-neutral-500 hover:text-white transition-colors flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest">
+              <Settings size={16} /> Ajustes
+            </button>
+            <button onClick={handleLogout} className="text-neutral-500 hover:text-red-500 transition-colors">
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 relative z-10 space-y-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6 relative z-10">
         
-        {/* ENCABEZADO */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-tight">Hola, {coach?.full_name?.split(' ')[0] || 'Coach'}</h1>
-            <p className="text-sm text-neutral-400 font-mono mt-1">Licencia B2B: <span style={{ color: theme?.brandColor || '#f59e0b' }} className="font-bold">{planB2B}</span></p>
+        {/* ENCABEZADO Y MÉTRICAS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
+            <h1 className="text-2xl font-black uppercase tracking-tight mb-1">
+              Hola, {coachProfile?.full_name?.split(' ')[0] || 'Coach'}
+            </h1>
+            <p className="text-xs text-neutral-400 font-mono">
+              Tienes {stats.pending} atletas requiriendo auditoría clínica hoy.
+            </p>
           </div>
-          <button onClick={() => navigate('/coach/settings')} className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-neutral-800 transition-colors shadow-lg">
-            Tu Marca & Ajustes
-          </button>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-black border border-neutral-800 rounded-3xl p-5 text-center flex flex-col justify-center">
+              <span className="text-3xl font-black font-mono text-white">{stats.active}</span>
+              <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">Activos</span>
+            </div>
+            <div className="bg-black border border-neutral-800 rounded-3xl p-5 text-center flex flex-col justify-center">
+              <span className="text-3xl font-black font-mono text-amber-500">{stats.pending}</span>
+              <span className="text-[9px] uppercase font-black tracking-widest text-amber-500/70 mt-1">Pendientes</span>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* 🚀 NUEVO: HUB DE ACCIONES RÁPIDAS (AQUÍ ESTÁ EL CHAT) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           
-          {/* COLUMNA IZQUIERDA: ENLACES */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* 🔮 Tarjeta Glassmorphism */}
-            <div className="bg-[#111]/70 backdrop-blur-xl border border-neutral-800/60 p-6 rounded-3xl shadow-xl">
-              <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 mb-6 flex items-center gap-2"><LinkIcon size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Enlaces de Adquisición</h2>
-              
-              <div className="space-y-4">
-                <div className="bg-black/60 border border-neutral-800/50 rounded-2xl p-4 relative group backdrop-blur-md">
-                  <span className="text-[10px] font-black uppercase text-neutral-500 block mb-1">Plan Ignición (Base)</span>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-mono font-bold text-white tracking-wider">IGN-{baseCode}</span>
-                    <button onClick={() => handleCopy(`IGN-${baseCode}`)} className="text-neutral-500 hover:text-white bg-neutral-900/80 p-2 rounded-xl"><Copy size={14}/></button>
-                  </div>
-                </div>
-
-                <div className={`bg-black/60 border border-neutral-800/50 rounded-2xl p-4 relative backdrop-blur-md ${!canSellEvo ? 'opacity-50 grayscale' : ''}`}>
-                  {!canSellEvo && <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 rounded-2xl"><Lock size={20} className="text-neutral-400"/></div>}
-                  <span className="text-[10px] font-black uppercase text-blue-500 block mb-1">Plan Evolución (Pro)</span>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-mono font-bold text-blue-100 tracking-wider">EVO-{baseCode}</span>
-                    <button disabled={!canSellEvo} onClick={() => handleCopy(`EVO-${baseCode}`)} className="text-blue-500 hover:text-blue-400 bg-blue-900/20 p-2 rounded-xl"><Copy size={14}/></button>
-                  </div>
-                </div>
-
-                <div className={`bg-black/60 border border-neutral-800/50 rounded-2xl p-4 relative backdrop-blur-md ${!canSellElite ? 'opacity-50 grayscale' : ''}`}>
-                  {!canSellElite && <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 rounded-2xl"><Lock size={20} className="text-neutral-400"/></div>}
-                  <span className="text-[10px] font-black uppercase text-amber-500 block mb-1">Plan Élite 360°</span>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-mono font-bold text-amber-100 tracking-wider">PRO-{baseCode}</span>
-                    <button disabled={!canSellElite} onClick={() => handleCopy(`PRO-${baseCode}`)} className="text-amber-500 hover:text-amber-400 bg-amber-900/20 p-2 rounded-xl"><Copy size={14}/></button>
-                  </div>
-                </div>
+          {/* Botón hacia el Chat (Multi-Tenant) */}
+          <button 
+            onClick={() => navigate('/chat')}
+            className="bg-[#111] border border-neutral-800 hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg"
+          >
+            <div className="flex items-center gap-4">
+              <div 
+                className="w-12 h-12 rounded-xl flex items-center justify-center bg-black border border-neutral-800 group-hover:scale-110 transition-transform"
+              >
+                {isElite ? <Globe size={20} style={{ color: brand }} /> : <MessageSquare size={20} style={{ color: brand }} />}
+              </div>
+              <div className="text-left">
+                <h2 className="text-sm font-black uppercase tracking-widest text-white">
+                  Red de Comunicaciones
+                </h2>
+                <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                  {isElite ? 'Muro Global, Sala Coaches y Chat 1-a-1' : 'Chat Directo 1-a-1 con Atletas'}
+                </p>
               </div>
             </div>
-          </div>
+            <ArrowRight size={18} className="text-neutral-600 group-hover:text-white transition-colors" />
+          </button>
 
-          {/* COLUMNA DERECHA: ROSTER */}
-          <div className="lg:col-span-8 space-y-6">
-            
-            {/* SALA DE ESPERA (PENDIENTES) */}
-            <div className="bg-gradient-to-br from-[#111]/80 to-[#1a1a1a]/80 backdrop-blur-xl border border-neutral-800/60 p-6 rounded-3xl shadow-2xl">
-              <div className="flex justify-between items-center mb-6 border-b border-neutral-800/50 pb-4">
-                <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-2"><Clock size={16} className="text-yellow-500"/> Por Activar</h2>
-                <span className="bg-yellow-500/20 text-yellow-500 font-mono font-bold text-[10px] px-3 py-1 rounded-full">{pendingAthletes.length}</span>
+          {/* Botón para invitar clientes */}
+          <button 
+            onClick={() => navigate('/coach/settings')}
+            className="bg-[#111] border border-neutral-800 hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-black border border-neutral-800 group-hover:scale-110 transition-transform">
+                <UserPlus size={20} className="text-neutral-400" />
               </div>
-
-              {pendingAthletes.length === 0 ? (
-                <div className="py-8 text-center border-2 border-dashed border-neutral-800/50 rounded-2xl bg-black/20"><p className="text-xs font-mono text-neutral-500">Tu sala de espera está vacía.</p></div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {pendingAthletes.map(athlete => (
-                    <div key={athlete.id} className="bg-black/40 backdrop-blur-sm border border-neutral-800/50 p-4 rounded-2xl flex flex-col justify-between shadow-inner">
-                      <div className="mb-4">
-                        <h3 className="font-bold text-sm text-white uppercase">{athlete.full_name}</h3>
-                        <p className="text-[10px] text-neutral-500 font-mono mt-1">Plan: <span className="text-yellow-500">{athlete.b2c_plan}</span></p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => navigate(`/coach/client/${athlete.id}`)} className="flex-1 bg-neutral-900/80 hover:bg-neutral-800 text-white font-bold uppercase text-[10px] py-2 rounded-xl transition-colors border border-neutral-800">
-                          Auditar
-                        </button>
-                        {!athlete.program_start_date && (
-                          <button onClick={() => handleActivateAthlete(athlete.id)} className="flex-1 bg-green-600/90 hover:bg-green-500 text-white font-bold uppercase text-[10px] py-2 rounded-xl transition-colors shadow-lg flex items-center justify-center gap-1">
-                            <PlayCircle size={12}/> Activar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ROSTER ACTIVO */}
-            <div className="bg-[#111]/70 backdrop-blur-xl border border-neutral-800/60 p-6 rounded-3xl shadow-xl">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-2"><Users size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Roster Activo</h2>
-                <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase text-neutral-500 mb-0.5">Total Atletas</p>
-                  <span className="font-mono text-xl font-black">{athletes.length}</span>
-                </div>
+              <div className="text-left">
+                <h2 className="text-sm font-black uppercase tracking-widest text-white">
+                  Adquisición de Clientes
+                </h2>
+                <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                  Gestiona tus códigos de invitación B2C
+                </p>
               </div>
-
-              {athletes.length === 0 ? (
-                <div className="py-12 text-center border-2 border-dashed border-neutral-800/50 rounded-2xl bg-black/20"><p className="text-xs font-mono text-neutral-500">Aún no tienes clientes activos en la plataforma.</p></div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {athletes.map(athlete => (
-                    <div key={athlete.id} onClick={() => navigate(`/coach/client/${athlete.id}`)} className="bg-black/50 backdrop-blur-sm border border-neutral-800/50 p-4 rounded-2xl cursor-pointer hover:border-neutral-600 transition-all group flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-sm text-white uppercase group-hover:text-amber-500 transition-colors">{athlete.full_name}</h3>
-                        <p className="text-[10px] text-neutral-500 font-mono mt-1">Suscripción: {athlete.b2c_plan}</p>
-                      </div>
-                      <Dumbbell size={16} className="text-neutral-700 group-hover:text-amber-500 transition-colors" />
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
+            <ArrowRight size={18} className="text-neutral-600 group-hover:text-white transition-colors" />
+          </button>
 
-          </div>
         </div>
+
+        {/* RADAR GLOBAL (ROSTER DE ATLETAS) */}
+        <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl">
+          <div className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-4">
+            <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-2">
+              <Activity size={16} style={{ color: brand }} /> Radar Global de Atletas
+            </h2>
+          </div>
+
+          {roster.length === 0 ? (
+            <div className="text-center py-12">
+              <Users size={40} className="text-neutral-700 mx-auto mb-3" />
+              <p className="text-xs font-mono text-neutral-500">Aún no tienes atletas asignados a tu roster.</p>
+              <p className="text-[10px] text-neutral-600 mt-1">Comparte tus códigos de invitación para comenzar.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {roster.map(athlete => (
+                <button
+                  key={athlete.id}
+                  onClick={() => navigate(`/coach/client/${athlete.id}`)}
+                  className="w-full bg-black border border-neutral-800 hover:border-neutral-600 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-black uppercase text-sm group-hover:bg-white group-hover:text-black transition-colors">
+                      {athlete.full_name?.substring(0, 2)}
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-sm font-black uppercase tracking-widest text-white">
+                        {athlete.full_name}
+                      </h3>
+                      <p className="text-[10px] font-mono text-neutral-500">
+                        Plan: {athlete.b2c_plan}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    {!athlete.program_start_date ? (
+                      <span className="text-[9px] bg-neutral-800 text-neutral-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                        En Sala de Espera
+                      </span>
+                    ) : athlete.routine_status === 'PENDING_AUDIT' ? (
+                      <span className="text-[9px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest animate-pulse">
+                        Requiere Auditoría
+                      </span>
+                    ) : (
+                      <span className="text-[9px] bg-green-500/10 border border-green-500/30 text-green-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                        Activo / Auditado
+                      </span>
+                    )}
+                    <ArrowRight size={16} className="text-neutral-600 group-hover:text-white" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
       </main>
     </div>
   );

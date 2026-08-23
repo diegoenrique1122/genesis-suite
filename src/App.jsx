@@ -12,6 +12,7 @@ import RegisterCoach from './pages/RegisterCoach';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import CoachDashboard from './pages/CoachDashboard';
 import CoachSettings from './pages/CoachSettings'; 
+import CoachNotifications from './pages/CoachNotifications'; // 🔥 NUEVO: Importación del Centro de Notificaciones
 import ClientProfile from './pages/ClientProfile'; 
 import ClientDashboard from './pages/ClientDashboard';
 import ClientOnboarding from './pages/ClientOnboarding';
@@ -96,12 +97,13 @@ export default function App() {
           
           <Route path="/super-admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><SuperAdminDashboard /></ProtectedRoute>} />
 
+          {/* RUTAS DEL COACH */}
           <Route path="/coach" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COACH']}><CoachDashboard /></ProtectedRoute>} />
           <Route path="/coach/settings" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COACH']}><CoachSettings /></ProtectedRoute>} />
-          
-          {/* CORRECCIÓN ARQUITECTÓNICA: Cambiado :clientId por :id para que coincida con ClientProfile.jsx */}
+          <Route path="/coach/notifications" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COACH']}><CoachNotifications /></ProtectedRoute>} /> {/* 🔥 NUEVO: Ruta registrada */}
           <Route path="/coach/client/:id" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COACH']}><ClientProfile /></ProtectedRoute>} />
 
+          {/* RUTAS DEL ATLETA */}
           <Route path="/client" element={<ProtectedRoute allowedRoles={['ATHLETE']}><ClientDashboard /></ProtectedRoute>} />
           <Route path="/client/onboarding" element={<ProtectedRoute allowedRoles={['ATHLETE']}><ClientOnboarding /></ProtectedRoute>} />
           <Route path="/client/arquitecto" element={<ProtectedRoute allowedRoles={['ATHLETE']}><ElArquitecto /></ProtectedRoute>} />
