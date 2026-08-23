@@ -152,31 +152,57 @@ export default function CoachSettings() {
     } catch (err) { alert("❌ Error enviando solicitud."); } finally { setSendingReq(false); }
   };
 
-  const handleImmersiveMode = async () => {
-    try {
-      setImmersiveLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data: avatar } = await supabase.from('athletes_profile').select('id').eq('user_id', session.user.id).maybeSingle();
-      
-      if (!avatar) {
-        await supabase.from('athletes_profile').insert({
-          user_id: session.user.id,
-          coach_id: coach.id,
-          full_name: `${coach.full_name} (Modo Prueba)`,
-          b2c_plan: 'ELITE',
-          age: 30, weight: 75, height: 175, gender: 'Masculino', goal: 'Prueba de Sistema',
-          is_onboarded: true,
-          program_start_date: new Date().toISOString() 
-        });
-      }
-      navigate('/client');
-    } catch (err) {
-      alert("Error al iniciar Modo Inmersivo.");
-    } finally {
-      setImmersiveLoading(false);
+const handleImmersiveMode = async () => {
+  try {
+    setImmersiveLoading(true);
+
+    const {
+      data,
+      error,
+    } = await supabase.rpc(
+      'ensure_immersive_athlete_profile'
+    );
+
+    if (error) {
+      throw error;
     }
-  };
+
+    const result =
+      Array.isArray(data)
+        ? data[0]
+        : data;
+
+    if (!result?.athlete_id) {
+      throw new Error(
+        'Genesis no pudo preparar el perfil inmersivo.'
+      );
+    }
+
+    console.log(
+      'Genesis Immersive Athlete Mode:',
+      {
+        athleteId: result.athlete_id,
+        plan: result.athlete_plan,
+        created: result.created,
+      }
+    );
+
+    navigate('/client');
+
+  } catch (err) {
+    console.error(
+      'Genesis immersive mode error:',
+      err
+    );
+
+    alert(
+      `❌ Error al iniciar Modo Inmersivo: ${err.message}`
+    );
+
+  } finally {
+    setImmersiveLoading(false);
+  }
+};
 
   const copyReferralLink = () => {
     const code = coach?.coach_code || coach?.id?.substring(0, 8);

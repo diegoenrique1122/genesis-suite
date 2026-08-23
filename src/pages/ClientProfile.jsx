@@ -274,40 +274,65 @@ export default function ClientProfile() {
 
   // 🔥 CORRECCIÓN EXACTA DE LA IA
   const handleGenerateDiagnosis = async () => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) return alert("⚠️ Falta API Key de Gemini");
-    
-    setAiLoading(true);
-    
-    try {
-      const promptText = `Actúa como un entrenador y nutriólogo de nivel clínico/olímpico. Tengo un nuevo atleta con el siguiente perfil: Nombre: ${athlete.full_name}, Edad: ${athlete.age}, Peso: ${athlete.weight}kg, Objetivo: ${athlete.goal}. Genera un "Diagnóstico Asistido por IA" para mí de máximo 3 párrafos con Puntos Críticos y Enfoque de Protocolo. Tono clínico, agresivo, directo y científico.`;
+  if (!athlete?.id) {
+    alert(
+      '❌ No se encontró el atleta que deseas analizar.'
+    );
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }]
-        })
-      });
+    return;
+  }
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error?.message || "Error conectando con la IA");
+  setAiLoading(true);
+
+  try {
+    const {
+      data,
+      error,
+    } = await supabase.functions.invoke(
+      'generate-athlete-analysis',
+      {
+        body: {
+          athleteId: athlete.id,
+        },
       }
+    );
 
-      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!aiText) throw new Error("La IA no devolvió contenido válido.");
-
-      setDiagnosis(aiText);
-      await supabase.from('athletes_profile').update({ ai_diagnosis: aiText }).eq('id', athlete.id);
-
-    } catch (error) {
-      alert(`❌ Error IA: ${error.message}`);
-    } finally {
-      setAiLoading(false);
+    if (error) {
+      throw error;
     }
-  };
+
+    if (data?.error) {
+      throw new Error(
+        data.error
+      );
+    }
+
+    if (!data?.analysis) {
+      throw new Error(
+        'La IA no devolvió un análisis válido.'
+      );
+    }
+
+    setDiagnosis(
+      data.analysis
+    );
+
+  } catch (error) {
+    console.error(
+      'Genesis AI analysis:',
+      error
+    );
+
+    alert(
+      `❌ Error IA: ${error.message}`
+    );
+
+  } finally {
+    setAiLoading(false);
+  }
+};
+
+
 
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Activity className="animate-spin text-amber-500" size={40}/></div>;
   if (!athlete) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><p className="text-red-500">Atleta no encontrado</p></div>;
