@@ -110,7 +110,13 @@ export default function App() {
           <Route path="/client/disciplina" element={<ProtectedRoute allowedRoles={['ATHLETE']}><MonitoreoDisciplina /></ProtectedRoute>} />
           <Route path="/client/entrenamiento" element={<ProtectedRoute allowedRoles={['ATHLETE']}><AppTrainerPro /></ProtectedRoute>} />
           <Route path="/client/hormonal" element={<ProtectedRoute allowedRoles={['ATHLETE']}><RegulacionHormonal /></ProtectedRoute>} />
-          
+          {/* RUTAS DEL ATLETA (MODO INMERSIVO PARA TODOS) */}
+          <Route path="/client" element={<ProtectedRoute allowedRoles={['ATHLETE', 'COACH', 'SUPER_ADMIN']}><ClientDashboard /></ProtectedRoute>} />
+          <Route path="/client/onboarding" element={<ProtectedRoute allowedRoles={['ATHLETE']}><ClientOnboarding /></ProtectedRoute>} />
+          <Route path="/client/arquitecto" element={<ProtectedRoute allowedRoles={['ATHLETE', 'COACH', 'SUPER_ADMIN']}><ElArquitecto /></ProtectedRoute>} />
+          <Route path="/client/disciplina" element={<ProtectedRoute allowedRoles={['ATHLETE', 'COACH', 'SUPER_ADMIN']}><MonitoreoDisciplina /></ProtectedRoute>} />
+          <Route path="/client/entrenamiento" element={<ProtectedRoute allowedRoles={['ATHLETE', 'COACH', 'SUPER_ADMIN']}><AppTrainerPro /></ProtectedRoute>} />
+          <Route path="/client/hormonal" element={<ProtectedRoute allowedRoles={['ATHLETE', 'COACH', 'SUPER_ADMIN']}><RegulacionHormonal /></ProtectedRoute>} />
           <Route path="/chat" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COACH', 'ATHLETE']}><Chat /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" />} />
