@@ -1,0 +1,10 @@
+/**
+ * GENESIS OS
+ * OPERATING MODES
+ */
+
+export const GENESIS_MODES = {
+  ADMIN: 'ADMIN',
+  COACH: 'COACH',
+  ATHLETE: 'ATHLETE',
+};
