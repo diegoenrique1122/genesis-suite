@@ -298,8 +298,42 @@ export default function ClientProfile() {
     );
 
     if (error) {
-      throw error;
+
+  let message =
+    error.message ||
+    'La función de IA devolvió un error.';
+
+
+  try {
+
+    const errorPayload =
+      await error.context
+        ?.clone?.()
+        .json();
+
+
+    if (errorPayload?.retryable) {
+
+      message =
+        'El servicio de IA está temporalmente ocupado. Intenta nuevamente en unos segundos.';
+
+    } else if (errorPayload?.error) {
+
+      message =
+        errorPayload.error;
     }
+
+  } catch {
+
+    // Si Supabase no entrega cuerpo JSON,
+    // conservamos el mensaje seguro disponible.
+  }
+
+
+  throw new Error(
+    message
+  );
+}
 
     if (data?.error) {
       throw new Error(
@@ -938,13 +972,13 @@ export default function ClientProfile() {
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/30 shrink-0"><BrainCircuit className="text-blue-500" size={24}/></div>
                     <div>
-                      <h2 className="text-xl font-black uppercase tracking-tight text-white">Auditor Clínico IA</h2>
-                      <p className="text-[11px] text-blue-400 font-mono mt-1">Potenciado por Google Gemini Flash 1.5</p>
+                      <h2 className="text-xl font-black uppercase tracking-tight text-white">Auditor IA V2</h2>
+                      <p className="text-[11px] text-blue-400 font-mono mt-1">Google Gemini 3.7 Flash · Perfil + telemetría de 7 días</p>
                     </div>
                   </div>
                   
                   <button onClick={handleGenerateDiagnosis} disabled={aiLoading} className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] disabled:opacity-50 flex items-center justify-center gap-2">
-                    {aiLoading ? <Loader2 size={16} className="animate-spin"/> : 'Generar Análisis Clínico'}
+                    {aiLoading ? <Loader2 size={16} className="animate-spin"/> : 'Generar Auditoría IA'}
                   </button>
                 </div>
 
@@ -956,7 +990,7 @@ export default function ClientProfile() {
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-50">
                       <BrainCircuit size={48} className="text-neutral-700 mb-4" />
-                      <p className="text-sm font-mono text-neutral-400 max-w-md mx-auto">La Inteligencia Artificial cruzará la biometría, lesiones y objetivos del atleta para generar un resumen médico-deportivo altamente preciso.</p>
+                      <p className="text-sm font-mono text-neutral-400 max-w-md mx-auto">El Auditor IA cruzará el perfil, las lesiones, los objetivos y la telemetría disponible de los últimos 7 días. Si faltan datos, lo indicará sin inventarlos.</p>
                     </div>
                   )}
                 </div>
