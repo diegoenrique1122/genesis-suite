@@ -21,4 +21,5 @@ export {
 
 export {
   canUseHormonal,
+  normalizeGender,
 } from './entitlements/appEligibility';

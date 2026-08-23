@@ -65,22 +65,54 @@ export default function ClientOnboarding() {
     setLoading(true);
 
     try {
-      const numericCode = coachCode.replace(/\D/g, ''); 
-      if (!numericCode || numericCode.length < 4) {
-        throw new Error("Código de Coach inválido. Ingresa el código numérico que te proporcionó tu entrenador.");
-      }
+      const normalizedInviteCode =
+  coachCode.trim().toUpperCase();
 
-      let planAssigned = 'IGNICION';
-      if (coachCode.toUpperCase().includes('EVO')) planAssigned = 'EVOLUCION';
-      if (coachCode.toUpperCase().includes('PRO')) planAssigned = 'ELITE';
+if (!normalizedInviteCode) {
+  throw new Error(
+    "Debes ingresar el código de invitación proporcionado por tu Coach."
+  );
+}
 
-      const { data: coachData, error: coachErr } = await supabase
-        .from('coaches_profile')
-        .select('id, full_name')
-        .ilike('coach_code', `%${numericCode}%`)
-        .maybeSingle();
+const {
+  data: inviteData,
+  error: inviteError
+} = await supabase.rpc(
+  'resolve_coach_invite',
+  {
+    p_code: normalizedInviteCode
+  }
+);
 
-      if (coachErr || !coachData) throw new Error("Entrenador no encontrado. Verifica el código con tu Coach.");
+if (inviteError) {
+  console.error(
+    'Error validando invitación:',
+    inviteError
+  );
+
+  throw new Error(
+    "No fue posible validar el código de invitación."
+  );
+}
+
+const resolvedInvite =
+  Array.isArray(inviteData)
+    ? inviteData[0]
+    : inviteData;
+
+if (!resolvedInvite) {
+  throw new Error(
+    "Código de invitación inválido, vencido o no autorizado para este plan."
+  );
+}
+
+const coachData = {
+  id: resolvedInvite.coach_id,
+  full_name: resolvedInvite.coach_name,
+};
+
+const planAssigned =
+  resolvedInvite.athlete_plan;
 
       const { data: athleteProfile } = await supabase
         .from('athletes_profile')
