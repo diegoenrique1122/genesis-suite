@@ -7,6 +7,18 @@ import {
   ShieldCheck, Loader2, User, Users, Trash2, Ban, AlertTriangle
 } from 'lucide-react';
 
+const buildGenesisChatTopic = (channelType, userId, recipientId = null) => {
+  if (channelType === 'GLOBAL_WALL') return 'genesis:global';
+  if (channelType === 'COACHES_ROOM') return 'genesis:coaches';
+
+  if (channelType === 'PRIVATE' && userId && recipientId && userId !== recipientId) {
+    const [a, b] = [userId, recipientId].sort();
+    return `genesis:private:${a}:${b}`;
+  }
+
+  return null;
+};
+
 export default function Chat() {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -20,12 +32,22 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isBanned, setIsBanned] = useState(false);
+  const [realtimeReady, setRealtimeReady] = useState(false);
 
   const [contactList, setContactList] = useState([]);
   const [selectedContactId, setSelectedContactId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const chatSubscriptionRef = useRef(null);
+
+  const appendMessage = (message) => {
+    if (!message?.id) return;
+
+    setMessages((curr) => {
+      if (curr.some((item) => item.id === message.id)) return curr;
+      return [...curr, message];
+    });
+  };
 
   useEffect(() => {
     initChat();
@@ -41,6 +63,38 @@ export default function Chat() {
   useEffect(() => {
     if (!profile) return undefined;
 
+    if (activeTab === 'GLOBAL_WALL' && !profile.canUseGlobal) {
+      setMessages([]);
+      setRealtimeReady(false);
+      return undefined;
+    }
+
+    if (activeTab === 'COACHES_ROOM' && !profile.canUseCoachesRoom) {
+      setMessages([]);
+      setRealtimeReady(false);
+      return undefined;
+    }
+
+    if (activeTab === 'PRIVATE' && !selectedContactId) {
+      setMessages([]);
+      setRealtimeReady(false);
+      return undefined;
+    }
+
+    const topic = buildGenesisChatTopic(
+      activeTab,
+      profile.userId,
+      activeTab === 'PRIVATE' ? selectedContactId : null
+    );
+
+    if (!topic) {
+      setRealtimeReady(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    setRealtimeReady(false);
     fetchMessages();
 
     if (chatSubscriptionRef.current) {
@@ -48,77 +102,81 @@ export default function Chat() {
       chatSubscriptionRef.current = null;
     }
 
-    const channelName = [
-      'genesis-network',
-      profile.userId,
-      activeTab,
-      selectedContactId || 'none'
-    ].join('-');
+    const connect = async () => {
+      try {
+        await supabase.realtime.setAuth();
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        (payload) => {
-          const newMsg = payload.new;
+        if (cancelled) return;
 
-          setMessages((curr) => {
-            if (curr.some((m) => m.id === newMsg.id)) return curr;
+        const channel = supabase
+          .channel(topic, {
+            config: { private: true },
+          })
+          .on(
+            'broadcast',
+            { event: 'INSERT' },
+            ({ payload }) => {
+              const newMsg = payload?.record;
+              appendMessage(newMsg);
+            }
+          )
+          .on(
+            'broadcast',
+            { event: 'DELETE' },
+            ({ payload }) => {
+              const deletedMsg = payload?.old_record;
 
-            if (
-              activeTab === 'GLOBAL_WALL' &&
-              newMsg.channel_type === 'GLOBAL_WALL'
-            ) {
-              return [...curr, newMsg];
+              if (!deletedMsg?.id) return;
+
+              setMessages((curr) =>
+                curr.filter((message) => message.id !== deletedMsg.id)
+              );
+            }
+          )
+          .subscribe((status, error) => {
+            if (cancelled) return;
+
+            if (status === 'SUBSCRIBED') {
+              setRealtimeReady(true);
+
+              // Cierra la pequeña ventana entre el SELECT inicial y el join del WebSocket.
+              fetchMessages();
+              return;
             }
 
-            if (
-              activeTab === 'COACHES_ROOM' &&
-              newMsg.channel_type === 'COACHES_ROOM'
-            ) {
-              return [...curr, newMsg];
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              setRealtimeReady(false);
+              console.error('Genesis chat realtime:', status, error);
+              return;
             }
 
-            if (
-              activeTab === 'PRIVATE' &&
-              newMsg.channel_type === 'PRIVATE' &&
-              selectedContactId
-            ) {
-              const isRelevant =
-                (
-                  newMsg.sender_id === profile.userId &&
-                  newMsg.recipient_id === selectedContactId
-                ) ||
-                (
-                  newMsg.sender_id === selectedContactId &&
-                  newMsg.recipient_id === profile.userId
-                );
-
-              if (isRelevant) return [...curr, newMsg];
+            if (status === 'CLOSED') {
+              setRealtimeReady(false);
             }
-
-            return curr;
           });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'chat_messages' },
-        (payload) => {
-          setMessages((curr) =>
-            curr.filter((msg) => msg.id !== payload.old.id)
-          );
-        }
-      )
-      .subscribe();
 
-    chatSubscriptionRef.current = channel;
+        chatSubscriptionRef.current = channel;
+      } catch (error) {
+        if (!cancelled) {
+          setRealtimeReady(false);
+          console.error('Genesis chat realtime auth:', error);
+        }
+      }
+    };
+
+    connect();
 
     return () => {
-      supabase.removeChannel(channel);
-      if (chatSubscriptionRef.current === channel) {
-        chatSubscriptionRef.current = null;
+      cancelled = true;
+      setRealtimeReady(false);
+
+      const channel = chatSubscriptionRef.current;
+
+      if (channel) {
+        supabase.removeChannel(channel);
+        if (chatSubscriptionRef.current === channel) {
+          chatSubscriptionRef.current = null;
+        }
       }
     };
   }, [activeTab, selectedContactId, profile]);
@@ -328,7 +386,7 @@ export default function Chat() {
     e.preventDefault();
 
     const message = newMessage.trim();
-    if (!message || !profile || isBanned) return;
+    if (!message || !profile || isBanned || !realtimeReady) return;
 
     if (activeTab === 'GLOBAL_WALL' && !profile.canUseGlobal) return;
     if (activeTab === 'COACHES_ROOM' && !profile.canUseCoachesRoom) return;
@@ -348,11 +406,17 @@ export default function Chat() {
     }
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('chat_messages')
-        .insert(payload);
+        .insert(payload)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // El emisor no depende del viaje DB -> Broadcast -> Browser.
+      // La fila devuelta ya contiene la identidad canónica impuesta por PostgreSQL.
+      appendMessage(data);
       setNewMessage('');
     } catch (err) {
       console.error('Genesis chat send error:', err);
@@ -370,6 +434,9 @@ export default function Chat() {
         .eq('id', msgId);
 
       if (error) throw error;
+
+      // Respuesta inmediata para el moderador; Broadcast elimina en los demás clientes.
+      setMessages((curr) => curr.filter((message) => message.id !== msgId));
     } catch (err) {
       alert('Error eliminando: ' + err.message);
     }
@@ -620,25 +687,31 @@ export default function Chat() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder={
-                  activeTab === 'PRIVATE'
-                    ? 'Enviar mensaje directo...'
-                    : 'Publicar mensaje...'
+                  !realtimeReady
+                    ? 'Conectando canal seguro...'
+                    : activeTab === 'PRIVATE'
+                      ? 'Enviar mensaje directo...'
+                      : 'Publicar mensaje...'
                 }
                 maxLength={2000}
                 className="flex-1 bg-[#161616] border border-neutral-800 rounded-2xl px-4 text-xs font-mono text-white outline-none focus:border-neutral-600 transition-colors"
-                disabled={activeTab === 'PRIVATE' && !selectedContactId}
+                disabled={
+                  !realtimeReady ||
+                  (activeTab === 'PRIVATE' && !selectedContactId)
+                }
               />
 
               <button
                 type="submit"
                 disabled={
+                  !realtimeReady ||
                   !newMessage.trim() ||
                   (activeTab === 'PRIVATE' && !selectedContactId)
                 }
                 className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all disabled:opacity-40 text-black font-black"
                 style={{ backgroundColor: isGodMode ? '#3b82f6' : brand }}
               >
-                <Send size={16} />
+                {realtimeReady ? <Send size={16} /> : <Loader2 size={16} className="animate-spin" />}
               </button>
             </form>
           )}
