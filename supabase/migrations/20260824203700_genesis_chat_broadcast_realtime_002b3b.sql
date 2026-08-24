@@ -116,8 +116,8 @@ using (
 -- topics beginning with "genesis:". Non-Genesis topics are left untouched.
 drop policy if exists genesis_chat_broadcast_guard on realtime.messages;
 create policy genesis_chat_broadcast_guard
-as restrictive
 on realtime.messages
+as restrictive
 for select
 to authenticated
 using (
