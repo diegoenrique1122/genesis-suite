@@ -5,7 +5,7 @@ import {
   ArrowLeft, User, Image as ImageIcon, BrainCircuit, Activity, 
   Loader2, Dumbbell, CheckCircle2, Lock, Plus, MessageSquareQuote, 
   Droplet, Moon, Footprints, Utensils, AlertTriangle, Target, 
-  TrendingUp, Droplets, Wind, Flame, LayoutDashboard, Camera,
+  Droplets, Wind, Flame, LayoutDashboard, Camera,
   ShieldCheck, Save, Beaker, Calendar, FileText, FileSpreadsheet, Edit3,
   Bell, X, ShoppingCart, Info, Zap
 } from 'lucide-react';
@@ -373,21 +373,7 @@ export default function ClientProfile() {
   if (!athlete) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><p className="text-red-500">Atleta no encontrado</p></div>;
 
   const currentDayCoach = editablePlan?.find(d => d.day === activeDayCoach);
-  const metrics = athlete?.discipline_metrics;
   const currentPhotoSet = allPhotos.find(p => p.week_number === selectedWeekFilter);
-
-  let adherenceScore = 0, tScore = 0, nScore = 0, rScore = 0;
-  if (metrics) {
-    if (metrics.training?.completed === 'YES') tScore = 100; else if (metrics.training?.completed === 'PARTIAL') tScore = 50;
-    if (metrics.meals && metrics.meals.length > 0) {
-      let mealPts = 0; metrics.meals.forEach(m => { if (m.status === 'YES') mealPts += 20; else if (m.status === 'PARTIAL') mealPts += 10; }); nScore = mealPts;
-    }
-    const sleep = parseFloat(metrics.metrics?.sleep || 0), water = parseFloat(metrics.metrics?.water || 0);
-    let recPts = 0; if (sleep >= 7) recPts += 50; else if (sleep >= 5) recPts += 25;
-    if (water >= 2.5) recPts += 50; else if (water >= 1.5) recPts += 25; rScore = recPts;
-    adherenceScore = Math.round((tScore * 0.4) + (nScore * 0.4) + (rScore * 0.2));
-  }
-  const scoreColor = adherenceScore >= 80 ? 'text-green-500' : adherenceScore >= 50 ? 'text-yellow-500' : 'text-red-500';
 
   const PHASE_UI = {
     MENSTRUAL: { name: "Menstrual", color: "text-rose-500", bg: "bg-rose-500/10 border-rose-500/30", icon: <Droplets size={20} className="text-rose-500" />, desc: "Inflamación elevada.", training: "Bajar RIR. No buscar PRs.", nutrition: "Priorizar hierro y Omega-3." },
@@ -496,26 +482,28 @@ export default function ClientProfile() {
             <div className="space-y-6">
               <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme?.brandColor || '#f59e0b' }}></div>
-                <h2 className="text-xs font-black uppercase text-neutral-400 mb-6 flex items-center gap-2"><TrendingUp size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Score de Adherencia Global</h2>
-                {metrics ? (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-                        <svg className="w-full h-full transform -rotate-90"><circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-neutral-900" /><circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="226" strokeDashoffset={226 - (226 * adherenceScore) / 100} className={`${scoreColor} transition-all duration-1000 ease-out`} /></svg>
-                        <div className="absolute flex flex-col items-center justify-center"><span className={`text-xl font-black font-mono leading-none ${scoreColor}`}>{adherenceScore}%</span></div>
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase text-white mb-1">Resumen Diario</h3>
-                        <p className="text-[10px] text-neutral-500 font-mono leading-tight">Último Check-in del atleta.</p>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div><div className="flex justify-between text-[9px] font-black uppercase text-neutral-400 mb-1.5"><span>Nutrición (40%)</span><span className="text-white">{nScore}%</span></div><div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${nScore}%` }}></div></div></div>
-                      <div><div className="flex justify-between text-[9px] font-black uppercase text-neutral-400 mb-1.5"><span>Entrenamiento (40%)</span><span className="text-white">{tScore}%</span></div><div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div className="h-full bg-green-500 rounded-full" style={{ width: `${tScore}%` }}></div></div></div>
-                      <div><div className="flex justify-between text-[9px] font-black uppercase text-neutral-400 mb-1.5"><span>Recuperación (20%)</span><span className="text-white">{rScore}%</span></div><div className="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div className="h-full bg-purple-500 rounded-full" style={{ width: `${rScore}%` }}></div></div></div>
-                    </div>
+                <h2 className="text-xs font-black uppercase text-neutral-400 mb-4 flex items-center gap-2">
+                  <Activity size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Seguimiento Canónico
+                </h2>
+
+                <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 space-y-4">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-1">Compliance formal</p>
+                    <p className="text-sm font-bold text-neutral-300">Pendiente de motor canónico</p>
                   </div>
-                ) : (<div className="py-6 text-center border-2 border-dashed border-neutral-800 rounded-2xl"><p className="text-xs font-mono text-neutral-500">Sin datos de adherencia.</p></div>)}
+
+                  <p className="text-[10px] text-neutral-500 font-mono leading-relaxed">
+                    Genesis no calcula un porcentaje de adherencia hasta que exista una regla formal server-authoritative.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('DISCIPLINE')}
+                    className="w-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-colors"
+                  >
+                    Ver seguimiento de disciplina y wearable
+                  </button>
+                </div>
               </div>
 
               {athlete?.gender?.toUpperCase() === 'FEMENINO' && hormonal && hPhase && (
