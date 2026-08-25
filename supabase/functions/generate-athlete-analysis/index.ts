@@ -17,6 +17,18 @@ type GeminiPayload = {
   }
 }
 
+type JsonRecord = Record<string, unknown>
+
+type ManualDisciplineLog = {
+  logDate: string
+  timeZone: string | null
+  water: number | null
+  sleep: number | null
+  steps: number | null
+  training: 'YES' | 'PARTIAL' | 'NO' | null
+  mealStatuses: Array<'YES' | 'PARTIAL' | 'NO' | 'PENDING'>
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const GEMINI_MODEL = 'gemini-3.7-flash'
 const MAX_GEMINI_ATTEMPTS = 3
@@ -54,6 +66,59 @@ const formatMetric = (
   value: number | null,
   suffix = '',
 ): string => value === null ? 'Sin datos' : `${value}${suffix}`
+
+const asRecord = (value: unknown): JsonRecord | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as JsonRecord
+}
+
+const normalizeStatus = <T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+): T | null => {
+  const normalized = String(value ?? '').trim().toUpperCase()
+  return allowed.includes(normalized as T) ? normalized as T : null
+}
+
+const parseManualDisciplineLog = (
+  logDate: unknown,
+  habitsData: unknown,
+): ManualDisciplineLog | null => {
+  const payload = asRecord(habitsData)
+  if (!payload || payload.source !== 'MANUAL_DISCIPLINE') return null
+
+  const metrics = asRecord(payload.metrics)
+  const training = asRecord(payload.training)
+  const meals = Array.isArray(payload.meals) ? payload.meals : []
+
+  const mealStatuses = meals
+    .map((meal) => asRecord(meal)?.status)
+    .map((status) => normalizeStatus(
+      status,
+      ['YES', 'PARTIAL', 'NO', 'PENDING'] as const,
+    ))
+    .filter((status): status is 'YES' | 'PARTIAL' | 'NO' | 'PENDING' => status !== null)
+
+  return {
+    logDate: String(logDate ?? ''),
+    timeZone: typeof payload.time_zone === 'string' && payload.time_zone.trim()
+      ? payload.time_zone.trim()
+      : null,
+    water: toFiniteNumber(metrics?.water as NumericLike),
+    sleep: toFiniteNumber(metrics?.sleep as NumericLike),
+    steps: toFiniteNumber(metrics?.steps as NumericLike),
+    training: normalizeStatus(
+      training?.completed,
+      ['YES', 'PARTIAL', 'NO'] as const,
+    ),
+    mealStatuses,
+  }
+}
+
+const countStatus = <T extends string>(
+  values: Array<T | null>,
+  status: T,
+): number => values.filter((value) => value === status).length
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
@@ -176,36 +241,63 @@ export default {
         .gte('date', sinceDate)
         .order('date', { ascending: true })
 
-      const compliancePromise = athlete.user_id
+      const disciplinePromise = athlete.user_id
         ? ctx.supabaseAdmin
           .from('daily_logs')
-          .select('log_date, compliance_score')
+          .select('log_date, compliance_score, habits_data')
           .eq('user_id', athlete.user_id)
           .gte('log_date', sinceDate)
           .order('log_date', { ascending: true })
         : Promise.resolve({ data: [], error: null })
 
-      const [metricsResult, complianceResult] = await Promise.all([
+      const [metricsResult, disciplineResult] = await Promise.all([
         metricsPromise,
-        compliancePromise,
+        disciplinePromise,
       ])
 
       if (metricsResult.error) {
         console.error('Genesis AI metrics query error', metricsResult.error)
       }
 
-      if (complianceResult.error) {
-        console.error('Genesis AI compliance query error', complianceResult.error)
+      if (disciplineResult.error) {
+        console.error('Genesis AI discipline query error', disciplineResult.error)
       }
 
       const metrics = metricsResult.data ?? []
-      const complianceLogs = complianceResult.data ?? []
+      const disciplineLogs = disciplineResult.data ?? []
 
       const avgSleep = average(metrics.map((row) => row.sleep_hours))
       const avgHrv = average(metrics.map((row) => row.hrv))
       const avgRhr = average(metrics.map((row) => row.rhr))
       const avgSteps = average(metrics.map((row) => row.steps))
-      const avgCompliance = average(complianceLogs.map((row) => row.compliance_score))
+
+      const complianceScores = disciplineLogs
+        .map((row) => toFiniteNumber(row.compliance_score))
+        .filter((value): value is number => value !== null)
+      const avgCompliance = average(complianceScores)
+
+      const manualLogs = disciplineLogs
+        .map((row) => parseManualDisciplineLog(row.log_date, row.habits_data))
+        .filter((row): row is ManualDisciplineLog => row !== null)
+
+      const avgManualWater = average(manualLogs.map((row) => row.water))
+      const avgManualSleep = average(manualLogs.map((row) => row.sleep))
+      const avgManualSteps = average(manualLogs.map((row) => row.steps))
+
+      const trainingStatuses = manualLogs.map((row) => row.training)
+      const mealStatuses = manualLogs.flatMap((row) => row.mealStatuses)
+      const latestManualTimeZone = [...manualLogs]
+        .reverse()
+        .find((row) => row.timeZone)?.timeZone ?? null
+
+      const trainingYes = countStatus(trainingStatuses, 'YES')
+      const trainingPartial = countStatus(trainingStatuses, 'PARTIAL')
+      const trainingNo = countStatus(trainingStatuses, 'NO')
+
+      const mealsYes = countStatus(mealStatuses, 'YES')
+      const mealsPartial = countStatus(mealStatuses, 'PARTIAL')
+      const mealsNo = countStatus(mealStatuses, 'NO')
+      const mealsPending = countStatus(mealStatuses, 'PENDING')
 
       const missingProfileFields = [
         ['edad', athlete.age],
@@ -223,6 +315,9 @@ export default {
         'Usa EXCLUSIVAMENTE los datos proporcionados. No inventes ni infieras datos faltantes.',
         'No diagnostiques enfermedades, no prescribas medicamentos y no sustituyas evaluación médica.',
         'Si una señal requiere valoración clínica o los datos son insuficientes, indícalo claramente y recomienda evaluación por un profesional sanitario.',
+        'Mantén separadas las fuentes: TELEMETRÍA WEARABLE y AUTO-REPORTE MANUAL nunca son la misma medición.',
+        'No promedies ni fusiones pasos o sueño manuales con pasos o sueño wearable. Si difieren, descríbelo únicamente como discrepancia entre fuentes.',
+        'Un compliance_score ausente significa NO EVALUADO; nunca lo interpretes como 0%.',
         'No uses markdown, asteriscos, tablas ni bloques de código.',
         'Responde en español y en máximo 3 secciones breves con estos encabezados exactos:',
         'PUNTOS CRÍTICOS:',
@@ -240,16 +335,25 @@ export default {
         `Inicio del programa: ${formatValue(athlete.program_start_date)}`,
         `Campos de perfil faltantes: ${missingProfileFields.length ? missingProfileFields.join(', ') : 'Ninguno de los campos principales'}`,
         '',
-        `TELEMETRÍA DE LOS ÚLTIMOS 7 DÍAS (desde ${sinceDate})`,
-        `Días con telemetría: ${metrics.length}`,
-        `Sueño promedio: ${formatMetric(avgSleep, ' h')}`,
-        `HRV promedio: ${formatMetric(avgHrv, ' ms')}`,
-        `RHR promedio: ${formatMetric(avgRhr, ' bpm')}`,
-        `Pasos promedio: ${formatMetric(avgSteps)}`,
-        `Días con cumplimiento registrado: ${complianceLogs.length}`,
-        `Cumplimiento promedio: ${formatMetric(avgCompliance, '%')}`,
+        `TELEMETRÍA WEARABLE DE LOS ÚLTIMOS 7 DÍAS (desde ${sinceDate})`,
+        `Días con telemetría wearable: ${metrics.length}`,
+        `Sueño wearable promedio: ${formatMetric(avgSleep, ' h')}`,
+        `HRV wearable promedio: ${formatMetric(avgHrv, ' ms')}`,
+        `RHR wearable promedio: ${formatMetric(avgRhr, ' bpm')}`,
+        `Pasos wearable promedio: ${formatMetric(avgSteps)}`,
         '',
-        'Prioriza patrones y tendencias sobre valores aislados. Si no hay suficientes días de telemetría, dilo expresamente.',
+        `AUTO-REPORTE MANUAL DE DISCIPLINA (desde ${sinceDate})`,
+        `Días con check-in manual: ${manualLogs.length}`,
+        `Zona horaria del check-in más reciente: ${formatValue(latestManualTimeZone, 'No disponible')}`,
+        `Agua reportada promedio: ${formatMetric(avgManualWater, ' L')}`,
+        `Sueño reportado promedio: ${formatMetric(avgManualSleep, ' h')}`,
+        `Pasos reportados promedio: ${formatMetric(avgManualSteps)}`,
+        `Entrenamiento reportado: YES=${trainingYes}, PARTIAL=${trainingPartial}, NO=${trainingNo}`,
+        `Comidas reportadas: YES=${mealsYes}, PARTIAL=${mealsPartial}, NO=${mealsNo}, PENDING=${mealsPending}`,
+        `Días con cumplimiento formal evaluado: ${complianceScores.length}`,
+        `Cumplimiento formal promedio: ${avgCompliance === null ? 'No evaluado' : `${avgCompliance}%`}`,
+        '',
+        'Prioriza patrones y tendencias sobre valores aislados. Si no hay suficientes días en una fuente, dilo expresamente.',
       ].join('\n')
 
       const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
@@ -376,10 +480,12 @@ export default {
       return Response.json({
         analysis,
         meta: {
-          auditorVersion: '2.0',
+          auditorVersion: '2.1',
           model: GEMINI_MODEL,
           telemetryDays: metrics.length,
-          complianceDays: complianceLogs.length,
+          disciplineDays: manualLogs.length,
+          complianceDays: complianceScores.length,
+          manualTimeZone: latestManualTimeZone,
           missingProfileFields,
         },
       })
