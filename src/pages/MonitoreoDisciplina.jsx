@@ -15,7 +15,16 @@ const buildEmptyMeals = () => [1, 2, 3, 4, 5].map((mealNum) => ({
   photo_url: null
 }));
 
-const getUtcDate = () => new Date().toISOString().slice(0, 10);
+const pad2 = (value) => String(value).padStart(2, '0');
+
+const getLocalDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+};
+
+const getLocalTimeZone = () => (
+  Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+);
 
 export default function MonitoreoDisciplina() {
   const navigate = useNavigate();
@@ -83,7 +92,7 @@ export default function MonitoreoDisciplina() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return navigate('/');
 
-      const today = getUtcDate();
+      const today = getLocalDate();
 
       const [profileResult, dailyLogResult] = await Promise.all([
         supabase
@@ -118,7 +127,7 @@ export default function MonitoreoDisciplina() {
         setCurrentWeek(week > 0 ? week : 1);
       }
 
-      // La pantalla representa HOY. No reutilizamos el snapshot de ayer.
+      // La pantalla representa HOY en la zona local del dispositivo.
       hydrateDailyCheckin(dailyLogResult.data?.habits_data || null);
     } catch (error) {
       console.error('Error cargando disciplina:', error);
@@ -170,6 +179,7 @@ export default function MonitoreoDisciplina() {
 
     try {
       const payload = {
+        time_zone: getLocalTimeZone(),
         metrics: { water, sleep, steps },
         training: {
           completed: trainingDone,
