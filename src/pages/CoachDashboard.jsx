@@ -8,6 +8,16 @@ import {
   Dumbbell, Utensils, Droplets, LayoutDashboard
 } from 'lucide-react';
 
+const formatRosterActivityDate = (dateKey) => {
+  if (!dateKey || typeof dateKey !== 'string') return 'Sin registro';
+
+  const [year, month, day] = dateKey.split('-');
+
+  if (!year || !month || !day) return dateKey;
+
+  return `${month}/${day}/${year}`;
+};
+
 export default function CoachDashboard() {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -33,18 +43,48 @@ export default function CoachDashboard() {
       const { data: coachData } = await supabase.from('coaches_profile').select('*').eq('user_id', session.user.id).single();
       setCoachProfile(coachData);
 
-      const { data: athletesData } = await supabase.from('athletes_profile').select('id, full_name, b2c_plan, routine_status, program_start_date').eq('coach_id', coachData.id).order('created_at', { ascending: false });
+      const [
+        { data: athletesData, error: athletesError },
+        { data: activityData, error: activityError },
+      ] = await Promise.all([
+        supabase
+          .from('athletes_profile')
+          .select('id, user_id, full_name, b2c_plan, routine_status, program_start_date')
+          .eq('coach_id', coachData.id)
+          .order('created_at', { ascending: false }),
 
-      if (athletesData) {
-        // Filtramos para no mostrarse a sí mismo en el Roster de clientes
-        const realClients = athletesData.filter(a => a.full_name !== coachData.full_name);
-        setRoster(realClients);
-        setStats({
-          total: realClients.length,
-          pending: realClients.filter(a => a.routine_status === 'PENDING_AUDIT').length,
-          active: realClients.filter(a => a.program_start_date !== null).length
-        });
-      }
+        supabase.rpc('get_coach_roster_activity'),
+      ]);
+
+      if (athletesError) throw athletesError;
+      if (activityError) throw activityError;
+
+      const activityByAthleteId = new Map(
+        (activityData || []).map((row) => [
+          row.athlete_id,
+          row,
+        ])
+      );
+
+      // Identidad canónica: nunca excluir clientes comparando nombres.
+      const realClients = (athletesData || [])
+        .filter((athlete) => athlete.user_id !== session.user.id)
+        .map((athlete) => ({
+          ...athlete,
+          activity: activityByAthleteId.get(athlete.id) || null,
+        }));
+
+      setRoster(realClients);
+
+      setStats({
+        total: realClients.length,
+        pending: realClients.filter(
+          (athlete) => athlete.routine_status === 'PENDING_AUDIT'
+        ).length,
+        active: realClients.filter(
+          (athlete) => athlete.program_start_date !== null
+        ).length,
+      });
     } catch (err) { console.error("Error:", err); } finally { setLoading(false); }
   };
 
@@ -153,15 +193,100 @@ export default function CoachDashboard() {
                 <div className="text-center py-12"><Users size={40} className="text-neutral-700 mx-auto mb-3" /><p className="text-xs font-mono text-neutral-500">Aún no tienes atletas asignados.</p></div>
               ) : (
                 <div className="space-y-3">
-                  {roster.map(athlete => (
-                    <button key={athlete.id} onClick={() => navigate(`/coach/client/${athlete.id}`)} className="w-full bg-black border border-neutral-800 hover:border-neutral-600 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all group">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-black uppercase text-sm group-hover:bg-white group-hover:text-black transition-colors">{athlete.full_name?.substring(0, 2)}</div>
-                        <div className="text-left"><h3 className="text-sm font-black uppercase tracking-widest text-white">{athlete.full_name}</h3><p className="text-[10px] font-mono text-neutral-500">Plan: {athlete.b2c_plan}</p></div>
-                      </div>
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                        {!athlete.program_start_date ? <span className="text-[9px] bg-neutral-800 text-neutral-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest">En Sala de Espera</span> : athlete.routine_status === 'PENDING_AUDIT' ? <span className="text-[9px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest animate-pulse">Requiere Auditoría</span> : <span className="text-[9px] bg-green-500/10 border border-green-500/30 text-green-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest">Activo / Auditado</span>}
-                        <ArrowRight size={16} className="text-neutral-600 group-hover:text-white" />
+                  {roster.map((athlete) => (
+                    <button
+                      key={athlete.id}
+                      onClick={() => navigate(`/coach/client/${athlete.id}`)}
+                      className="w-full bg-black border border-neutral-800 hover:border-neutral-600 rounded-2xl p-4 transition-all group text-left"
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+
+                        {/* IDENTIDAD */}
+                        <div className="flex items-center gap-4 lg:w-56 shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-black uppercase text-sm group-hover:bg-white group-hover:text-black transition-colors">
+                            {athlete.full_name?.substring(0, 2)}
+                          </div>
+
+                          <div>
+                            <h3 className="text-sm font-black uppercase tracking-widest text-white">
+                              {athlete.full_name}
+                            </h3>
+
+                            <p className="text-[10px] font-mono text-neutral-500">
+                              Plan: {athlete.b2c_plan}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* ACTIVIDAD CANÓNICA */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1 w-full">
+
+                          <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-amber-500 mb-1">
+                              Auto-reporte manual
+                            </p>
+
+                            <p className="text-[10px] font-mono text-white">
+                              Último: {formatRosterActivityDate(
+                                athlete.activity?.last_manual_date
+                              )}
+                            </p>
+
+                            <p className="text-[9px] font-mono text-neutral-500 mt-1">
+                              Compliance: {
+                                athlete.activity?.manual_compliance_score === null ||
+                                athlete.activity?.manual_compliance_score === undefined
+                                  ? 'No evaluado'
+                                  : `${athlete.activity.manual_compliance_score}%`
+                              }
+                            </p>
+                          </div>
+
+                          <div className="bg-neutral-950 border border-blue-900/30 rounded-xl px-3 py-2">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-blue-400 mb-1">
+                              Wearable
+                            </p>
+
+                            <p className="text-[10px] font-mono text-white">
+                              Último: {formatRosterActivityDate(
+                                athlete.activity?.last_wearable_date
+                              )}
+                            </p>
+
+                            <p className="text-[9px] font-mono text-neutral-500 mt-1">
+                              {athlete.activity?.last_wearable_date
+                                ? 'Telemetría registrada'
+                                : 'Sin telemetría'}
+                            </p>
+                          </div>
+
+                        </div>
+
+                        {/* ESTADO OPERACIONAL */}
+                        <div className="flex items-center gap-3 lg:w-44 lg:justify-end shrink-0">
+
+                          {!athlete.program_start_date ? (
+                            <span className="text-[9px] bg-neutral-800 text-neutral-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                              En Sala de Espera
+                            </span>
+
+                          ) : athlete.routine_status === 'PENDING_AUDIT' ? (
+                            <span className="text-[9px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest animate-pulse">
+                              Requiere Auditoría
+                            </span>
+
+                          ) : (
+                            <span className="text-[9px] bg-green-500/10 border border-green-500/30 text-green-500 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                              Activo / Auditado
+                            </span>
+                          )}
+
+                          <ArrowRight
+                            size={16}
+                            className="text-neutral-600 group-hover:text-white"
+                          />
+                        </div>
+
                       </div>
                     </button>
                   ))}
