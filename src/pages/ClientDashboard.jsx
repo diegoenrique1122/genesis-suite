@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
+import { evaluateBadges } from '../services/badgeService';
 import { 
   Dumbbell, Utensils, Activity, MessageSquare, 
   LogOut, Loader2, Clock, ShieldCheck, Droplets, Award, Flame
@@ -57,6 +58,11 @@ export default function ClientDashboard() {
         
       if (coachData) setCoachName(coachData.full_name);
 
+      // La autoridad del badge vive en PostgreSQL. El navegador solo solicita
+      // evaluación determinística y lee el resultado autorizado.
+      const badgeResult = await evaluateBadges(athleteData.id);
+      setFenixUnlocked(Boolean(badgeResult?.fenixUnlocked));
+
       if (athleteData.program_start_date) {
         setIsActive(true);
         const startDate = new Date(athleteData.program_start_date);
@@ -68,8 +74,9 @@ export default function ClientDashboard() {
         let calcWeek = Math.floor(diffDays / 7) + 1;
         if (calcWeek < 1) calcWeek = 1;
         
+        // El cálculo local solo controla la visualización del progreso.
+        // NO otorga badges.
         if (diffDays >= 84) {
-          setFenixUnlocked(true);
           calcWeek = 12;
         }
         
