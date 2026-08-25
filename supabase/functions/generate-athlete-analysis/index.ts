@@ -464,12 +464,8 @@ export default {
                   thinkingConfig: {
                     thinkingLevel: 'low',
                   },
-                  responseFormat: {
-                    text: {
-                      mimeType: 'application/json',
-                      schema: ANALYSIS_RESPONSE_SCHEMA,
-                    },
-                  },
+                  responseMimeType: 'application/json',
+                  responseSchema: ANALYSIS_RESPONSE_SCHEMA,
                 },
               }),
             },
@@ -587,7 +583,7 @@ export default {
       return Response.json({
         analysis,
         meta: {
-          auditorVersion: '2.3',
+          auditorVersion: '2.3.1',
           model: GEMINI_MODEL,
           telemetryDays: metrics.length,
           disciplineDays: manualLogs.length,
