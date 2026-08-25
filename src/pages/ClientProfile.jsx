@@ -10,6 +10,7 @@ import {
   Bell, X, ShoppingCart, Info, Zap
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import CoachMonitoringPanel from '../components/CoachMonitoringPanel';
 
 // 🔥 IMPORTACIONES CLAVE CORREGIDAS PARA EL PDF Y EXCEL
 import jsPDF from 'jspdf';
@@ -841,51 +842,11 @@ export default function ClientProfile() {
         )}
 
         {/* =================================================================================== */}
-        {/* 📸 PESTAÑA: DISCIPLINA DIARIA                                                       */}
+        {/* 📊 PESTAÑA: MONITOREO CANÓNICO DE DISCIPLINA + WEARABLE                            */}
         {/* =================================================================================== */}
         {activeTab === 'DISCIPLINE' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-4xl mx-auto">
-            <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xs font-black uppercase text-neutral-400 flex items-center gap-2"><Activity size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Reporte de Disciplina Diaria</h2>
-              </div>
-              
-              {metrics ? (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-black border border-neutral-800 rounded-2xl p-4 text-center"><Droplet size={20} className="text-blue-400 mx-auto mb-2" /><span className="text-2xl font-black font-mono block text-white">{metrics.metrics?.water || '0'} L</span><span className="text-[9px] uppercase font-black tracking-widest text-neutral-500">Agua</span></div>
-                    <div className="bg-black border border-neutral-800 rounded-2xl p-4 text-center"><Moon size={20} className="text-purple-400 mx-auto mb-2" /><span className="text-2xl font-black font-mono block text-white">{metrics.metrics?.sleep || '0'} Hrs</span><span className="text-[9px] uppercase font-black tracking-widest text-neutral-500">Sueño</span></div>
-                    <div className="bg-black border border-neutral-800 rounded-2xl p-4 text-center"><Footprints size={20} className="text-green-400 mx-auto mb-2" /><span className="text-2xl font-black font-mono block text-white">{metrics.metrics?.steps || '0'}</span><span className="text-[9px] uppercase font-black tracking-widest text-neutral-500">Pasos</span></div>
-                  </div>
-                  
-                  {metrics.training?.difficulty_note && (
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-5">
-                      <span className="text-[10px] uppercase font-black tracking-widest text-yellow-500 block mb-2 flex items-center gap-2"><AlertTriangle size={14}/> Nota de Dificultad del Atleta:</span>
-                      <p className="text-sm text-yellow-200/90 font-mono italic">"{metrics.training.difficulty_note}"</p>
-                    </div>
-                  )}
-                  
-                  {metrics.meals && (
-                    <div>
-                      <span className="text-xs font-black uppercase text-neutral-400 block mb-4 border-b border-neutral-800 pb-2">Evidencia Nutricional (Fotos Diarias)</span>
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                        {(metrics.meals || []).map((m, i) => (
-                          <div key={i} className="bg-black border border-neutral-800 rounded-xl p-3 text-center flex flex-col items-center">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-2">Comida {m.meal_num}</span>
-                            <div className="w-full aspect-square bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800 flex items-center justify-center mb-2 shadow-inner">
-                              {m.photo_url ? <img src={m.photo_url} alt="Comida" className="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform" onClick={() => window.open(m.photo_url, '_blank')} /> : <Utensils size={16} className="text-neutral-700" />}
-                            </div>
-                            <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-neutral-900 border ${m.status === 'YES' ? 'text-green-500 border-green-900/30' : m.status === 'PARTIAL' ? 'text-yellow-500 border-yellow-900/30' : 'text-red-500 border-red-900/30'}`}>{m.status === 'YES' ? 'Cumplido' : m.status === 'PARTIAL' ? 'A medias' : 'Falló'}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="py-12 text-center border-2 border-dashed border-neutral-800 rounded-2xl"><p className="text-xs font-mono text-neutral-500">Sin reportes diarios de disciplina.</p></div>
-              )}
-            </div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-5xl mx-auto">
+            <CoachMonitoringPanel athlete={athlete} />
           </div>
         )}
 
