@@ -11,6 +11,7 @@ type GeminiPayload = {
     content?: {
       parts?: Array<{ text?: string }>
     }
+    finishReason?: string
   }>
   error?: {
     message?: string
@@ -32,7 +33,13 @@ type ManualDisciplineLog = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const GEMINI_MODEL = 'gemini-3.7-flash'
 const MAX_GEMINI_ATTEMPTS = 3
+const OUTPUT_TOKENS_BY_ATTEMPT = [1600, 2400, 3200] as const
 const RETRYABLE_GEMINI_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+const REQUIRED_ANALYSIS_HEADERS = [
+  'PUNTOS CRÍTICOS:',
+  'ENTRENAMIENTO:',
+  'NUTRICIÓN:',
+] as const
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -119,6 +126,38 @@ const countStatus = <T extends string>(
   values: Array<T | null>,
   status: T,
 ): number => values.filter((value) => value === status).length
+
+const extractCandidateText = (payload: GeminiPayload | null): string => (
+  payload?.candidates?.[0]?.content?.parts
+    ?.map((part) => part?.text ?? '')
+    .join('')
+    .trim() ?? ''
+)
+
+const hasCompleteAnalysisStructure = (analysis: string): boolean => {
+  if (!analysis) return false
+
+  const upper = analysis.toUpperCase()
+  const positions = REQUIRED_ANALYSIS_HEADERS.map((header) => upper.indexOf(header))
+
+  if (positions.some((position) => position < 0)) return false
+  if (!(positions[0] < positions[1] && positions[1] < positions[2])) return false
+
+  const criticalContent = analysis
+    .slice(positions[0] + REQUIRED_ANALYSIS_HEADERS[0].length, positions[1])
+    .trim()
+
+  const trainingContent = analysis
+    .slice(positions[1] + REQUIRED_ANALYSIS_HEADERS[1].length, positions[2])
+    .trim()
+
+  const nutritionContent = analysis
+    .slice(positions[2] + REQUIRED_ANALYSIS_HEADERS[2].length)
+    .trim()
+
+  return [criticalContent, trainingContent, nutritionContent]
+    .every((section) => section.length >= 12)
+}
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
@@ -319,6 +358,7 @@ export default {
         'No promedies ni fusiones pasos o sueño manuales con pasos o sueño wearable. Si difieren, descríbelo únicamente como discrepancia entre fuentes.',
         'Un compliance_score ausente significa NO EVALUADO; nunca lo interpretes como 0%.',
         'No uses markdown, asteriscos, tablas ni bloques de código.',
+        'Debes completar SIEMPRE las tres secciones. No termines la respuesta antes de escribir NUTRICIÓN completa.',
         'Responde en español y en máximo 3 secciones breves con estos encabezados exactos:',
         'PUNTOS CRÍTICOS:',
         'ENTRENAMIENTO:',
@@ -367,9 +407,16 @@ export default {
 
       let geminiData: GeminiPayload | null = null
       let providerStatus: number | null = null
+      let providerFinishReason: string | null = null
+      let providerAttempt = 0
+      let analysis = ''
 
       for (let attempt = 1; attempt <= MAX_GEMINI_ATTEMPTS; attempt += 1) {
         try {
+          const maxOutputTokens = OUTPUT_TOKENS_BY_ATTEMPT[
+            Math.min(attempt - 1, OUTPUT_TOKENS_BY_ATTEMPT.length - 1)
+          ]
+
           const geminiResponse = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
             {
@@ -387,8 +434,8 @@ export default {
                   },
                 ],
                 generationConfig: {
-                  temperature: 0.25,
-                  maxOutputTokens: 700,
+                  temperature: 0.2,
+                  maxOutputTokens,
                 },
               }),
             },
@@ -398,31 +445,60 @@ export default {
           geminiData = await geminiResponse.json().catch(() => ({})) as GeminiPayload
 
           if (geminiResponse.ok) {
-            break
-          }
+            const candidate = geminiData?.candidates?.[0]
+            const candidateText = extractCandidateText(geminiData)
+            const finishReason = candidate?.finishReason ?? null
+            const complete = hasCompleteAnalysisStructure(candidateText)
+            const providerStoppedNormally = finishReason === null || finishReason === 'STOP'
 
-          const providerMessage = String(
-            geminiData?.error?.message ?? 'Unknown Gemini provider error',
-          ).slice(0, 300)
+            if (candidateText && complete && providerStoppedNormally) {
+              analysis = candidateText
+              providerFinishReason = finishReason
+              providerAttempt = attempt
+              break
+            }
 
-          console.error('Gemini API error', {
-            attempt,
-            status: geminiResponse.status,
-            message: providerMessage,
-          })
+            console.error('Gemini incomplete analysis', {
+              attempt,
+              finishReason,
+              textLength: candidateText.length,
+              completeStructure: complete,
+              maxOutputTokens,
+            })
 
-          const retryable = RETRYABLE_GEMINI_STATUSES.has(geminiResponse.status)
+            if (attempt === MAX_GEMINI_ATTEMPTS) {
+              return Response.json(
+                {
+                  error: 'AI provider returned an incomplete analysis. Please retry shortly.',
+                  retryable: true,
+                },
+                { status: 503 },
+              )
+            }
+          } else {
+            const providerMessage = String(
+              geminiData?.error?.message ?? 'Unknown Gemini provider error',
+            ).slice(0, 300)
 
-          if (!retryable || attempt === MAX_GEMINI_ATTEMPTS) {
-            return Response.json(
-              {
-                error: retryable
-                  ? 'AI service is temporarily unavailable. Please retry shortly.'
-                  : 'AI provider request failed',
-                retryable,
-              },
-              { status: retryable ? 503 : 502 },
-            )
+            console.error('Gemini API error', {
+              attempt,
+              status: geminiResponse.status,
+              message: providerMessage,
+            })
+
+            const retryable = RETRYABLE_GEMINI_STATUSES.has(geminiResponse.status)
+
+            if (!retryable || attempt === MAX_GEMINI_ATTEMPTS) {
+              return Response.json(
+                {
+                  error: retryable
+                    ? 'AI service is temporarily unavailable. Please retry shortly.'
+                    : 'AI provider request failed',
+                  retryable,
+                },
+                { status: retryable ? 503 : 502 },
+              )
+            }
           }
         } catch (providerError) {
           console.error('Gemini network error', {
@@ -447,19 +523,17 @@ export default {
         await sleep(backoffMs)
       }
 
-      const analysis = geminiData?.candidates?.[0]?.content?.parts
-        ?.map((part) => part?.text ?? '')
-        .join('')
-        .trim()
-
       if (!analysis) {
-        console.error('Gemini returned no usable content', {
+        console.error('Gemini returned no validated analysis', {
           providerStatus,
         })
 
         return Response.json(
-          { error: 'AI provider returned no usable content' },
-          { status: 502 },
+          {
+            error: 'AI provider returned no validated analysis',
+            retryable: true,
+          },
+          { status: 503 },
         )
       }
 
@@ -480,12 +554,14 @@ export default {
       return Response.json({
         analysis,
         meta: {
-          auditorVersion: '2.1',
+          auditorVersion: '2.2',
           model: GEMINI_MODEL,
           telemetryDays: metrics.length,
           disciplineDays: manualLogs.length,
           complianceDays: complianceScores.length,
           manualTimeZone: latestManualTimeZone,
+          providerFinishReason,
+          providerAttempt,
           missingProfileFields,
         },
       })
