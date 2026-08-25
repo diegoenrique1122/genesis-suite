@@ -30,16 +30,36 @@ type ManualDisciplineLog = {
   mealStatuses: Array<'YES' | 'PARTIAL' | 'NO' | 'PENDING'>
 }
 
+type StructuredAnalysis = {
+  criticalPoints: string
+  training: string
+  nutrition: string
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const GEMINI_MODEL = 'gemini-3.7-flash'
-const MAX_GEMINI_ATTEMPTS = 3
-const OUTPUT_TOKENS_BY_ATTEMPT = [1600, 2400, 3200] as const
+const MAX_GEMINI_ATTEMPTS = 2
+const OUTPUT_TOKENS_BY_ATTEMPT = [1200, 1600] as const
 const RETRYABLE_GEMINI_STATUSES = new Set([408, 429, 500, 502, 503, 504])
-const REQUIRED_ANALYSIS_HEADERS = [
-  'PUNTOS CRÍTICOS:',
-  'ENTRENAMIENTO:',
-  'NUTRICIÓN:',
-] as const
+
+const ANALYSIS_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    criticalPoints: {
+      type: 'string',
+      description: 'Resumen breve de puntos críticos. Máximo 3 frases y solo con datos disponibles.',
+    },
+    training: {
+      type: 'string',
+      description: 'Resumen breve de entrenamiento. Máximo 3 frases y solo con datos disponibles.',
+    },
+    nutrition: {
+      type: 'string',
+      description: 'Resumen breve de nutrición y disciplina. Máximo 3 frases y solo con datos disponibles.',
+    },
+  },
+  required: ['criticalPoints', 'training', 'nutrition'],
+} as const
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -134,30 +154,44 @@ const extractCandidateText = (payload: GeminiPayload | null): string => (
     .trim() ?? ''
 )
 
-const hasCompleteAnalysisStructure = (analysis: string): boolean => {
-  if (!analysis) return false
+const parseStructuredAnalysis = (text: string): StructuredAnalysis | null => {
+  if (!text) return null
 
-  const upper = analysis.toUpperCase()
-  const positions = REQUIRED_ANALYSIS_HEADERS.map((header) => upper.indexOf(header))
+  try {
+    const parsed = JSON.parse(text) as Partial<StructuredAnalysis>
 
-  if (positions.some((position) => position < 0)) return false
-  if (!(positions[0] < positions[1] && positions[1] < positions[2])) return false
+    const criticalPoints = String(parsed.criticalPoints ?? '').trim()
+    const training = String(parsed.training ?? '').trim()
+    const nutrition = String(parsed.nutrition ?? '').trim()
 
-  const criticalContent = analysis
-    .slice(positions[0] + REQUIRED_ANALYSIS_HEADERS[0].length, positions[1])
-    .trim()
+    if (
+      criticalPoints.length < 12 ||
+      training.length < 12 ||
+      nutrition.length < 12
+    ) {
+      return null
+    }
 
-  const trainingContent = analysis
-    .slice(positions[1] + REQUIRED_ANALYSIS_HEADERS[1].length, positions[2])
-    .trim()
-
-  const nutritionContent = analysis
-    .slice(positions[2] + REQUIRED_ANALYSIS_HEADERS[2].length)
-    .trim()
-
-  return [criticalContent, trainingContent, nutritionContent]
-    .every((section) => section.length >= 12)
+    return {
+      criticalPoints,
+      training,
+      nutrition,
+    }
+  } catch {
+    return null
+  }
 }
+
+const formatAnalysisForUi = (analysis: StructuredAnalysis): string => [
+  'PUNTOS CRÍTICOS:',
+  analysis.criticalPoints,
+  '',
+  'ENTRENAMIENTO:',
+  analysis.training,
+  '',
+  'NUTRICIÓN:',
+  analysis.nutrition,
+].join('\n')
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
@@ -350,21 +384,15 @@ export default {
         .map(([label]) => label)
 
       const prompt = [
-        'Eres el Auditor IA V2 de Genesis OS para apoyo a un coach de fitness y nutrición.',
-        'Usa EXCLUSIVAMENTE los datos proporcionados. No inventes ni infieras datos faltantes.',
-        'No diagnostiques enfermedades, no prescribas medicamentos y no sustituyas evaluación médica.',
-        'Si una señal requiere valoración clínica o los datos son insuficientes, indícalo claramente y recomienda evaluación por un profesional sanitario.',
-        'Mantén separadas las fuentes: TELEMETRÍA WEARABLE y AUTO-REPORTE MANUAL nunca son la misma medición.',
-        'No promedies ni fusiones pasos o sueño manuales con pasos o sueño wearable. Si difieren, descríbelo únicamente como discrepancia entre fuentes.',
-        'Un compliance_score ausente significa NO EVALUADO; nunca lo interpretes como 0%.',
-        'No uses markdown, asteriscos, tablas ni bloques de código.',
-        'Debes completar SIEMPRE las tres secciones. No termines la respuesta antes de escribir NUTRICIÓN completa.',
-        'Responde en español y en máximo 3 secciones breves con estos encabezados exactos:',
-        'PUNTOS CRÍTICOS:',
-        'ENTRENAMIENTO:',
-        'NUTRICIÓN:',
+        'Actúa como Auditor IA de Genesis OS para apoyar a un coach de fitness y nutrición.',
+        'Usa solo los datos proporcionados. No inventes información faltante.',
+        'No diagnostiques enfermedades ni prescribas medicamentos.',
+        'Mantén separadas TELEMETRÍA WEARABLE y AUTO-REPORTE MANUAL.',
+        'Nunca combines pasos o sueño de ambas fuentes como una sola medición.',
+        'Un compliance_score ausente significa NO EVALUADO, no 0%.',
+        'Cada campo de salida debe tener máximo 3 frases breves y accionables.',
         '',
-        'PERFIL DEL ATLETA',
+        'PERFIL',
         `Edad: ${formatValue(athlete.age)}`,
         `Peso: ${athlete.weight === null || athlete.weight === undefined ? 'No registrado' : `${athlete.weight} kg`}`,
         `Estatura: ${athlete.height === null || athlete.height === undefined ? 'No registrada' : `${athlete.height} cm`}`,
@@ -373,27 +401,25 @@ export default {
         `Lesiones o limitaciones: ${formatValue(athlete.injuries, 'No registradas')}`,
         `Plan B2C: ${formatValue(athlete.b2c_plan)}`,
         `Inicio del programa: ${formatValue(athlete.program_start_date)}`,
-        `Campos de perfil faltantes: ${missingProfileFields.length ? missingProfileFields.join(', ') : 'Ninguno de los campos principales'}`,
         '',
-        `TELEMETRÍA WEARABLE DE LOS ÚLTIMOS 7 DÍAS (desde ${sinceDate})`,
-        `Días con telemetría wearable: ${metrics.length}`,
-        `Sueño wearable promedio: ${formatMetric(avgSleep, ' h')}`,
-        `HRV wearable promedio: ${formatMetric(avgHrv, ' ms')}`,
-        `RHR wearable promedio: ${formatMetric(avgRhr, ' bpm')}`,
-        `Pasos wearable promedio: ${formatMetric(avgSteps)}`,
+        `WEARABLE 7 DÍAS DESDE ${sinceDate}`,
+        `Días: ${metrics.length}`,
+        `Sueño: ${formatMetric(avgSleep, ' h')}`,
+        `HRV: ${formatMetric(avgHrv, ' ms')}`,
+        `RHR: ${formatMetric(avgRhr, ' bpm')}`,
+        `Pasos: ${formatMetric(avgSteps)}`,
         '',
-        `AUTO-REPORTE MANUAL DE DISCIPLINA (desde ${sinceDate})`,
-        `Días con check-in manual: ${manualLogs.length}`,
-        `Zona horaria del check-in más reciente: ${formatValue(latestManualTimeZone, 'No disponible')}`,
-        `Agua reportada promedio: ${formatMetric(avgManualWater, ' L')}`,
-        `Sueño reportado promedio: ${formatMetric(avgManualSleep, ' h')}`,
-        `Pasos reportados promedio: ${formatMetric(avgManualSteps)}`,
-        `Entrenamiento reportado: YES=${trainingYes}, PARTIAL=${trainingPartial}, NO=${trainingNo}`,
-        `Comidas reportadas: YES=${mealsYes}, PARTIAL=${mealsPartial}, NO=${mealsNo}, PENDING=${mealsPending}`,
-        `Días con cumplimiento formal evaluado: ${complianceScores.length}`,
-        `Cumplimiento formal promedio: ${avgCompliance === null ? 'No evaluado' : `${avgCompliance}%`}`,
+        `DISCIPLINA MANUAL DESDE ${sinceDate}`,
+        `Días: ${manualLogs.length}`,
+        `Zona horaria: ${formatValue(latestManualTimeZone, 'No disponible')}`,
+        `Agua: ${formatMetric(avgManualWater, ' L')}`,
+        `Sueño reportado: ${formatMetric(avgManualSleep, ' h')}`,
+        `Pasos reportados: ${formatMetric(avgManualSteps)}`,
+        `Entrenamiento: YES=${trainingYes}, PARTIAL=${trainingPartial}, NO=${trainingNo}`,
+        `Comidas: YES=${mealsYes}, PARTIAL=${mealsPartial}, NO=${mealsNo}, PENDING=${mealsPending}`,
+        `Cumplimiento formal: ${avgCompliance === null ? 'No evaluado' : `${avgCompliance}%`}`,
         '',
-        'Prioriza patrones y tendencias sobre valores aislados. Si no hay suficientes días en una fuente, dilo expresamente.',
+        'Si solo existe 1 día de datos, dilo y evita afirmar tendencias.',
       ].join('\n')
 
       const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
@@ -434,8 +460,16 @@ export default {
                   },
                 ],
                 generationConfig: {
-                  temperature: 0.2,
                   maxOutputTokens,
+                  thinkingConfig: {
+                    thinkingLevel: 'low',
+                  },
+                  responseFormat: {
+                    text: {
+                      mimeType: 'application/json',
+                      schema: ANALYSIS_RESPONSE_SCHEMA,
+                    },
+                  },
                 },
               }),
             },
@@ -448,21 +482,21 @@ export default {
             const candidate = geminiData?.candidates?.[0]
             const candidateText = extractCandidateText(geminiData)
             const finishReason = candidate?.finishReason ?? null
-            const complete = hasCompleteAnalysisStructure(candidateText)
+            const structured = parseStructuredAnalysis(candidateText)
             const providerStoppedNormally = finishReason === null || finishReason === 'STOP'
 
-            if (candidateText && complete && providerStoppedNormally) {
-              analysis = candidateText
+            if (structured && providerStoppedNormally) {
+              analysis = formatAnalysisForUi(structured)
               providerFinishReason = finishReason
               providerAttempt = attempt
               break
             }
 
-            console.error('Gemini incomplete analysis', {
+            console.error('Gemini invalid structured analysis', {
               attempt,
               finishReason,
               textLength: candidateText.length,
-              completeStructure: complete,
+              parsed: Boolean(structured),
               maxOutputTokens,
             })
 
@@ -519,8 +553,7 @@ export default {
           }
         }
 
-        const backoffMs = 750 * (2 ** (attempt - 1)) + Math.floor(Math.random() * 250)
-        await sleep(backoffMs)
+        await sleep(500)
       }
 
       if (!analysis) {
@@ -554,7 +587,7 @@ export default {
       return Response.json({
         analysis,
         meta: {
-          auditorVersion: '2.2',
+          auditorVersion: '2.3',
           model: GEMINI_MODEL,
           telemetryDays: metrics.length,
           disciplineDays: manualLogs.length,
@@ -562,6 +595,7 @@ export default {
           manualTimeZone: latestManualTimeZone,
           providerFinishReason,
           providerAttempt,
+          responseMode: 'structured-json',
           missingProfileFields,
         },
       })
