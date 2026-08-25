@@ -3,37 +3,39 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { uploadAthletePhoto } from '../services/storageService';
-import { 
-  ArrowLeft, Droplet, Moon, Footprints, Camera, 
+import {
+  ArrowLeft, Droplet, Moon, Footprints, Camera,
   CheckCircle2, AlertTriangle, Loader2, Calendar, Scale, Save,
   ChevronDown, ChevronUp, Activity, Utensils, Image as ImageIcon
 } from 'lucide-react';
 
+const buildEmptyMeals = () => [1, 2, 3, 4, 5].map((mealNum) => ({
+  meal_num: mealNum,
+  status: 'PENDING',
+  photo_url: null
+}));
+
+const getUtcDate = () => new Date().toISOString().slice(0, 10);
+
 export default function MonitoreoDisciplina() {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [athlete, setAthlete] = useState(null);
-  
-  // Métricas Diarias
+
+  // Métricas Diarias (auto-reporte manual, separado de wearables)
   const [water, setWater] = useState('');
   const [sleep, setSleep] = useState('');
   const [steps, setSteps] = useState('');
   const [trainingDone, setTrainingDone] = useState('YES');
   const [difficultyNote, setDifficultyNote] = useState('');
-  
-  // 🍎 EVIDENCIA NUTRICIONAL (RESTAURADA)
-  const [meals, setMeals] = useState([
-    { meal_num: 1, status: 'PENDING', photo_url: null },
-    { meal_num: 2, status: 'PENDING', photo_url: null },
-    { meal_num: 3, status: 'PENDING', photo_url: null },
-    { meal_num: 4, status: 'PENDING', photo_url: null },
-    { meal_num: 5, status: 'PENDING', photo_url: null }
-  ]);
+
+  // 🍎 EVIDENCIA NUTRICIONAL
+  const [meals, setMeals] = useState(buildEmptyMeals);
   const [uploadingMeal, setUploadingMeal] = useState(false);
-  
+
   // Variables del Foto Informe (Acordeón)
   const [showPhotoPanel, setShowPhotoPanel] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(1);
@@ -47,51 +49,79 @@ export default function MonitoreoDisciplina() {
     fetchData();
   }, []);
 
+  const hydrateDailyCheckin = (payload) => {
+    if (!payload || typeof payload !== 'object') {
+      setWater('');
+      setSleep('');
+      setSteps('');
+      setTrainingDone('YES');
+      setDifficultyNote('');
+      setMeals(buildEmptyMeals());
+      return;
+    }
+
+    const metrics = payload.metrics || {};
+    const training = payload.training || {};
+
+    setWater(metrics.water ?? '');
+    setSleep(metrics.sleep ?? '');
+    setSteps(metrics.steps ?? '');
+    setTrainingDone(training.completed || 'YES');
+    setDifficultyNote(training.difficulty_note || '');
+
+    const savedMeals = Array.isArray(payload.meals) ? payload.meals : [];
+    const mergedMeals = buildEmptyMeals().map((emptyMeal) => {
+      const found = savedMeals.find((meal) => Number(meal.meal_num) === emptyMeal.meal_num);
+      return found ? { ...emptyMeal, ...found } : emptyMeal;
+    });
+
+    setMeals(mergedMeals);
+  };
+
   const fetchData = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return navigate('/');
 
-      const { data: profile } = await supabase
-        .from('athletes_profile')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
+      const today = getUtcDate();
 
-      if (profile) {
-        setAthlete(profile);
-        
-        // Calcular en qué semana va
-        if (profile.program_start_date) {
-          const start = new Date(profile.program_start_date);
-          const diffDays = Math.floor((new Date() - start) / (1000 * 60 * 60 * 24));
-          const week = Math.floor(diffDays / 7) + 1;
-          setCurrentWeek(week > 0 ? week : 1);
-        }
+      const [profileResult, dailyLogResult] = await Promise.all([
+        supabase
+          .from('athletes_profile')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single(),
+        supabase
+          .from('daily_logs')
+          .select('log_date, habits_data')
+          .eq('user_id', session.user.id)
+          .eq('log_date', today)
+          .maybeSingle()
+      ]);
 
-        // Cargar métricas guardadas hoy (si existen)
-        if (profile.discipline_metrics?.metrics) {
-          setWater(profile.discipline_metrics.metrics.water || '');
-          setSleep(profile.discipline_metrics.metrics.sleep || '');
-          setSteps(profile.discipline_metrics.metrics.steps || '');
-        }
-        if (profile.discipline_metrics?.training) {
-          setTrainingDone(profile.discipline_metrics.training.completed || 'YES');
-          setDifficultyNote(profile.discipline_metrics.training.difficulty_note || '');
-        }
-        
-        // Cargar las comidas si ya se habían registrado hoy
-        if (profile.discipline_metrics?.meals && profile.discipline_metrics.meals.length > 0) {
-          const savedMeals = profile.discipline_metrics.meals;
-          const mergedMeals = [1, 2, 3, 4, 5].map(num => {
-            const found = savedMeals.find(m => m.meal_num === num);
-            return found || { meal_num: num, status: 'PENDING', photo_url: null };
-          });
-          setMeals(mergedMeals);
-        }
+      if (profileResult.error) throw profileResult.error;
+      if (dailyLogResult.error) throw dailyLogResult.error;
+
+      const profile = profileResult.data;
+
+      if (!profile) {
+        throw new Error('No se encontró el perfil de atleta.');
       }
+
+      setAthlete(profile);
+
+      // Calcular en qué semana va
+      if (profile.program_start_date) {
+        const start = new Date(profile.program_start_date);
+        const diffDays = Math.floor((new Date() - start) / (1000 * 60 * 60 * 24));
+        const week = Math.floor(diffDays / 7) + 1;
+        setCurrentWeek(week > 0 ? week : 1);
+      }
+
+      // La pantalla representa HOY. No reutilizamos el snapshot de ayer.
+      hydrateDailyCheckin(dailyLogResult.data?.habits_data || null);
     } catch (error) {
-      console.error("Error cargando disciplina:", error);
+      console.error('Error cargando disciplina:', error);
     } finally {
       setLoading(false);
     }
@@ -115,41 +145,60 @@ export default function MonitoreoDisciplina() {
 
       const { data } = supabase.storage.from('athlete_evidence').getPublicUrl(filePath);
 
-      const newMeals = meals.map(m =>
-        m.meal_num === mealNum ? { ...m, photo_url: data.publicUrl, status: 'YES' } : m
+      const newMeals = meals.map((meal) =>
+        meal.meal_num === mealNum
+          ? { ...meal, photo_url: data.publicUrl, status: 'YES' }
+          : meal
       );
       setMeals(newMeals);
     } catch (error) {
-      alert("❌ Error subiendo foto de comida: " + error.message);
+      alert('❌ Error subiendo foto de comida: ' + error.message);
     } finally {
       setUploadingMeal(false);
     }
   };
 
   const handleMealStatus = (mealNum, status) => {
-    setMeals(meals.map(m => m.meal_num === mealNum ? { ...m, status } : m));
+    setMeals(meals.map((meal) =>
+      meal.meal_num === mealNum ? { ...meal, status } : meal
+    ));
   };
 
   const handleSaveDailyMetrics = async (e) => {
     e.preventDefault();
     setSaving(true);
+
     try {
       const payload = {
         metrics: { water, sleep, steps },
-        training: { completed: trainingDone, difficulty_note: difficultyNote },
-        meals: meals, // 🍎 SE GUARDAN LAS COMIDAS
-        last_updated: new Date().toISOString()
+        training: {
+          completed: trainingDone,
+          difficulty_note: difficultyNote
+        },
+        meals
       };
 
-      const { error } = await supabase
-        .from('athletes_profile')
-        .update({ discipline_metrics: payload })
-        .eq('id', athlete.id);
+      const { data, error } = await supabase.rpc(
+        'save_daily_discipline_checkin',
+        { p_payload: payload }
+      );
 
       if (error) throw error;
-      alert("✅ Auditoría Diaria guardada exitosamente.");
+
+      const saved = Array.isArray(data) ? data[0] : data;
+
+      if (saved?.saved_payload) {
+        hydrateDailyCheckin(saved.saved_payload);
+        setAthlete((current) => current
+          ? { ...current, discipline_metrics: saved.saved_payload }
+          : current
+        );
+      }
+
+      alert('✅ Auditoría Diaria guardada exitosamente.');
     } catch (err) {
-      alert("❌ Error guardando métricas: " + err.message);
+      console.error('Error guardando disciplina:', err);
+      alert('❌ Error guardando métricas: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -158,30 +207,39 @@ export default function MonitoreoDisciplina() {
   const handlePhotoReportSubmit = async (e) => {
     e.preventDefault();
     if (!frontFile || !sideFile || !backFile || !weight) {
-      return alert("⚠️ Faltan fotos o el peso para completar el Informe Fotográfico.");
+      return alert('⚠️ Faltan fotos o el peso para completar el Informe Fotográfico.');
     }
 
     setUploadingCheckIn(true);
     try {
-      if(frontFile) await uploadAthletePhoto(frontFile, athlete.id, athlete.coach_id, 'front', currentWeek, weight);
-      if(sideFile) await uploadAthletePhoto(sideFile, athlete.id, athlete.coach_id, 'side', currentWeek, weight);
-      if(backFile) await uploadAthletePhoto(backFile, athlete.id, athlete.coach_id, 'back', currentWeek, weight);
+      if (frontFile) await uploadAthletePhoto(frontFile, athlete.id, athlete.coach_id, 'front', currentWeek, weight);
+      if (sideFile) await uploadAthletePhoto(sideFile, athlete.id, athlete.coach_id, 'side', currentWeek, weight);
+      if (backFile) await uploadAthletePhoto(backFile, athlete.id, athlete.coach_id, 'back', currentWeek, weight);
 
-      alert("✅ Informe Fotográfico enviado exitosamente. Tu Coach ha recibido tu actualización.");
-      setFrontFile(null); setSideFile(null); setBackFile(null); setWeight('');
-      setShowPhotoPanel(false); 
+      alert('✅ Informe Fotográfico enviado exitosamente. Tu Coach ha recibido tu actualización.');
+      setFrontFile(null);
+      setSideFile(null);
+      setBackFile(null);
+      setWeight('');
+      setShowPhotoPanel(false);
     } catch (err) {
-      alert("❌ Error enviando informe: " + err.message);
+      alert('❌ Error enviando informe: ' + err.message);
     } finally {
       setUploadingCheckIn(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="animate-spin text-amber-500" size={40}/></div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="animate-spin text-amber-500" size={40}/>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-24 relative overflow-hidden">
-      
+
       {/* Fondo Neón Dinámico */}
       <div className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none z-0" style={{ background: `linear-gradient(180deg, ${theme?.brandColor || '#f59e0b'} 0%, transparent 100%)` }}></div>
 
@@ -195,11 +253,11 @@ export default function MonitoreoDisciplina() {
       </nav>
 
       <main className="max-w-3xl mx-auto px-6 py-8 relative z-10 space-y-8">
-        
+
         {/* ENCABEZADO */}
         <div>
           <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
-            <Activity style={{ color: theme?.brandColor || '#f59e0b' }} size={28}/> 
+            <Activity style={{ color: theme?.brandColor || '#f59e0b' }} size={28}/>
             Auditoría de Disciplina
           </h1>
           <p className="text-xs text-neutral-400 font-mono mt-2">Semana de Protocolo: <strong className="text-white">{currentWeek} de 12</strong></p>
@@ -207,7 +265,7 @@ export default function MonitoreoDisciplina() {
 
         {/* 📸 FOTO INFORME (ACORDEÓN DESPLEGABLE) */}
         <div className="bg-[#111] border border-neutral-800 rounded-3xl shadow-xl transition-all duration-300">
-          <div 
+          <div
             onClick={() => setShowPhotoPanel(!showPhotoPanel)}
             className="p-6 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors rounded-3xl"
           >
@@ -268,27 +326,24 @@ export default function MonitoreoDisciplina() {
           <h2 className="text-sm font-black uppercase tracking-widest text-neutral-400 mb-6 flex items-center gap-2">
             <Utensils size={18} style={{ color: theme?.brandColor || '#f59e0b' }}/> Evidencia Nutricional
           </h2>
-          
+
           <div className="space-y-4">
             {meals.map((meal) => (
               <div key={meal.meal_num} className="bg-black border border-neutral-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center gap-4">
-                
-                {/* Info de la comida */}
+
                 <div className="flex-1">
                   <h3 className="text-xs font-black uppercase tracking-widest text-white mb-1">Comida {meal.meal_num}</h3>
                   <p className="text-[10px] text-neutral-500 font-mono">Sube la foto de tu plato antes de ingerirlo.</p>
                 </div>
 
-                {/* Subida de foto */}
                 <div className="flex items-center gap-4">
                   <label className={`w-14 h-14 rounded-xl border border-dashed flex items-center justify-center cursor-pointer transition-colors shrink-0 overflow-hidden ${meal.photo_url ? 'border-green-500 bg-green-500/10' : 'border-neutral-600 bg-neutral-900 hover:border-white'}`}>
-                    {uploadingMeal ? <Loader2 size={16} className="animate-spin text-neutral-500" /> : 
-                     meal.photo_url ? <img src={meal.photo_url} alt="Meal" className="w-full h-full object-cover" /> : 
+                    {uploadingMeal ? <Loader2 size={16} className="animate-spin text-neutral-500" /> :
+                     meal.photo_url ? <img src={meal.photo_url} alt="Meal" className="w-full h-full object-cover" /> :
                      <ImageIcon size={16} className="text-neutral-500" />}
                     <input type="file" accept="image/*" onChange={(e) => handleMealPhotoUpload(e, meal.meal_num)} className="hidden" disabled={uploadingMeal} />
                   </label>
 
-                  {/* Botones de Estado */}
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button type="button" onClick={() => handleMealStatus(meal.meal_num, 'YES')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${meal.status === 'YES' ? 'bg-green-500/20 text-green-500 border border-green-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>Cumplí</button>
                     <button type="button" onClick={() => handleMealStatus(meal.meal_num, 'PARTIAL')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${meal.status === 'PARTIAL' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>A Medias</button>
@@ -310,15 +365,15 @@ export default function MonitoreoDisciplina() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4">
                 <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2"><Droplet size={14}/> Agua (Litros)</label>
-                <input type="number" step="0.1" value={water} onChange={(e) => setWater(e.target.value)} required placeholder="Ej: 2.5" className="w-full bg-transparent border-b border-neutral-800 text-white font-mono text-xl outline-none focus:border-blue-500 pb-1 transition-colors"/>
+                <input type="number" min="0" max="20" step="0.1" value={water} onChange={(e) => setWater(e.target.value)} required placeholder="Ej: 2.5" className="w-full bg-transparent border-b border-neutral-800 text-white font-mono text-xl outline-none focus:border-blue-500 pb-1 transition-colors"/>
               </div>
               <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3 flex items-center gap-2"><Moon size={14}/> Sueño (Horas)</label>
-                <input type="number" step="0.1" value={sleep} onChange={(e) => setSleep(e.target.value)} required placeholder="Ej: 7.5" className="w-full bg-transparent border-b border-neutral-800 text-white font-mono text-xl outline-none focus:border-purple-500 pb-1 transition-colors"/>
+                <label className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3 flex items-center gap-2"><Moon size={14}/> Sueño Reportado (Horas)</label>
+                <input type="number" min="0" max="24" step="0.1" value={sleep} onChange={(e) => setSleep(e.target.value)} required placeholder="Ej: 7.5" className="w-full bg-transparent border-b border-neutral-800 text-white font-mono text-xl outline-none focus:border-purple-500 pb-1 transition-colors"/>
               </div>
               <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-2"><Footprints size={14}/> Pasos (NEAT)</label>
-                <input type="number" value={steps} onChange={(e) => setSteps(e.target.value)} required placeholder="Ej: 10000" className="w-full bg-transparent border-b border-neutral-800 text-white font-mono text-xl outline-none focus:border-green-500 pb-1 transition-colors"/>
+                <label className="text-[10px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-2"><Footprints size={14}/> Pasos Reportados (NEAT)</label>
+                <input type="number" min="0" max="200000" step="1" value={steps} onChange={(e) => setSteps(e.target.value)} required placeholder="Ej: 10000" className="w-full bg-transparent border-b border-neutral-800 text-white font-mono text-xl outline-none focus:border-green-500 pb-1 transition-colors"/>
               </div>
             </div>
 
@@ -329,7 +384,7 @@ export default function MonitoreoDisciplina() {
                 <button type="button" onClick={() => setTrainingDone('PARTIAL')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${trainingDone === 'PARTIAL' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>A Medias</button>
                 <button type="button" onClick={() => setTrainingDone('NO')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${trainingDone === 'NO' ? 'bg-red-500/20 text-red-500 border border-red-500/50' : 'bg-neutral-900 text-neutral-500 border border-neutral-800'}`}>Fallé</button>
               </div>
-              <textarea value={difficultyNote} onChange={(e) => setDifficultyNote(e.target.value)} placeholder="Nota para el coach (Opcional): Sentí molestia en el hombro, no tuve energía hoy..." className="w-full bg-neutral-900 border border-neutral-800 rounded-xl mt-4 p-3 text-xs font-mono text-white outline-none h-16 resize-none focus:border-neutral-500"/>
+              <textarea value={difficultyNote} maxLength={1000} onChange={(e) => setDifficultyNote(e.target.value)} placeholder="Nota para el coach (Opcional): Sentí molestia en el hombro, no tuve energía hoy..." className="w-full bg-neutral-900 border border-neutral-800 rounded-xl mt-4 p-3 text-xs font-mono text-white outline-none h-16 resize-none focus:border-neutral-500"/>
             </div>
 
             <button type="submit" disabled={saving} className="w-full bg-white hover:bg-neutral-200 text-black font-black uppercase tracking-widest text-[11px] py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">
