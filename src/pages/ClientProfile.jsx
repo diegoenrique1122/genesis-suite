@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import CoachMonitoringPanel from '../components/CoachMonitoringPanel';
+import { createEvidenceSignedUrl } from '../services/evidenceStorageService';
 
 // 🔥 IMPORTACIONES CLAVE CORREGIDAS PARA EL PDF Y EXCEL
 import jsPDF from 'jspdf';
@@ -55,6 +56,13 @@ export default function ClientProfile() {
   const [athlete, setAthlete] = useState(null);
   const [coachIsElite, setCoachIsElite] = useState(false);
   const [allPhotos, setAllPhotos] = useState([]);
+  const [signedGalleryUrls, setSignedGalleryUrls] = useState({
+    front: null,
+    side: null,
+    back: null
+  });
+  const [gallerySigning, setGallerySigning] = useState(false);
+  const [gallerySigningError, setGallerySigningError] = useState('');
   const [selectedWeekFilter, setSelectedWeekFilter] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
   const [diagnosis, setDiagnosis] = useState('');
@@ -85,6 +93,96 @@ export default function ClientProfile() {
   const [editChart, setEditChart] = useState(DEFAULT_CHART);
 
   useEffect(() => { fetchExpediente(); }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const signSelectedGallery = async () => {
+      if (activeTab !== 'GALLERY') {
+        return;
+      }
+
+      const photoSet = allPhotos.find(
+        (photo) =>
+          photo.week_number === selectedWeekFilter
+      );
+
+      // Evita conservar imágenes de otra semana durante el cambio.
+      setSignedGalleryUrls({
+        front: null,
+        side: null,
+        back: null
+      });
+
+      setGallerySigningError('');
+
+      if (!photoSet) {
+        return;
+      }
+
+      setGallerySigning(true);
+
+      try {
+        const [
+          frontResult,
+          sideResult,
+          backResult
+        ] = await Promise.all([
+          createEvidenceSignedUrl(
+            photoSet.front_path || photoSet.front_url
+          ),
+          createEvidenceSignedUrl(
+            photoSet.side_path || photoSet.side_url
+          ),
+          createEvidenceSignedUrl(
+            photoSet.back_path || photoSet.back_url
+          )
+        ]);
+
+        if (!cancelled) {
+          setSignedGalleryUrls({
+            front: frontResult.signedUrl,
+            side: sideResult.signedUrl,
+            back: backResult.signedUrl
+          });
+        }
+
+      } catch (error) {
+        console.error(
+          'Genesis gallery signed URLs:',
+          error
+        );
+
+        if (!cancelled) {
+          setSignedGalleryUrls({
+            front: null,
+            side: null,
+            back: null
+          });
+
+          setGallerySigningError(
+            error?.message ||
+            'No fue posible autorizar temporalmente las fotografías.'
+          );
+        }
+
+      } finally {
+        if (!cancelled) {
+          setGallerySigning(false);
+        }
+      }
+    };
+
+    signSelectedGallery();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    selectedWeekFilter,
+    allPhotos
+  ]);
 
   useEffect(() => {
     setEditCalories(Math.round((editProtein * 4) + (editCarbs * 4) + (editFats * 9)));
@@ -874,24 +972,37 @@ export default function ClientProfile() {
                     </p>
                   )}
 
+                  {gallerySigning && (
+                    <div className="text-[10px] font-mono text-neutral-500 flex items-center gap-2">
+                      <Loader2 size={12} className="animate-spin" />
+                      Autorizando evidencia privada...
+                    </div>
+                  )}
+
+                  {gallerySigningError && (
+                    <div className="text-[10px] font-mono text-red-400 border border-red-500/30 bg-red-500/10 rounded-xl px-3 py-2">
+                      {gallerySigningError}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-black border border-neutral-800 rounded-2xl p-3 relative group">
                       <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-900 mb-2">
-                        <img src={currentPhotoSet.front_url} alt="Frente" className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer" onClick={() => window.open(currentPhotoSet.front_url, '_blank')} />
+                        <img src={signedGalleryUrls.front || undefined} alt="Frente" className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer" onClick={() => signedGalleryUrls.front && window.open(signedGalleryUrls.front, '_blank', 'noopener,noreferrer')} />
                       </div>
                       <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest block text-center">1. Frente</span>
                     </div>
 
                     <div className="bg-black border border-neutral-800 rounded-2xl p-3 relative group">
                       <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-900 mb-2">
-                        <img src={currentPhotoSet.side_url} alt="Perfil" className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer" onClick={() => window.open(currentPhotoSet.side_url, '_blank')} />
+                        <img src={signedGalleryUrls.side || undefined} alt="Perfil" className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer" onClick={() => signedGalleryUrls.side && window.open(signedGalleryUrls.side, '_blank', 'noopener,noreferrer')} />
                       </div>
                       <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest block text-center">2. Perfil / Lado</span>
                     </div>
 
                     <div className="bg-black border border-neutral-800 rounded-2xl p-3 relative group">
                       <div className="aspect-[3/4] rounded-xl overflow-hidden bg-neutral-900 mb-2">
-                        <img src={currentPhotoSet.back_url} alt="Espalda" className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer" onClick={() => window.open(currentPhotoSet.back_url, '_blank')} />
+                        <img src={signedGalleryUrls.back || undefined} alt="Espalda" className="w-full h-full object-cover group-hover:scale-105 transition-transform cursor-pointer" onClick={() => signedGalleryUrls.back && window.open(signedGalleryUrls.back, '_blank', 'noopener,noreferrer')} />
                       </div>
                       <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest block text-center">3. Espalda</span>
                     </div>
