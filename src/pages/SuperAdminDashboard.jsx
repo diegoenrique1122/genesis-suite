@@ -168,20 +168,112 @@ export default function SuperAdminDashboard() {
   };
 
   const handleSaveGlobalSettings = async (e) => {
-    e.preventDefault(); setSavingSettings(true);
-    try {
-      let finalUrl = globalSettings.watermark_url;
-      if (watermarkFile) {
-        const fileExt = watermarkFile.name.split('.').pop();
-        const filePath = `assets/watermark_${Date.now()}.${fileExt}`;
-        const { error: uploadErr } = await supabase.storage.from('athlete_evidence').upload(filePath, watermarkFile);
-        if (!uploadErr) { const { data } = supabase.storage.from('athlete_evidence').getPublicUrl(filePath); finalUrl = data.publicUrl; }
-      }
-      await supabase.from('super_admin_settings').upsert({ id: 1, watermark_url: finalUrl, instagram_handle: globalSettings.instagram_handle, watermark_opacity: globalSettings.watermark_opacity, watermark_size: globalSettings.watermark_size, updated_at: new Date().toISOString() });
-      alert("✅ Configuración Global Guardada."); loadSuperAdminData();
-    } catch (err) { alert("❌ Error guardando ajustes."); } finally { setSavingSettings(false); }
-  };
+    e.preventDefault();
 
+    try {
+      setSavingSettings(true);
+
+      let finalUrl = globalSettings.watermark_url;
+
+      if (watermarkFile) {
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/webp'
+        ];
+
+        if (!allowedMimeTypes.includes(watermarkFile.type)) {
+          throw new Error(
+            'La marca de agua debe ser JPG, PNG o WEBP.'
+          );
+        }
+
+        if (watermarkFile.size > 5 * 1024 * 1024) {
+          throw new Error(
+            'La marca de agua no puede superar 5 MB.'
+          );
+        }
+
+        const fileExt = (
+          watermarkFile.name.split('.').pop() || 'png'
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+        const filePath =
+          `global/watermark_${Date.now()}.${fileExt}`;
+
+        const { error: uploadErr } =
+          await supabase.storage
+            .from('genesis_brand_assets')
+            .upload(
+              filePath,
+              watermarkFile,
+              {
+                cacheControl: '3600',
+                upsert: false
+              }
+            );
+
+        if (uploadErr) {
+          throw uploadErr;
+        }
+
+        const { data } =
+          supabase.storage
+            .from('genesis_brand_assets')
+            .getPublicUrl(filePath);
+
+        if (!data?.publicUrl) {
+          throw new Error(
+            'Genesis no pudo generar la URL pública de la marca de agua.'
+          );
+        }
+
+        finalUrl = data.publicUrl;
+      }
+
+      const { error: settingsError } =
+        await supabase
+          .from('super_admin_settings')
+          .upsert({
+            id: 1,
+            watermark_url: finalUrl,
+            instagram_handle:
+              globalSettings.instagram_handle,
+            watermark_opacity:
+              globalSettings.watermark_opacity,
+            watermark_size:
+              globalSettings.watermark_size,
+            updated_at: new Date().toISOString()
+          });
+
+      if (settingsError) {
+        throw settingsError;
+      }
+
+      setWatermarkFile(null);
+
+      alert(
+        '✅ Configuración Global Guardada.'
+      );
+
+      await loadSuperAdminData();
+
+    } catch (err) {
+      console.error(
+        'Genesis global branding error:',
+        err
+      );
+
+      alert(
+        `❌ Error guardando ajustes: ${err.message}`
+      );
+
+    } finally {
+      setSavingSettings(false);
+    }
+  };
   // 🔥 LÓGICA DEL CHAT FLOTANTE RECONSTRUIDA PARA 1-A-1 🔥
   const openChatWithCoach = async (coach) => {
     setSelectedCoachChat(coach);

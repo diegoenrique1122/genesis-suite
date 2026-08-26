@@ -110,15 +110,62 @@ export default function CoachSettings() {
       let logoUrl = coach.brand_logo_url;
 
       if (logoFile) {
-        const fileExt = logoFile.name.split('.').pop();
-        const filePath = `logos/${coach.id}_${Date.now()}.${fileExt}`;
-        const { error: uploadErr } = await supabase.storage.from('athlete_evidence').upload(filePath, logoFile);
-        if (!uploadErr) {
-          const { data } = supabase.storage.from('athlete_evidence').getPublicUrl(filePath);
-          logoUrl = data.publicUrl;
-        }
-      }
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/webp'
+        ];
 
+        if (!allowedMimeTypes.includes(logoFile.type)) {
+          throw new Error(
+            'El logo debe ser JPG, PNG o WEBP.'
+          );
+        }
+
+        if (logoFile.size > 5 * 1024 * 1024) {
+          throw new Error(
+            'El logo no puede superar 5 MB.'
+          );
+        }
+
+        const fileExt = (
+          logoFile.name.split('.').pop() || 'png'
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+        const filePath =
+          `coaches/${coach.id}/logo_${Date.now()}.${fileExt}`;
+
+        const { error: uploadErr } =
+          await supabase.storage
+            .from('genesis_brand_assets')
+            .upload(
+              filePath,
+              logoFile,
+              {
+                cacheControl: '3600',
+                upsert: false
+              }
+            );
+
+        if (uploadErr) {
+          throw uploadErr;
+        }
+
+        const { data } =
+          supabase.storage
+            .from('genesis_brand_assets')
+            .getPublicUrl(filePath);
+
+        if (!data?.publicUrl) {
+          throw new Error(
+            'Genesis no pudo generar la URL pública del logo.'
+          );
+        }
+
+        logoUrl = data.publicUrl;
+      }
       const { error } = await supabase.from('coaches_profile').update({
         full_name: fullName, 
         theme_id: themeId, 
