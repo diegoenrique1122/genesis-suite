@@ -11,6 +11,7 @@ import {
   Watch,
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { createEvidenceSignedUrl } from '../services/evidenceStorageService';
 
 const STATUS_LABELS = {
   YES: 'Cumplido',
@@ -39,6 +40,11 @@ const valueOrDash = (value, suffix = '') => (
     : `${value}${suffix}`
 );
 
+const mealEvidenceSource = (meal) => (
+  meal?.photo_path ||
+  meal?.photo_url ||
+  null
+);
 const parseManualRow = (row) => {
   const payload = row?.habits_data;
   if (!payload || payload.source !== 'MANUAL_DISCIPLINE') return null;
@@ -72,6 +78,9 @@ export default function CoachMonitoringPanel({ athlete }) {
   const [error, setError] = useState('');
   const [manualRows, setManualRows] = useState([]);
   const [wearableRows, setWearableRows] = useState([]);
+  const [mealEvidenceUrls, setMealEvidenceUrls] = useState({});
+  const [mealEvidenceErrors, setMealEvidenceErrors] = useState({});
+  const [mealEvidenceSigning, setMealEvidenceSigning] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +140,86 @@ export default function CoachMonitoringPanel({ athlete }) {
 
   const latestManual = manualRows[0] || null;
   const latestWearable = wearableRows[0] || null;
+  useEffect(() => {
+    let cancelled = false;
+
+    const signLatestMealEvidence = async () => {
+      const evidenceMeals =
+        (latestManual?.meals || []).filter(
+          (meal) => mealEvidenceSource(meal)
+        );
+
+      setMealEvidenceUrls({});
+      setMealEvidenceErrors({});
+
+      if (evidenceMeals.length === 0) {
+        setMealEvidenceSigning(false);
+        return;
+      }
+
+      setMealEvidenceSigning(true);
+
+      const results = await Promise.all(
+        evidenceMeals.map(async (meal) => {
+          const key = String(meal.meal_num);
+
+          try {
+            const result =
+              await createEvidenceSignedUrl(
+                mealEvidenceSource(meal)
+              );
+
+            return {
+              key,
+              signedUrl: result.signedUrl,
+              error: ''
+            };
+
+          } catch (error) {
+            console.error(
+              'Genesis coach meal signed URL:',
+              error
+            );
+
+            return {
+              key,
+              signedUrl: null,
+              error:
+                error?.message ||
+                'Evidencia no disponible.'
+            };
+          }
+        })
+      );
+
+      if (!cancelled) {
+        const urls = {};
+        const errors = {};
+
+        results.forEach((result) => {
+          if (result.signedUrl) {
+            urls[result.key] =
+              result.signedUrl;
+          }
+
+          if (result.error) {
+            errors[result.key] =
+              result.error;
+          }
+        });
+
+        setMealEvidenceUrls(urls);
+        setMealEvidenceErrors(errors);
+        setMealEvidenceSigning(false);
+      }
+    };
+
+    signLatestMealEvidence();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latestManual]);
 
   const manualSummary = useMemo(() => ({
     days: manualRows.length,
@@ -247,13 +336,42 @@ export default function CoachMonitoringPanel({ athlete }) {
                     <span className={`inline-flex text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded border ${statusClass(meal?.status)}`}>
                       {STATUS_LABELS[meal?.status] || 'Sin estado'}
                     </span>
-                    {meal?.photo_url && (
+                    {mealEvidenceSource(meal) && (
                       <button
                         type="button"
-                        onClick={() => window.open(meal.photo_url, '_blank', 'noopener,noreferrer')}
-                        className="text-[9px] font-mono text-blue-400 hover:text-blue-300 block mt-3"
+                        disabled={
+                          !mealEvidenceUrls[
+                            String(meal?.meal_num ?? index + 1)
+                          ]
+                        }
+                        onClick={() => {
+                          const signedUrl =
+                            mealEvidenceUrls[
+                              String(meal?.meal_num ?? index + 1)
+                            ];
+
+                          if (signedUrl) {
+                            window.open(
+                              signedUrl,
+                              '_blank',
+                              'noopener,noreferrer'
+                            );
+                          }
+                        }}
+                        title={
+                          mealEvidenceErrors[
+                            String(meal?.meal_num ?? index + 1)
+                          ] || ''
+                        }
+                        className="text-[9px] font-mono text-blue-400 hover:text-blue-300 disabled:text-neutral-600 disabled:cursor-not-allowed block mt-3"
                       >
-                        Ver evidencia
+                        {mealEvidenceUrls[
+                          String(meal?.meal_num ?? index + 1)
+                        ]
+                          ? 'Ver evidencia'
+                          : mealEvidenceSigning
+                            ? 'Autorizando...'
+                            : 'Evidencia no disponible'}
                       </button>
                     )}
                   </div>

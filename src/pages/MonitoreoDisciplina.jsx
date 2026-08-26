@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { uploadAthletePhoto } from '../services/storageService';
+import { createEvidenceSignedUrl } from '../services/evidenceStorageService';
 import {
   ArrowLeft, Droplet, Moon, Footprints, Camera,
   CheckCircle2, AlertTriangle, Loader2, Calendar, Scale, Save,
@@ -12,9 +13,11 @@ import {
 const buildEmptyMeals = () => [1, 2, 3, 4, 5].map((mealNum) => ({
   meal_num: mealNum,
   status: 'PENDING',
-  photo_url: null
+  photo_path: null,
+  photo_url: null,
+  signed_photo_url: null,
+  signed_photo_error: ''
 }));
-
 const pad2 = (value) => String(value).padStart(2, '0');
 
 const getLocalDate = () => {
@@ -26,6 +29,49 @@ const getLocalTimeZone = () => (
   Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 );
 
+const signMealEvidence = async (meal) => {
+  const source =
+    meal?.photo_path ||
+    meal?.photo_url ||
+    null;
+
+  if (!source) {
+    return {
+      ...meal,
+      photo_path: null,
+      photo_url: null,
+      signed_photo_url: null,
+      signed_photo_error: ''
+    };
+  }
+
+  try {
+    const result =
+      await createEvidenceSignedUrl(source);
+
+    return {
+      ...meal,
+      photo_path: result.path,
+      photo_url: null,
+      signed_photo_url: result.signedUrl,
+      signed_photo_error: ''
+    };
+
+  } catch (error) {
+    console.error(
+      'Genesis meal signed URL:',
+      error
+    );
+
+    return {
+      ...meal,
+      signed_photo_url: null,
+      signed_photo_error:
+        error?.message ||
+        'No fue posible autorizar la evidencia.'
+    };
+  }
+};
 export default function MonitoreoDisciplina() {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -58,7 +104,7 @@ export default function MonitoreoDisciplina() {
     fetchData();
   }, []);
 
-  const hydrateDailyCheckin = (payload) => {
+  const hydrateDailyCheckin = async (payload) => {
     if (!payload || typeof payload !== 'object') {
       setWater('');
       setSleep('');
@@ -84,7 +130,7 @@ export default function MonitoreoDisciplina() {
       return found ? { ...emptyMeal, ...found } : emptyMeal;
     });
 
-    setMeals(mergedMeals);
+    setMeals(await Promise.all(mergedMeals.map(signMealEvidence)));
   };
 
   const fetchData = async () => {
@@ -128,7 +174,7 @@ export default function MonitoreoDisciplina() {
       }
 
       // La pantalla representa HOY en la zona local del dispositivo.
-      hydrateDailyCheckin(dailyLogResult.data?.habits_data || null);
+      await hydrateDailyCheckin(dailyLogResult.data?.habits_data || null);
     } catch (error) {
       console.error('Error cargando disciplina:', error);
     } finally {
@@ -139,34 +185,74 @@ export default function MonitoreoDisciplina() {
   // 🍎 FUNCIÓN PARA SUBIR FOTO DE COMIDA
   const handleMealPhotoUpload = async (e, mealNum) => {
     const file = e.target.files[0];
-    if (!file) return;
+
+    if (!file || !athlete?.id) return;
+
     setUploadingMeal(true);
+
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `meal_${mealNum}_${Date.now()}.${fileExt}`;
-      const filePath = `${athlete.id}/daily_meals/${fileName}`;
+      const fileExt = (
+        file.name.split('.').pop() || 'jpg'
+      )
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
 
-      const { error: uploadError } = await supabase.storage
-        .from('athlete_evidence')
-        .upload(filePath, file, { upsert: true });
+      const fileName =
+        `meal_${mealNum}_${Date.now()}.${fileExt}`;
 
-      if (uploadError) throw uploadError;
+      const filePath =
+        `${athlete.id}/daily_meals/${fileName}`;
 
-      const { data } = supabase.storage.from('athlete_evidence').getPublicUrl(filePath);
+      const { error: uploadError } =
+        await supabase.storage
+          .from('athlete_evidence')
+          .upload(
+            filePath,
+            file,
+            {
+              cacheControl: '3600',
+              upsert: false
+            }
+          );
 
-      const newMeals = meals.map((meal) =>
-        meal.meal_num === mealNum
-          ? { ...meal, photo_url: data.publicUrl, status: 'YES' }
-          : meal
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { signedUrl } =
+        await createEvidenceSignedUrl(filePath);
+
+      setMeals((currentMeals) =>
+        currentMeals.map((meal) =>
+          meal.meal_num === mealNum
+            ? {
+                ...meal,
+                photo_path: filePath,
+                photo_url: null,
+                signed_photo_url: signedUrl,
+                signed_photo_error: '',
+                status: 'YES'
+              }
+            : meal
+        )
       );
-      setMeals(newMeals);
+
     } catch (error) {
-      alert('❌ Error subiendo foto de comida: ' + error.message);
+      console.error(
+        'Genesis meal evidence upload:',
+        error
+      );
+
+      alert(
+        '❌ Error subiendo foto de comida: ' +
+        error.message
+      );
+
     } finally {
       setUploadingMeal(false);
+      e.target.value = '';
     }
   };
-
   const handleMealStatus = (mealNum, status) => {
     setMeals(meals.map((meal) =>
       meal.meal_num === mealNum ? { ...meal, status } : meal
@@ -185,7 +271,14 @@ export default function MonitoreoDisciplina() {
           completed: trainingDone,
           difficulty_note: difficultyNote
         },
-        meals
+        meals: meals.map((meal) => ({
+          meal_num: meal.meal_num,
+          status: meal.status,
+          photo_path: meal.photo_path || null,
+          photo_url: meal.photo_path
+            ? null
+            : (meal.photo_url || null)
+        }))
       };
 
       const { data, error } = await supabase.rpc(
@@ -198,7 +291,7 @@ export default function MonitoreoDisciplina() {
       const saved = Array.isArray(data) ? data[0] : data;
 
       if (saved?.saved_payload) {
-        hydrateDailyCheckin(saved.saved_payload);
+        await hydrateDailyCheckin(saved.saved_payload);
         setAthlete((current) => current
           ? { ...current, discipline_metrics: saved.saved_payload }
           : current
@@ -347,9 +440,9 @@ export default function MonitoreoDisciplina() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <label className={`w-14 h-14 rounded-xl border border-dashed flex items-center justify-center cursor-pointer transition-colors shrink-0 overflow-hidden ${meal.photo_url ? 'border-green-500 bg-green-500/10' : 'border-neutral-600 bg-neutral-900 hover:border-white'}`}>
+                  <label className={`w-14 h-14 rounded-xl border border-dashed flex items-center justify-center cursor-pointer transition-colors shrink-0 overflow-hidden ${(meal.photo_path || meal.photo_url) ? 'border-green-500 bg-green-500/10' : 'border-neutral-600 bg-neutral-900 hover:border-white'}`}>
                     {uploadingMeal ? <Loader2 size={16} className="animate-spin text-neutral-500" /> :
-                     meal.photo_url ? <img src={meal.photo_url} alt="Meal" className="w-full h-full object-cover" /> :
+                     meal.signed_photo_url ? <img src={meal.signed_photo_url} alt={`Comida ${meal.meal_num}`} className="w-full h-full object-cover" /> :
                      <ImageIcon size={16} className="text-neutral-500" />}
                     <input type="file" accept="image/*" onChange={(e) => handleMealPhotoUpload(e, meal.meal_num)} className="hidden" disabled={uploadingMeal} />
                   </label>
