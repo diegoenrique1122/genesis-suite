@@ -1,18 +1,9 @@
 -- Genesis OS 002B5.A2C1
--- Canonical PUBLIC branding storage, separated from PRIVATE athlete evidence.
---
--- Architecture:
---   genesis_brand_assets (PUBLIC)
---     global/...                 -> Genesis / SuperAdmin watermark assets
---     coaches/<coach_id>/...     -> ELITE coach branding assets
---
--- athlete_evidence remains transitional-public until A2D.
--- This migration does NOT move or delete existing objects.
+-- Canonical PUBLIC branding storage separated from PRIVATE athlete evidence.
 --
 -- IMPORTANT:
--- storage.objects is owned by supabase_storage_admin in hosted Supabase.
--- Project postgres is a member of that role, so policy DDL must temporarily
--- assume the table-owner role. reset role restores the migration caller.
+-- Policies on storage.objects are installed through Supabase Storage Studio
+-- because hosted Storage owns that table with supabase_storage_admin.
 
 insert into storage.buckets (
   id,
@@ -38,94 +29,73 @@ do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- PostgreSQL requires CREATE/DROP POLICY to execute as the table owner.
-set role supabase_storage_admin;
 
--- Remove only Genesis-owned policies for this bucket so the migration is rerunnable.
-drop policy if exists storage_genesis_brand_assets_insert_authorized
-on storage.objects;
-
-drop policy if exists storage_genesis_brand_assets_update_authorized
-on storage.objects;
-
-drop policy if exists storage_genesis_brand_assets_delete_authorized
-on storage.objects;
-
--- SuperAdmin may manage the complete public branding bucket.
--- ELITE coaches may create assets only inside coaches/<their coach_profile.id>/...
-create policy storage_genesis_brand_assets_insert_authorized
-on storage.objects
-for insert
-to authenticated
-with check (
-  bucket_id = 'genesis_brand_assets'
-  and (
-    private.is_super_admin()
-    or exists (
-      select 1
-      from public.coaches_profile cp
-      where cp.user_id = auth.uid()
-        and cp.b2b_plan::text = 'ELITE'
-        and name like (
-          'coaches/' || cp.id::text || '/%'
-        )
-    )
-  )
-);
-
-create policy storage_genesis_brand_assets_update_authorized
-on storage.objects
-for update
-to authenticated
-using (
-  bucket_id = 'genesis_brand_assets'
-  and (
-    private.is_super_admin()
-    or exists (
-      select 1
-      from public.coaches_profile cp
-      where cp.user_id = auth.uid()
-        and cp.b2b_plan::text = 'ELITE'
-        and name like (
-          'coaches/' || cp.id::text || '/%'
-        )
-    )
-  )
+create or replace function private.can_manage_genesis_brand_asset(
+  p_name text
 )
-with check (
-  bucket_id = 'genesis_brand_assets'
-  and (
-    private.is_super_admin()
-    or exists (
-      select 1
-      from public.coaches_profile cp
-      where cp.user_id = auth.uid()
-        and cp.b2b_plan::text = 'ELITE'
-        and name like (
-          'coaches/' || cp.id::text || '/%'
-        )
-    )
-  )
-);
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+  v_uid uuid;
+  v_coach_id uuid;
+begin
+  v_uid := auth.uid();
 
-create policy storage_genesis_brand_assets_delete_authorized
-on storage.objects
-for delete
-to authenticated
-using (
-  bucket_id = 'genesis_brand_assets'
-  and (
-    private.is_super_admin()
-    or exists (
-      select 1
-      from public.coaches_profile cp
-      where cp.user_id = auth.uid()
-        and cp.b2b_plan::text = 'ELITE'
-        and name like (
-          'coaches/' || cp.id::text || '/%'
-        )
-    )
-  )
-);
+  if v_uid is null then
+    return false;
+  end if;
 
-reset role;
+  -- Only ACTIVE Genesis accounts may manage branding.
+  if not exists (
+    select 1
+    from public.users_master um
+    where um.id = v_uid
+      and um.account_status::text = 'ACTIVE'
+  ) then
+    return false;
+  end if;
+
+  -- SuperAdmin may manage global branding and all coach branding.
+  if private.is_super_admin() then
+    return
+      p_name like 'global/%'
+      or p_name like 'coaches/%';
+  end if;
+
+  -- Coach must be ELITE and may manage only:
+  -- coaches/<own coach_profile.id>/...
+  select cp.id
+    into v_coach_id
+  from public.coaches_profile cp
+  where cp.user_id = v_uid
+    and cp.b2b_plan::text = 'ELITE'
+  limit 1;
+
+  if v_coach_id is null then
+    return false;
+  end if;
+
+  return p_name like (
+    'coaches/' ||
+    v_coach_id::text ||
+    '/%'
+  );
+end;
+$$;
+
+
+revoke all
+on function private.can_manage_genesis_brand_asset(text)
+from public, anon;
+
+grant execute
+on function private.can_manage_genesis_brand_asset(text)
+to authenticated;
+
+
+comment on function private.can_manage_genesis_brand_asset(text) is
+'Genesis 002B5.A2C1: authorizes ACTIVE SuperAdmin branding paths or ACTIVE ELITE Coach own coaches/<coach_id>/ branding path.';
