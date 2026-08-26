@@ -8,6 +8,11 @@
 --
 -- athlete_evidence remains transitional-public until A2D.
 -- This migration does NOT move or delete existing objects.
+--
+-- IMPORTANT:
+-- storage.objects is owned by supabase_storage_admin in hosted Supabase.
+-- Project postgres is a member of that role, so policy DDL must temporarily
+-- assume the table-owner role. reset role restores the migration caller.
 
 insert into storage.buckets (
   id,
@@ -32,6 +37,9 @@ do update set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
+
+-- PostgreSQL requires CREATE/DROP POLICY to execute as the table owner.
+set role supabase_storage_admin;
 
 -- Remove only Genesis-owned policies for this bucket so the migration is rerunnable.
 drop policy if exists storage_genesis_brand_assets_insert_authorized
@@ -120,5 +128,4 @@ using (
   )
 );
 
-comment on table storage.objects is
-'Genesis Storage: private evidence remains in athlete_evidence; public branding belongs in genesis_brand_assets.';
+reset role;
