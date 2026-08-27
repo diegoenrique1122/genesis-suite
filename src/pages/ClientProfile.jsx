@@ -471,7 +471,19 @@ export default function ClientProfile() {
   if (!athlete) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><p className="text-red-500">Atleta no encontrado</p></div>;
 
   const currentDayCoach = editablePlan?.find(d => d.day === activeDayCoach);
-  const currentPhotoSet = allPhotos.find(p => p.week_number === selectedWeekFilter);
+  const availablePhotoWeeks = [
+    ...new Set(
+      allPhotos
+        .map((photo) => Number(photo.week_number))
+        .filter((week) => Number.isFinite(week))
+    )
+  ].sort((a, b) => a - b);
+
+  const currentPhotoSet = allPhotos.find(
+    (photo) =>
+      Number(photo.week_number) ===
+      Number(selectedWeekFilter)
+  );
 
   const PHASE_UI = {
     MENSTRUAL: { name: "Menstrual", color: "text-rose-500", bg: "bg-rose-500/10 border-rose-500/30", icon: <Droplets size={20} className="text-rose-500" />, desc: "Inflamación elevada.", training: "Bajar RIR. No buscar PRs.", nutrition: "Priorizar hierro y Omega-3." },
@@ -952,7 +964,7 @@ export default function ClientProfile() {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 scrollbar-hide">
-                  {[0, 3, 6, 9, 12].map(wk => (
+                  {availablePhotoWeeks.map((wk) => (
                     <button
                       key={wk}
                       onClick={() => setSelectedWeekFilter(wk)}

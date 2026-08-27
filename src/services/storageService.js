@@ -60,9 +60,8 @@ export const uploadAthletePhoto = async (
       [`${photoType}_path`]: filePath,
 
       // La columna legacy queda vacía para nuevas cargas.
-      [`${photoType}_url`]: null,
+      [`${photoType}_url`]: null
 
-      updated_at: new Date().toISOString()
     };
 
     if (
