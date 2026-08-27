@@ -1,4 +1,4 @@
-﻿-- Genesis OS 002B5.A2D
+-- Genesis OS 002B5.A2D
 -- Final private cutover for athlete evidence.
 --
 -- Preconditions validated:
