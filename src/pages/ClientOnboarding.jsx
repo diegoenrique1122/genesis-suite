@@ -120,11 +120,20 @@ export default function ClientOnboarding() {
     const fileExt =
       file.name
         .split('.')
-        .pop();
+        .pop()
+        ?.toLowerCase();
+
+
+    if (!fileExt) {
+
+      throw new Error(
+        'No fue posible identificar el formato de la fotografía.'
+      );
+    }
 
 
     const filePath =
-      `progress_photos/${athleteId}_week0_${viewName}_${Date.now()}.${fileExt}`;
+      `${athleteId}/week_0/${viewName}/${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
 
 
     const {
@@ -133,7 +142,10 @@ export default function ClientOnboarding() {
       .from('athlete_evidence')
       .upload(
         filePath,
-        file
+        file,
+        {
+          upsert: false,
+        }
       );
 
 
@@ -143,14 +155,9 @@ export default function ClientOnboarding() {
     }
 
 
-    const {
-      data,
-    } = supabase.storage
-      .from('athlete_evidence')
-      .getPublicUrl(filePath);
-
-
-    return data.publicUrl;
+    // athlete_evidence is PRIVATE.
+    // Never generate or persist a public URL for onboarding evidence.
+    return filePath;
   };
 
 
@@ -358,7 +365,7 @@ export default function ClientOnboarding() {
        * =================================================
        */
 
-      const frontUrl =
+      const frontPath =
         await uploadPhotoToStorage(
           frontFile,
           'front',
@@ -366,7 +373,7 @@ export default function ClientOnboarding() {
         );
 
 
-      const sideUrl =
+      const sidePath =
         await uploadPhotoToStorage(
           sideFile,
           'side',
@@ -374,7 +381,7 @@ export default function ClientOnboarding() {
         );
 
 
-      const backUrl =
+      const backPath =
         await uploadPhotoToStorage(
           backFile,
           'back',
@@ -442,14 +449,17 @@ export default function ClientOnboarding() {
             injuries.trim() ||
             'Ninguna',
 
+          // Transitional RPC parameter names remain *_url
+          // for backward compatibility.
+          // Values are canonical PRIVATE Storage paths.
           p_front_url:
-            frontUrl,
+            frontPath,
 
           p_side_url:
-            sideUrl,
+            sidePath,
 
           p_back_url:
-            backUrl,
+            backPath,
 
           p_legal_accepted:
             legalAccepted,
