@@ -29,3 +29,4 @@ dist-ssr
 
 # Local backup files
 *.patch
+supabase/.temp/
