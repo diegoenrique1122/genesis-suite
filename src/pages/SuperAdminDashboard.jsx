@@ -39,6 +39,7 @@ export default function SuperAdminDashboard() {
   const [globalSettings, setGlobalSettings] = useState({ watermark_url: '', instagram_handle: '@GenesisTech', watermark_opacity: 10, watermark_size: 50 });
   const [watermarkFile, setWatermarkFile] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [lifecycleAction, setLifecycleAction] = useState(null);
 
   // Estados Edición Códigos
   const [copiedCode, setCopiedCode] = useState(null);
@@ -130,11 +131,119 @@ export default function SuperAdminDashboard() {
     } catch (err) { alert("❌ Error al aprobar."); }
   };
 
-  const handleToggleCoachStatus = async (coachId, currentStatus) => {
+  const lifecycleErrorMessage = async (error, data) => {
+    let payload =
+      data && typeof data === 'object'
+        ? data
+        : null;
+
     try {
-      await supabase.from('users_master').update({ account_status: currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }).eq('id', coachId);
-      loadSuperAdminData();
-    } catch (err) { alert("Error."); }
+      const response = error?.context;
+      const contextPayload = response?.clone
+        ? await response.clone().json()
+        : await response?.json?.();
+
+      if (contextPayload && typeof contextPayload === 'object') {
+        payload = contextPayload;
+      }
+    } catch {
+      // Conserva el payload seguro ya disponible.
+    }
+
+    const code = payload?.code || 'LIFECYCLE_REQUEST_FAILED';
+    const messages = {
+      ACTOR_FORBIDDEN: 'Tu cuenta no tiene autoridad para ejecutar esta acción.',
+      ACTOR_SESSION_INVALID: 'Tu sesión administrativa ya no es válida. Inicia sesión nuevamente.',
+      AUTH_CLAIMS_INVALID: 'Genesis no pudo validar tu sesión administrativa.',
+      DATABASE_CLEANUP_FAILED: 'La limpieza de datos falló. La cuenta permanece suspendida y puedes reintentar.',
+      DEPENDENCIES_EXIST: 'La cuenta conserva dependencias que impiden su eliminación.',
+      HARD_DELETE_CONFIRMATION_REQUIRED: 'La confirmación de eliminación permanente no coincide.',
+      HARD_DELETE_PREPARATION_FAILED: 'No fue posible preparar la eliminación. Intenta nuevamente.',
+      INVALID_TRANSITION: 'El estado actual de la cuenta no permite esa transición.',
+      LAST_ACTIVE_SUPER_ADMIN: 'No se puede modificar al último SuperAdmin activo.',
+      PREFLIGHT_UNAVAILABLE: 'La validación de seguridad está temporalmente indisponible.',
+      SELF_ACTION_BLOCKED: 'No puedes ejecutar esta acción sobre tu propia cuenta.',
+      STATUS_EXECUTION_FAILED: 'No fue posible cambiar el estado de la cuenta.',
+      STORAGE_CLEANUP_FAILED: 'La limpieza de archivos falló. La cuenta permanece suspendida y puedes reintentar.',
+      TARGET_NOT_FOUND: 'La cuenta seleccionada ya no existe.'
+    };
+
+    return messages[code] || 'La operación de ciclo de vida no pudo completarse.';
+  };
+
+  const invokeAccountLifecycle = async ({
+    targetUserId,
+    action,
+    confirmation
+  }) => {
+    const body = {
+      targetUserId,
+      action
+    };
+
+    if (confirmation) {
+      body.confirmation = confirmation;
+    }
+
+    const { data, error } =
+      await supabase.functions.invoke(
+        'genesis-account-lifecycle',
+        { body }
+      );
+
+    if (error || data?.ok !== true) {
+      throw new Error(
+        await lifecycleErrorMessage(error, data)
+      );
+    }
+
+    return data;
+  };
+
+  const handleToggleCoachStatus = async (coachId, currentStatus) => {
+    const action =
+      currentStatus === 'ACTIVE'
+        ? 'SUSPEND'
+        : 'REACTIVATE';
+
+    const actionLabel =
+      action === 'SUSPEND'
+        ? 'suspender'
+        : 'reactivar';
+
+    if (
+      !window.confirm(
+        `¿Confirmas que deseas ${actionLabel} esta cuenta?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setLifecycleAction({
+        userId: coachId,
+        action
+      });
+
+      const result = await invokeAccountLifecycle({
+        targetUserId: coachId,
+        action
+      });
+
+      alert(
+        action === 'SUSPEND'
+          ? `Cuenta suspendida. Sesiones revocadas: ${result.sessionsRevoked || 0}.`
+          : 'Cuenta reactivada correctamente.'
+      );
+
+      await loadSuperAdminData();
+
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+
+    } finally {
+      setLifecycleAction(null);
+    }
   };
 
   const handleChangeCoachPlan = async (coachId, newPlan) => {
@@ -142,8 +251,46 @@ export default function SuperAdminDashboard() {
   };
 
   const handleDeleteCoach = async (userId) => {
-    if (!window.confirm(`⚠️ ¿Eliminar permanentemente la cuenta de este entrenador?`)) return;
-    try { await supabase.from('users_master').delete().eq('id', userId); loadSuperAdminData(); } catch (err) { alert("Error."); }
+    const expectedConfirmation =
+      `HARD_DELETE:${userId}`;
+
+    const confirmation = window.prompt(
+      `Esta operación es irreversible. Para continuar escribe exactamente:\n\n${expectedConfirmation}`
+    );
+
+    if (confirmation === null) {
+      return;
+    }
+
+    if (confirmation.trim() !== expectedConfirmation) {
+      alert('La confirmación no coincide. No se eliminó ninguna cuenta.');
+      return;
+    }
+
+    try {
+      setLifecycleAction({
+        userId,
+        action: 'HARD_DELETE'
+      });
+
+      const result = await invokeAccountLifecycle({
+        targetUserId: userId,
+        action: 'HARD_DELETE',
+        confirmation: confirmation.trim()
+      });
+
+      alert(
+        `Cuenta eliminada. Archivos retirados: ${result.storageObjectsDeleted || 0}.`
+      );
+
+      await loadSuperAdminData();
+
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+
+    } finally {
+      setLifecycleAction(null);
+    }
   };
 
   const handleResolveRequest = async (requestId, coachId, requestedPlan, newStatus) => {
@@ -453,6 +600,9 @@ export default function SuperAdminDashboard() {
                       const codeIGN = c.invite_code_ignicion || (c.coach_code ? `IGN-${c.coach_code}` : 'N/A');
                       const codeEVO = c.invite_code_evolucion || (c.coach_code ? `EVO-${c.coach_code}` : 'N/A');
                       const codePRO = c.invite_code_elite || (c.coach_code ? `PRO-${c.coach_code}` : 'N/A');
+                      const accountUserId = c.user_id || c.id;
+                      const lifecycleBusy =
+                        lifecycleAction?.userId === accountUserId;
 
                       return (
                         <tr key={c.id} className="hover:bg-white/5 transition-colors">
@@ -482,8 +632,28 @@ export default function SuperAdminDashboard() {
                           <td className="py-4 text-center"><span className={`px-2 py-1 rounded-full ${c.account_status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>{c.account_status}</span></td>
                           <td className="py-4 text-right pr-2 space-x-2">
                             <button onClick={() => openChatWithCoach(c)} className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-blue-500/20 text-blue-500 transition-colors bg-black/30`} title="Chat Privado 1-a-1"><MessageCircle size={16}/></button>
-                            <button onClick={() => handleToggleCoachStatus(c.user_id, c.account_status)} className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-black/50 bg-black/30`}><PauseCircle size={16}/></button>
-                            <button onClick={() => handleDeleteCoach(c.user_id)} className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-red-500/20 hover:border-red-500/50 text-red-500 bg-black/30 transition-colors`}><Trash2 size={16}/></button>
+                            <button
+                              onClick={() => handleToggleCoachStatus(accountUserId, c.account_status)}
+                              disabled={Boolean(lifecycleAction)}
+                              className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-black/50 bg-black/30 disabled:cursor-not-allowed disabled:opacity-40`}
+                              title={c.account_status === 'ACTIVE' ? 'Suspender cuenta' : 'Reactivar cuenta'}
+                            >
+                              {lifecycleBusy && lifecycleAction.action !== 'HARD_DELETE'
+                                ? <Loader2 size={16} className="animate-spin"/>
+                                : c.account_status === 'ACTIVE'
+                                  ? <PauseCircle size={16}/>
+                                  : <PlayCircle size={16}/>}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCoach(accountUserId)}
+                              disabled={Boolean(lifecycleAction)}
+                              className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-red-500/20 hover:border-red-500/50 text-red-500 bg-black/30 transition-colors disabled:cursor-not-allowed disabled:opacity-40`}
+                              title="Eliminar cuenta permanentemente"
+                            >
+                              {lifecycleBusy && lifecycleAction.action === 'HARD_DELETE'
+                                ? <Loader2 size={16} className="animate-spin"/>
+                                : <Trash2 size={16}/>}
+                            </button>
                           </td>
                         </tr>
                       );
