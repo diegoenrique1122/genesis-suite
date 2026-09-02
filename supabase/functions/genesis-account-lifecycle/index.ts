@@ -134,9 +134,10 @@ export default {
     }
 
     const action = normalizedAction as LifecycleAction;
-    const claims = asRecord(ctx.userClaims);
-    const actorUserId = asTrimmedString(claims?.sub);
-    const actorSessionId = asTrimmedString(claims?.session_id);
+    const userClaims = asRecord(ctx.userClaims);
+    const jwtClaims = asRecord(ctx.jwtClaims);
+    const actorUserId = asTrimmedString(userClaims?.id);
+    const actorSessionId = asTrimmedString(jwtClaims?.session_id);
 
     if (!UUID_RE.test(actorUserId) || !UUID_RE.test(actorSessionId)) {
       return json({ ok: false, code: "AUTH_CLAIMS_INVALID" }, 401);
