@@ -309,6 +309,20 @@ export default {
       );
     }
 
+    const operationId = asTrimmedString(begin.operation_id);
+
+    if (!UUID_RE.test(operationId)) {
+      return json(
+        {
+          ok: false,
+          code: "OPERATION_ID_INVALID",
+          retryable: true,
+          targetStatus: "SUSPENDED",
+        },
+        503,
+      );
+    }
+
     const storageObjects = parseStorageObjects(begin.storage_objects);
 
     if (!storageObjects) {
@@ -400,24 +414,55 @@ export default {
       );
     }
 
-    const { error: completionAuditError } = await ctx.supabaseAdmin
-      .from("audit_logs")
-      .insert({
-        user_id: actorUserId,
-        role: "SUPER_ADMIN",
-        event_type: "ACCOUNT_HARD_DELETE_COMPLETED",
-        details: JSON.stringify({
-          target_user_id: targetUserId,
-          storage_objects_deleted: storageObjects.length,
-        }),
-        ip_address: ipAddress,
+    const { data: finalizeData, error: finalizeError } =
+      await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_finalize_hard_delete", {
+        p_actor_user_id: actorUserId,
+        p_actor_session_id: actorSessionId,
+        p_operation_id: operationId,
+        p_ip_address: ipAddress,
       });
 
-    if (completionAuditError) {
-      console.error("Genesis lifecycle completion audit error", {
-        code: completionAuditError.code,
-        message: completionAuditError.message,
+    if (finalizeError) {
+      console.error("Genesis lifecycle hard-delete finalization error", {
+        operationId,
+        code: finalizeError.code,
+        message: finalizeError.message,
       });
+
+      return json(
+        {
+          ok: false,
+          code: "HARD_DELETE_RECONCILIATION_REQUIRED",
+          retryable: false,
+          deleted: true,
+          targetUserId,
+          operationId,
+        },
+        202,
+      );
+    }
+
+    const finalization = asRecord(finalizeData);
+    const finalizationCode =
+      asTrimmedString(finalization?.code) || "FINALIZATION_RESPONSE_INVALID";
+
+    if (finalization?.allowed !== true) {
+      console.error("Genesis lifecycle hard-delete finalization denied", {
+        operationId,
+        code: finalizationCode,
+      });
+
+      return json(
+        {
+          ok: false,
+          code: "HARD_DELETE_RECONCILIATION_REQUIRED",
+          retryable: false,
+          deleted: true,
+          targetUserId,
+          operationId,
+        },
+        202,
+      );
     }
 
     return json({
@@ -425,9 +470,10 @@ export default {
       code: "OK",
       action,
       targetUserId,
+      operationId,
       deleted: true,
       storageObjectsDeleted: storageObjects.length,
-      completionAuditRecorded: !completionAuditError,
+      completionAuditRecorded: true,
     });
   }),
 };
