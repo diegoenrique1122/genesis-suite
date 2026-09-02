@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type JsonRecord = Record<string, unknown>;
-type LifecycleAction = "SUSPEND" | "REACTIVATE" | "HARD_DELETE";
+type LifecycleAction = "APPROVE" | "SUSPEND" | "REACTIVATE" | "HARD_DELETE";
 
 type RequestBody = {
   targetUserId?: unknown;
@@ -17,6 +17,7 @@ type StorageObject = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIONS = new Set<LifecycleAction>([
+  "APPROVE",
   "SUSPEND",
   "REACTIVATE",
   "HARD_DELETE",
@@ -153,7 +154,46 @@ export default {
     ) {
       return json({ ok: false, code: "HARD_DELETE_CONFIRMATION_REQUIRED" }, 400);
     }
+    if (action === "APPROVE") {
+      const { data: approvalData, error: approvalError } =
+        await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_approve_coach", {
+          p_actor_user_id: actorUserId,
+          p_actor_session_id: actorSessionId,
+          p_target_user_id: targetUserId,
+          p_ip_address: requestIp(req),
+        });
 
+      if (approvalError) {
+        console.error("Genesis lifecycle approval error", {
+          code: approvalError.code,
+          message: approvalError.message,
+        });
+
+        return json(
+          { ok: false, code: "APPROVAL_EXECUTION_FAILED", retryable: true },
+          503,
+        );
+      }
+
+      const approval = asRecord(approvalData);
+      const approvalCode =
+        asTrimmedString(approval?.code) || "APPROVAL_RESPONSE_INVALID";
+
+      if (approval?.allowed !== true) {
+        return json(
+          { ok: false, code: approvalCode },
+          statusForCode(approvalCode),
+        );
+      }
+
+      return json({
+        ok: true,
+        code: "OK",
+        action,
+        targetUserId,
+        targetStatus: asTrimmedString(approval.target_status) || null,
+      });
+    }
     const { data: preflightData, error: preflightError } =
       await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_preflight", {
         p_actor_user_id: actorUserId,

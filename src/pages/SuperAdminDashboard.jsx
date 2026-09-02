@@ -124,8 +124,18 @@ export default function SuperAdminDashboard() {
     try {
       const targetUserId = coach.user_id || coach.id;
       const baseNum = Math.floor(100000 + Math.random() * 900000);
-      await supabase.from('users_master').update({ account_status: 'ACTIVE' }).eq('id', targetUserId);
-      await supabase.from('coaches_profile').upsert({ user_id: targetUserId, full_name: coach.full_name, invite_code_ignicion: `IGN-${baseNum}`, invite_code_evolucion: `EVO-${baseNum}`, invite_code_elite: `PRO-${baseNum}` }, { onConflict: 'user_id' });
+      await invokeAccountLifecycle({
+        targetUserId,
+        action: 'APPROVE'
+      });
+      const { error: profileError } = await supabase.from('coaches_profile').upsert({
+        user_id: targetUserId,
+        full_name: coach.full_name,
+        invite_code_ignicion: `IGN-${baseNum}`,
+        invite_code_evolucion: `EVO-${baseNum}`,
+        invite_code_elite: `PRO-${baseNum}`
+      }, { onConflict: 'user_id' });
+      if (profileError) throw profileError;
       alert(`✅ Licencia Aprobada. Códigos generados exitosamente.`);
       loadSuperAdminData();
     } catch (err) { alert("❌ Error al aprobar."); }
