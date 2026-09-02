@@ -32,6 +32,13 @@ const asRecord = (value: unknown): JsonRecord | null => {
 const asTrimmedString = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
+const asPositiveInteger = (value: unknown): number | null =>
+  typeof value === "number" &&
+  Number.isSafeInteger(value) &&
+  value > 0
+    ? value
+    : null;
+
 const json = (body: JsonRecord, status = 200, extraHeaders?: HeadersInit) =>
   Response.json(body, {
     status,
@@ -56,7 +63,13 @@ const statusForCode = (code: string): number => {
     case "INVALID_TRANSITION":
     case "LAST_ACTIVE_SUPER_ADMIN":
     case "DEPENDENCIES_EXIST":
+    case "OPERATION_IN_PROGRESS":
+    case "RECOVERY_OPERATION_AVAILABLE":
+    case "ATTEMPT_SUPERSEDED":
+    case "OPERATION_NOT_READY":
       return 409;
+    case "OPERATION_NOT_FOUND":
+      return 404;
     default:
       return 403;
   }
@@ -194,6 +207,288 @@ export default {
         targetStatus: asTrimmedString(approval.target_status) || null,
       });
     }
+    const ipAddress = requestIp(req);
+
+    const hardDeleteReconciliationRequired = async (
+      operationId: string,
+      attemptCount: number,
+      failureStage: "INVENTORY" | "STORAGE" | "CHAT" | "AUTH" | "FINALIZE",
+      failureCode: string,
+      deleted = false,
+    ) => {
+      const { data: markerData, error: markerError } =
+        await ctx.supabaseAdmin.rpc(
+          "genesis_account_lifecycle_mark_hard_delete_recovery_required",
+          {
+            p_actor_user_id: actorUserId,
+            p_actor_session_id: actorSessionId,
+            p_operation_id: operationId,
+            p_attempt_count: attemptCount,
+            p_failure_stage: failureStage,
+            p_failure_code: failureCode,
+            p_ip_address: ipAddress,
+          },
+        );
+
+      if (markerError) {
+        console.error("Genesis lifecycle reconciliation marker error", {
+          operationId,
+          code: markerError.code,
+          message: markerError.message,
+        });
+      } else {
+        const marker = asRecord(markerData);
+        if (marker?.allowed !== true) {
+          console.error("Genesis lifecycle reconciliation marker denied", {
+            operationId,
+            code: asTrimmedString(marker?.code) || "MARKER_RESPONSE_INVALID",
+          });
+        }
+      }
+
+      return json(
+        {
+          ok: false,
+          code: "HARD_DELETE_RECONCILIATION_REQUIRED",
+          retryable: true,
+          deleted,
+          targetUserId,
+          operationId,
+          stage: failureStage,
+        },
+        202,
+      );
+    };
+
+    const executeHardDelete = async (operation: JsonRecord) => {
+      const operationId = asTrimmedString(operation.operation_id);
+      const attemptCount = asPositiveInteger(operation.attempt_count);
+
+      if (!UUID_RE.test(operationId)) {
+        return json(
+          {
+            ok: false,
+            code: "OPERATION_ID_INVALID",
+            retryable: true,
+            targetStatus: "SUSPENDED",
+          },
+          503,
+        );
+      }
+
+      if (!attemptCount) {
+        return json(
+          {
+            ok: false,
+            code: "HARD_DELETE_RECONCILIATION_REQUIRED",
+            retryable: true,
+            targetUserId,
+            operationId,
+            stage: "INVENTORY",
+          },
+          202,
+        );
+      }
+
+      const storageObjects = parseStorageObjects(operation.storage_objects);
+
+      if (!storageObjects) {
+        return hardDeleteReconciliationRequired(
+          operationId,
+          attemptCount,
+          "INVENTORY",
+          "STORAGE_INVENTORY_INVALID",
+        );
+      }
+
+      const objectsByBucket = new Map<string, string[]>();
+
+      for (const object of storageObjects) {
+        const names = objectsByBucket.get(object.bucketId) ?? [];
+        names.push(object.name);
+        objectsByBucket.set(object.bucketId, names);
+      }
+
+      for (const [bucketId, names] of objectsByBucket) {
+        for (let offset = 0; offset < names.length; offset += STORAGE_BATCH_SIZE) {
+          const batch = names.slice(offset, offset + STORAGE_BATCH_SIZE);
+          const { error: storageError } = await ctx.supabaseAdmin.storage
+            .from(bucketId)
+            .remove(batch);
+
+          if (storageError) {
+            console.error("Genesis lifecycle storage cleanup error", {
+              operationId,
+              bucketId,
+              code: storageError.name,
+              message: storageError.message,
+            });
+
+            return hardDeleteReconciliationRequired(
+              operationId,
+              attemptCount,
+              "STORAGE",
+              "STORAGE_CLEANUP_FAILED",
+            );
+          }
+        }
+      }
+
+      const { error: chatCleanupError } = await ctx.supabaseAdmin
+        .from("chat_messages")
+        .delete()
+        .or("sender_id.eq." + targetUserId + ",recipient_id.eq." + targetUserId);
+
+      if (chatCleanupError) {
+        console.error("Genesis lifecycle chat cleanup error", {
+          operationId,
+          code: chatCleanupError.code,
+          message: chatCleanupError.message,
+        });
+
+        return hardDeleteReconciliationRequired(
+          operationId,
+          attemptCount,
+          "CHAT",
+          "DATABASE_CLEANUP_FAILED",
+        );
+      }
+
+      const { error: deleteUserError } =
+        await ctx.supabaseAdmin.auth.admin.deleteUser(targetUserId);
+
+      if (deleteUserError && deleteUserError.status !== 404) {
+        console.error("Genesis lifecycle Auth deletion error", {
+          operationId,
+          status: deleteUserError.status,
+          message: deleteUserError.message,
+        });
+
+        return hardDeleteReconciliationRequired(
+          operationId,
+          attemptCount,
+          "AUTH",
+          "AUTH_DELETE_FAILED",
+        );
+      }
+
+      if (deleteUserError?.status === 404) {
+        console.warn(
+          "Genesis lifecycle reconciliation found the Auth user already deleted",
+          { operationId, targetUserId },
+        );
+      }
+
+      const { data: finalizeData, error: finalizeError } =
+        await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_finalize_hard_delete_v2", {
+          p_actor_user_id: actorUserId,
+          p_actor_session_id: actorSessionId,
+          p_operation_id: operationId,
+          p_attempt_count: attemptCount,
+          p_ip_address: ipAddress,
+        });
+
+      if (finalizeError) {
+        console.error("Genesis lifecycle hard-delete finalization error", {
+          operationId,
+          code: finalizeError.code,
+          message: finalizeError.message,
+        });
+
+        return hardDeleteReconciliationRequired(
+          operationId,
+          attemptCount,
+          "FINALIZE",
+          "HARD_DELETE_FINALIZATION_FAILED",
+          true,
+        );
+      }
+
+      const finalization = asRecord(finalizeData);
+      const finalizationCode =
+        asTrimmedString(finalization?.code) || "FINALIZATION_RESPONSE_INVALID";
+
+      if (finalization?.allowed !== true) {
+        console.error("Genesis lifecycle hard-delete finalization denied", {
+          operationId,
+          code: finalizationCode,
+        });
+
+        return hardDeleteReconciliationRequired(
+          operationId,
+          attemptCount,
+          "FINALIZE",
+          finalizationCode,
+          true,
+        );
+      }
+
+      return json({
+        ok: true,
+        code: "OK",
+        action,
+        targetUserId,
+        operationId,
+        deleted: true,
+        recovered: operation.recovered === true || attemptCount > 1,
+        storageObjectsDeleted: storageObjects.length,
+        completionAuditRecorded: true,
+      });
+    };
+
+    if (action === "HARD_DELETE") {
+      const { data: recoveryData, error: recoveryError } =
+        await ctx.supabaseAdmin.rpc(
+          "genesis_account_lifecycle_claim_hard_delete_recovery",
+          {
+            p_actor_user_id: actorUserId,
+            p_actor_session_id: actorSessionId,
+            p_target_user_id: targetUserId,
+            p_ip_address: ipAddress,
+          },
+        );
+
+      if (recoveryError) {
+        console.error("Genesis lifecycle recovery claim error", {
+          code: recoveryError.code,
+          message: recoveryError.message,
+        });
+
+        return json(
+          {
+            ok: false,
+            code: "HARD_DELETE_RECOVERY_UNAVAILABLE",
+            retryable: true,
+          },
+          503,
+        );
+      }
+
+      const recovery = asRecord(recoveryData);
+      const recoveryCode =
+        asTrimmedString(recovery?.code) || "RECOVERY_RESPONSE_INVALID";
+
+      if (recovery?.allowed === true) {
+        return executeHardDelete(recovery);
+      }
+
+      if (recoveryCode !== "NO_RECOVERY_OPERATION") {
+        return json(
+          {
+            ok: false,
+            code: recoveryCode,
+            operationId: asTrimmedString(recovery?.operation_id) || null,
+            targetUserId,
+            retryAfterSeconds:
+              typeof recovery?.retry_after_seconds === "number"
+                ? recovery.retry_after_seconds
+                : null,
+          },
+          statusForCode(recoveryCode),
+        );
+      }
+    }
+
     const { data: preflightData, error: preflightError } =
       await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_preflight", {
         p_actor_user_id: actorUserId,
@@ -232,8 +527,6 @@ export default {
       );
     }
 
-    const ipAddress = requestIp(req);
-
     if (action === "SUSPEND" || action === "REACTIVATE") {
       const { data: executionData, error: executionError } =
         await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_apply_status", {
@@ -257,7 +550,8 @@ export default {
       }
 
       const execution = asRecord(executionData);
-      const executionCode = asTrimmedString(execution?.code) || "EXECUTION_RESPONSE_INVALID";
+      const executionCode =
+        asTrimmedString(execution?.code) || "EXECUTION_RESPONSE_INVALID";
 
       if (execution?.allowed !== true) {
         return json(
@@ -280,7 +574,7 @@ export default {
     }
 
     const { data: beginData, error: beginError } =
-      await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_begin_hard_delete", {
+      await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_begin_hard_delete_v2", {
         p_actor_user_id: actorUserId,
         p_actor_session_id: actorSessionId,
         p_target_user_id: targetUserId,
@@ -303,177 +597,31 @@ export default {
     const beginCode = asTrimmedString(begin?.code) || "PREPARATION_RESPONSE_INVALID";
 
     if (begin?.allowed !== true) {
+      const existingOperationId = asTrimmedString(begin?.operation_id);
+
+      if (
+        beginCode === "RECOVERY_OPERATION_AVAILABLE" &&
+        UUID_RE.test(existingOperationId)
+      ) {
+        return json(
+          {
+            ok: false,
+            code: "HARD_DELETE_RECONCILIATION_REQUIRED",
+            retryable: true,
+            targetUserId,
+            operationId: existingOperationId,
+            stage: "INVENTORY",
+          },
+          202,
+        );
+      }
+
       return json(
         { ok: false, code: beginCode },
         statusForCode(beginCode),
       );
     }
 
-    const operationId = asTrimmedString(begin.operation_id);
-
-    if (!UUID_RE.test(operationId)) {
-      return json(
-        {
-          ok: false,
-          code: "OPERATION_ID_INVALID",
-          retryable: true,
-          targetStatus: "SUSPENDED",
-        },
-        503,
-      );
-    }
-
-    const storageObjects = parseStorageObjects(begin.storage_objects);
-
-    if (!storageObjects) {
-      return json(
-        {
-          ok: false,
-          code: "STORAGE_INVENTORY_INVALID",
-          retryable: true,
-          targetStatus: "SUSPENDED",
-        },
-        503,
-      );
-    }
-
-    const objectsByBucket = new Map<string, string[]>();
-
-    for (const object of storageObjects) {
-      const names = objectsByBucket.get(object.bucketId) ?? [];
-      names.push(object.name);
-      objectsByBucket.set(object.bucketId, names);
-    }
-
-    for (const [bucketId, names] of objectsByBucket) {
-      for (let offset = 0; offset < names.length; offset += STORAGE_BATCH_SIZE) {
-        const batch = names.slice(offset, offset + STORAGE_BATCH_SIZE);
-        const { error: storageError } = await ctx.supabaseAdmin.storage
-          .from(bucketId)
-          .remove(batch);
-
-        if (storageError) {
-          console.error("Genesis lifecycle storage cleanup error", {
-            bucketId,
-            code: storageError.name,
-            message: storageError.message,
-          });
-
-          return json(
-            {
-              ok: false,
-              code: "STORAGE_CLEANUP_FAILED",
-              retryable: true,
-              targetStatus: "SUSPENDED",
-            },
-            502,
-          );
-        }
-      }
-    }
-
-    const { error: chatCleanupError } = await ctx.supabaseAdmin
-      .from("chat_messages")
-      .delete()
-      .or(`sender_id.eq.${targetUserId},recipient_id.eq.${targetUserId}`);
-
-    if (chatCleanupError) {
-      console.error("Genesis lifecycle chat cleanup error", {
-        code: chatCleanupError.code,
-        message: chatCleanupError.message,
-      });
-
-      return json(
-        {
-          ok: false,
-          code: "DATABASE_CLEANUP_FAILED",
-          retryable: true,
-          targetStatus: "SUSPENDED",
-        },
-        502,
-      );
-    }
-
-    const { error: deleteUserError } =
-      await ctx.supabaseAdmin.auth.admin.deleteUser(targetUserId);
-
-    if (deleteUserError) {
-      console.error("Genesis lifecycle Auth deletion error", {
-        status: deleteUserError.status,
-        message: deleteUserError.message,
-      });
-
-      return json(
-        {
-          ok: false,
-          code: "AUTH_DELETE_FAILED",
-          retryable: true,
-          targetStatus: "SUSPENDED",
-        },
-        502,
-      );
-    }
-
-    const { data: finalizeData, error: finalizeError } =
-      await ctx.supabaseAdmin.rpc("genesis_account_lifecycle_finalize_hard_delete", {
-        p_actor_user_id: actorUserId,
-        p_actor_session_id: actorSessionId,
-        p_operation_id: operationId,
-        p_ip_address: ipAddress,
-      });
-
-    if (finalizeError) {
-      console.error("Genesis lifecycle hard-delete finalization error", {
-        operationId,
-        code: finalizeError.code,
-        message: finalizeError.message,
-      });
-
-      return json(
-        {
-          ok: false,
-          code: "HARD_DELETE_RECONCILIATION_REQUIRED",
-          retryable: false,
-          deleted: true,
-          targetUserId,
-          operationId,
-        },
-        202,
-      );
-    }
-
-    const finalization = asRecord(finalizeData);
-    const finalizationCode =
-      asTrimmedString(finalization?.code) || "FINALIZATION_RESPONSE_INVALID";
-
-    if (finalization?.allowed !== true) {
-      console.error("Genesis lifecycle hard-delete finalization denied", {
-        operationId,
-        code: finalizationCode,
-      });
-
-      return json(
-        {
-          ok: false,
-          code: "HARD_DELETE_RECONCILIATION_REQUIRED",
-          retryable: false,
-          deleted: true,
-          targetUserId,
-          operationId,
-        },
-        202,
-      );
-    }
-
-    return json({
-      ok: true,
-      code: "OK",
-      action,
-      targetUserId,
-      operationId,
-      deleted: true,
-      storageObjectsDeleted: storageObjects.length,
-      completionAuditRecorded: true,
-    });
+    return executeHardDelete(begin);
   }),
 };

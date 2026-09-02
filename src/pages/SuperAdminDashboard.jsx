@@ -17,6 +17,8 @@ const ADMIN_THEMES = [
   { id: 'light', name: 'Clean Light', bg: 'bg-neutral-50', card: 'bg-white', border: 'border-neutral-200', text: 'text-neutral-900', accent: 'text-blue-600' }
 ];
 
+const LIFECYCLE_RECOVERY_STORAGE_KEY = 'genesis_lifecycle_recovery_v1';
+
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,27 @@ export default function SuperAdminDashboard() {
   const [watermarkFile, setWatermarkFile] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [lifecycleAction, setLifecycleAction] = useState(null);
+  const [lifecycleRecovery, setLifecycleRecovery] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(
+        LIFECYCLE_RECOVERY_STORAGE_KEY
+      );
+      const parsed = stored ? JSON.parse(stored) : null;
+
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.operationId === 'string' &&
+        typeof parsed.targetUserId === 'string'
+      ) {
+        return parsed;
+      }
+    } catch {
+      // El botón de reconciliación seguirá disponible para errores nuevos.
+    }
+
+    return null;
+  });
 
   // Estados Edición Códigos
   const [copiedCode, setCopiedCode] = useState(null);
@@ -141,6 +164,45 @@ export default function SuperAdminDashboard() {
     } catch (err) { alert("❌ Error al aprobar."); }
   };
 
+  const rememberLifecycleRecovery = (payload) => {
+    if (
+      payload?.code !== 'HARD_DELETE_RECONCILIATION_REQUIRED' ||
+      typeof payload?.operationId !== 'string' ||
+      typeof payload?.targetUserId !== 'string'
+    ) {
+      return;
+    }
+
+    const recovery = {
+      operationId: payload.operationId,
+      targetUserId: payload.targetUserId,
+      stage: typeof payload?.stage === 'string'
+        ? payload.stage
+        : 'FINALIZE'
+    };
+
+    try {
+      sessionStorage.setItem(
+        LIFECYCLE_RECOVERY_STORAGE_KEY,
+        JSON.stringify(recovery)
+      );
+    } catch {
+      // La reconciliación sigue disponible hasta cerrar esta pestaña.
+    }
+
+    setLifecycleRecovery(recovery);
+  };
+
+  const clearLifecycleRecovery = () => {
+    try {
+      sessionStorage.removeItem(LIFECYCLE_RECOVERY_STORAGE_KEY);
+    } catch {
+      // No impide actualizar el estado de esta pantalla.
+    }
+
+    setLifecycleRecovery(null);
+  };
+
   const lifecycleErrorMessage = async (error, data) => {
     let payload =
       data && typeof data === 'object'
@@ -165,12 +227,16 @@ export default function SuperAdminDashboard() {
       ACTOR_FORBIDDEN: 'Tu cuenta no tiene autoridad para ejecutar esta acción.',
       ACTOR_SESSION_INVALID: 'Tu sesión administrativa ya no es válida. Inicia sesión nuevamente.',
       AUTH_CLAIMS_INVALID: 'Genesis no pudo validar tu sesión administrativa.',
+      AUTH_DELETE_FAILED: 'La eliminación de identidad quedó pendiente. La cuenta sigue bloqueada y puedes reconciliarla.',
       DATABASE_CLEANUP_FAILED: 'La limpieza de datos falló. La cuenta permanece suspendida y puedes reintentar.',
       DEPENDENCIES_EXIST: 'La cuenta conserva dependencias que impiden su eliminación.',
       HARD_DELETE_CONFIRMATION_REQUIRED: 'La confirmación de eliminación permanente no coincide.',
       HARD_DELETE_PREPARATION_FAILED: 'No fue posible preparar la eliminación. Intenta nuevamente.',
+      HARD_DELETE_RECONCILIATION_REQUIRED: 'La eliminación quedó pendiente de reconciliación. Repite la confirmación para completarla de forma segura.',
+      HARD_DELETE_RECOVERY_UNAVAILABLE: 'La reconciliación está temporalmente indisponible. Intenta nuevamente.',
       INVALID_TRANSITION: 'El estado actual de la cuenta no permite esa transición.',
       LAST_ACTIVE_SUPER_ADMIN: 'No se puede modificar al último SuperAdmin activo.',
+      OPERATION_IN_PROGRESS: 'Ya hay una reconciliación en curso. Espera unos minutos antes de volver a intentarlo.',
       PREFLIGHT_UNAVAILABLE: 'La validación de seguridad está temporalmente indisponible.',
       SELF_ACTION_BLOCKED: 'No puedes ejecutar esta acción sobre tu propia cuenta.',
       STATUS_EXECUTION_FAILED: 'No fue posible cambiar el estado de la cuenta.',
@@ -178,7 +244,10 @@ export default function SuperAdminDashboard() {
       TARGET_NOT_FOUND: 'La cuenta seleccionada ya no existe.'
     };
 
-    return messages[code] || 'La operación de ciclo de vida no pudo completarse.';
+    return {
+      message: messages[code] || 'La operación de ciclo de vida no pudo completarse.',
+      payload
+    };
   };
 
   const invokeAccountLifecycle = async ({
@@ -202,9 +271,10 @@ export default function SuperAdminDashboard() {
       );
 
     if (error || data?.ok !== true) {
-      throw new Error(
-        await lifecycleErrorMessage(error, data)
-      );
+      const failure = await lifecycleErrorMessage(error, data);
+      const lifecycleError = new Error(failure.message);
+      lifecycleError.lifecyclePayload = failure.payload;
+      throw lifecycleError;
     }
 
     return data;
@@ -260,6 +330,61 @@ export default function SuperAdminDashboard() {
     try { await supabase.from('coaches_profile').update({ b2b_plan: newPlan }).eq('id', coachId); loadSuperAdminData(); } catch (err) { alert("Error."); }
   };
 
+  const handleResumeLifecycleRecovery = async () => {
+    const recovery = lifecycleRecovery;
+
+    if (!recovery?.operationId || !recovery?.targetUserId) {
+      return;
+    }
+
+    const expectedConfirmation =
+      'HARD_DELETE:' + recovery.targetUserId;
+
+    const confirmation = window.prompt(
+      'La eliminación quedó pendiente de reconciliación. Para completarla escribe exactamente:\n\n' +
+        expectedConfirmation,
+      ''
+    );
+
+    if (confirmation === null) {
+      return;
+    }
+
+    if (confirmation.trim() !== expectedConfirmation) {
+      alert('La confirmación no coincide. La operación pendiente no fue modificada.');
+      return;
+    }
+
+    try {
+      setLifecycleAction({
+        userId: recovery.targetUserId,
+        action: 'HARD_DELETE'
+      });
+
+      const result = await invokeAccountLifecycle({
+        targetUserId: recovery.targetUserId,
+        action: 'HARD_DELETE',
+        confirmation: confirmation.trim()
+      });
+
+      clearLifecycleRecovery();
+
+      alert(
+        'Reconciliación completada. Archivos retirados: ' +
+          (result.storageObjectsDeleted || 0) + '.'
+      );
+
+      await loadSuperAdminData();
+
+    } catch (err) {
+      rememberLifecycleRecovery(err?.lifecyclePayload);
+      alert('Error: ' + err.message);
+
+    } finally {
+      setLifecycleAction(null);
+    }
+  };
+
   const handleDeleteCoach = async (userId) => {
     const expectedConfirmation =
       `HARD_DELETE:${userId}`;
@@ -296,6 +421,7 @@ export default function SuperAdminDashboard() {
       await loadSuperAdminData();
 
     } catch (err) {
+      rememberLifecycleRecovery(err?.lifecyclePayload);
       alert(`Error: ${err.message}`);
 
     } finally {
@@ -546,6 +672,33 @@ export default function SuperAdminDashboard() {
       )}
 
       <main className="max-w-7xl mx-auto px-6 py-10 space-y-10 relative z-10">
+
+        {lifecycleRecovery && (
+          <section className={`${activeTheme.card} border ${activeTheme.border} rounded-2xl p-5 shadow-xl flex flex-col gap-4 md:flex-row md:items-center md:justify-between`}>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
+                Reconciliación pendiente
+              </p>
+              <p className="mt-1 text-sm font-semibold">
+                Una eliminación requiere completar su auditoría final de forma segura.
+              </p>
+              <p className="mt-2 text-[10px] font-mono opacity-60 break-all">
+                Operación: {lifecycleRecovery.operationId} · Etapa: {lifecycleRecovery.stage}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleResumeLifecycleRecovery}
+              disabled={Boolean(lifecycleAction)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {lifecycleAction?.action === 'HARD_DELETE'
+                ? <Loader2 size={15} className="animate-spin" />
+                : <RefreshCcw size={15} />}
+              Reconciliar eliminación
+            </button>
+          </section>
+        )}
 
         {/* ======================================================== */}
         {/* =================== TAB: DASHBOARD ===================== */}
