@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { invokeAthleteBoundary } from '../services/athleteBoundaryService';
 
 import {
   ShieldCheck,
@@ -173,9 +174,8 @@ export default function ClientOnboarding() {
    * - coach_id
    * - b2c_plan
    *
-   * Supabase valida nuevamente el código y
-   * asigna esos valores dentro de
-   * complete_athlete_onboarding().
+   * La frontera autenticada de atletas valida
+   * nuevamente el código y asigna esos valores.
    *
    * =====================================================
    */
@@ -274,35 +274,19 @@ export default function ClientOnboarding() {
        * NO confiamos en este resultado para asignar
        * b2c_plan.
        *
-       * Supabase volverá a validar el código dentro
-       * del RPC final.
+       * La frontera volverá a validar el código dentro
+       * de la operación final.
        * =================================================
        */
 
-      const {
-        data: inviteData,
-        error: inviteError,
-      } = await supabase.rpc(
-        'resolve_coach_invite',
-        {
-          p_code:
-            normalizedInviteCode,
-        }
-      );
-
-
-      if (inviteError) {
-
-        console.error(
-          'Genesis invite validation:',
-          inviteError
+      const inviteData =
+        await invokeAthleteBoundary(
+          'RESOLVE_COACH_INVITE',
+          {
+            code:
+              normalizedInviteCode,
+          }
         );
-
-
-        throw new Error(
-          'No fue posible validar el código de invitación.'
-        );
-      }
 
 
       const resolvedInvite =
@@ -410,75 +394,44 @@ export default function ClientOnboarding() {
        * =================================================
        */
 
-      const {
-        data: onboardingData,
-        error: onboardingError,
-      } = await supabase.rpc(
-        'complete_athlete_onboarding',
-        {
-
-          p_code:
-            normalizedInviteCode,
-
-          p_full_name:
-            fullName.trim(),
-
-          p_age:
-            parseInt(
-              age,
-              10
-            ),
-
-          p_weight:
-            parseFloat(
-              weight
-            ),
-
-          p_height:
-            parseFloat(
-              height
-            ),
-
-          p_gender:
-            gender,
-
-          p_goal:
-            goal,
-
-          p_injuries:
-            injuries.trim() ||
-            'Ninguna',
-
-          // Transitional RPC parameter names remain *_url
-          // for backward compatibility.
-          // Values are canonical PRIVATE Storage paths.
-          p_front_url:
-            frontPath,
-
-          p_side_url:
-            sidePath,
-
-          p_back_url:
-            backPath,
-
-          p_legal_accepted:
-            legalAccepted,
-        }
-      );
-
-
-      if (onboardingError) {
-
-        console.error(
-          'Genesis onboarding RPC:',
-          onboardingError
+      const onboardingData =
+        await invokeAthleteBoundary(
+          'COMPLETE_ONBOARDING',
+          {
+            code:
+              normalizedInviteCode,
+            fullName:
+              fullName.trim(),
+            age:
+              parseInt(
+                age,
+                10
+              ),
+            weight:
+              parseFloat(
+                weight
+              ),
+            height:
+              parseFloat(
+                height
+              ),
+            gender:
+              gender,
+            goal:
+              goal,
+            injuries:
+              injuries.trim() ||
+              'Ninguna',
+            frontPath:
+              frontPath,
+            sidePath:
+              sidePath,
+            backPath:
+              backPath,
+            legalAccepted:
+              legalAccepted,
+          }
         );
-
-
-        throw new Error(
-          'No fue posible completar tu activación en Genesis.'
-        );
-      }
 
 
       /**

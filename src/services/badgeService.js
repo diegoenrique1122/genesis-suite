@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { invokeAthleteBoundary } from './athleteBoundaryService';
 
 /**
  * Genesis OS badge service.
@@ -19,12 +20,10 @@ export const evaluateBadges = async (athleteId) => {
       };
     }
 
-    const { data: evaluationData, error: evaluationError } = await supabase.rpc(
-      'evaluate_athlete_badges',
-      { p_athlete_id: athleteId }
+    const evaluationData = await invokeAthleteBoundary(
+      'EVALUATE_BADGES',
+      { athleteId }
     );
-
-    if (evaluationError) throw evaluationError;
 
     const evaluation = Array.isArray(evaluationData)
       ? evaluationData[0]
