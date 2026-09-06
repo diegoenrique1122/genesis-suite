@@ -5,10 +5,20 @@ const ATHLETE_BOUNDARY_FUNCTION = 'genesis-athlete-boundary';
 const ACTIONS = new Set([
   'RESOLVE_COACH_INVITE',
   'COMPLETE_ONBOARDING',
-  'EVALUATE_BADGES'
+  'EVALUATE_BADGES',
+  'GET_ONBOARDING_DRAFT',
+  'SAVE_ONBOARDING_DRAFT'
 ]);
 
 const CODE_MESSAGES = {
+  INVALID_DRAFT_INPUT:
+    'No se pudo guardar el borrador. Revisa los datos e intenta nuevamente.',
+  DRAFT_FRONT_PHOTO_PATH_INVALID:
+    'La fotografía frontal no pertenece a tu borrador.',
+  DRAFT_SIDE_PHOTO_PATH_INVALID:
+    'La fotografía de perfil no pertenece a tu borrador.',
+  DRAFT_BACK_PHOTO_PATH_INVALID:
+    'La fotografía de espalda no pertenece a tu borrador.',
   INVALID_INVITE_CODE: 'El código de invitación no es válido.',
   INVITE_NOT_FOUND: 'El código de invitación no existe o ya no está disponible.',
   INVALID_OR_UNAUTHORIZED_INVITE_CODE:

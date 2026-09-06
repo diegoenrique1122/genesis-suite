@@ -5,7 +5,9 @@ type JsonRecord = Record<string, unknown>;
 type AthleteBoundaryAction =
   | "RESOLVE_COACH_INVITE"
   | "COMPLETE_ONBOARDING"
-  | "EVALUATE_BADGES";
+  | "EVALUATE_BADGES"
+  | "GET_ONBOARDING_DRAFT"
+  | "SAVE_ONBOARDING_DRAFT";
 
 type RequestBody = {
   action?: unknown;
@@ -22,6 +24,7 @@ type RequestBody = {
   sidePath?: unknown;
   backPath?: unknown;
   legalAccepted?: unknown;
+  draft?: unknown;
 };
 
 const UUID_RE =
@@ -31,6 +34,8 @@ const ACTIONS = new Set<AthleteBoundaryAction>([
   "RESOLVE_COACH_INVITE",
   "COMPLETE_ONBOARDING",
   "EVALUATE_BADGES",
+  "GET_ONBOARDING_DRAFT",
+  "SAVE_ONBOARDING_DRAFT",
 ]);
 const ATHLETE_PLANS = new Set(["IGNICION", "EVOLUCION", "ELITE"]);
 
@@ -80,6 +85,123 @@ const asNonnegativeInteger = (value: unknown): number | null =>
     ? value
     : null;
 
+type OnboardingDraft = {
+  step: number;
+  coachCode: string | null;
+  fullName: string | null;
+  age: number | null;
+  weight: number | null;
+  height: number | null;
+  gender: string | null;
+  goal: string | null;
+  injuries: string | null;
+  legalAccepted: boolean;
+  frontPath: string | null;
+  sidePath: string | null;
+  backPath: string | null;
+};
+
+const parseNullableString = (
+  value: unknown,
+  maxLength: number,
+): string | null | undefined => {
+  if (value === null || value === undefined || value === "") return null;
+  return asBoundedString(value, maxLength) ?? undefined;
+};
+
+const parseNullableInteger = (
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | null | undefined => {
+  if (value === null || value === undefined || value === "") return null;
+  return asInteger(value, minimum, maximum) ?? undefined;
+};
+
+const parseNullableNumber = (
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | null | undefined => {
+  if (value === null || value === undefined || value === "") return null;
+  return asFiniteNumber(value, minimum, maximum) ?? undefined;
+};
+
+const parseOnboardingDraft = (value: unknown): OnboardingDraft | null => {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const step = asInteger(record.step, 1, 4);
+  const coachCode = parseNullableString(record.coachCode, 128);
+  const fullName = parseNullableString(record.fullName, 200);
+  const age = parseNullableInteger(record.age, 14, 99);
+  const weight = parseNullableNumber(record.weight, 1, 1_000);
+  const height = parseNullableNumber(record.height, 1, 300);
+  const gender = parseNullableString(record.gender, 64);
+  const goal = parseNullableString(record.goal, 2_000);
+  const injuries = parseNullableString(record.injuries, 4_000);
+  const frontPath = parseNullableString(record.frontPath, 1_024);
+  const sidePath = parseNullableString(record.sidePath, 1_024);
+  const backPath = parseNullableString(record.backPath, 1_024);
+
+  if (
+    step === null ||
+    coachCode === undefined ||
+    fullName === undefined ||
+    age === undefined ||
+    weight === undefined ||
+    height === undefined ||
+    gender === undefined ||
+    goal === undefined ||
+    injuries === undefined ||
+    frontPath === undefined ||
+    sidePath === undefined ||
+    backPath === undefined ||
+    typeof record.legalAccepted !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    step,
+    coachCode: coachCode ? coachCode.toUpperCase() : null,
+    fullName,
+    age,
+    weight,
+    height,
+    gender,
+    goal,
+    injuries,
+    legalAccepted: record.legalAccepted,
+    frontPath,
+    sidePath,
+    backPath,
+  };
+};
+
+const draftResponse = (value: unknown): OnboardingDraft | null | undefined => {
+  if (value === null) return null;
+
+  const record = asRecord(value);
+  if (!record) return undefined;
+
+  return parseOnboardingDraft({
+    step: record.step,
+    coachCode: record.coach_code,
+    fullName: record.full_name,
+    age: record.age,
+    weight: record.weight,
+    height: record.height,
+    gender: record.gender,
+    goal: record.goal,
+    injuries: record.injuries,
+    legalAccepted: record.legal_accepted,
+    frontPath: record.front_path,
+    sidePath: record.side_path,
+    backPath: record.back_path,
+  }) ?? undefined;
+};
+
 const json = (body: JsonRecord, status = 200, extraHeaders?: HeadersInit) =>
   Response.json(body, {
     status,
@@ -107,6 +229,10 @@ const statusForCode = (code: string): number => {
     case "INVALID_FRONT_WEEK0_PHOTO_PATH":
     case "INVALID_SIDE_WEEK0_PHOTO_PATH":
     case "INVALID_BACK_WEEK0_PHOTO_PATH":
+    case "INVALID_DRAFT_INPUT":
+    case "DRAFT_FRONT_PHOTO_PATH_INVALID":
+    case "DRAFT_SIDE_PHOTO_PATH_INVALID":
+    case "DRAFT_BACK_PHOTO_PATH_INVALID":
       return 400;
     case "AUTH_CLAIMS_INVALID":
     case "ACTOR_SESSION_INVALID":
@@ -155,6 +281,10 @@ const DATABASE_ERROR_MARKERS = new Map<string, string>([
     "INVALID_OR_UNAUTHORIZED_INVITE_CODE",
   ],
   ["ONBOARDING_STATE_CHANGED", "ONBOARDING_STATE_CHANGED"],
+  ["INVALID_DRAFT_INPUT", "INVALID_DRAFT_INPUT"],
+  ["DRAFT_FRONT_PHOTO_PATH_INVALID", "DRAFT_FRONT_PHOTO_PATH_INVALID"],
+  ["DRAFT_SIDE_PHOTO_PATH_INVALID", "DRAFT_SIDE_PHOTO_PATH_INVALID"],
+  ["DRAFT_BACK_PHOTO_PATH_INVALID", "DRAFT_BACK_PHOTO_PATH_INVALID"],
   ["GENESIS_BADGES: authentication required", "AUTH_REQUIRED"],
   [
     "GENESIS_BADGES: active Genesis identity required",
@@ -365,6 +495,128 @@ export default {
         coach_user_id: coachUserId,
         coach_name: coachName,
         athlete_plan: athletePlan,
+      });
+    }
+
+
+    if (action === "GET_ONBOARDING_DRAFT") {
+      const { data, error } = await ctx.supabaseAdmin.rpc(
+        "genesis_athlete_get_onboarding_draft",
+        {
+          p_actor_user_id: actorUserId,
+          p_actor_session_id: actorSessionId,
+        },
+      );
+
+      if (error) return rpcFailure(action, error);
+
+      const checked = businessResult(action, data);
+      if ("response" in checked) return checked.response;
+
+      const draft = draftResponse(checked.result.draft);
+
+      if (draft === undefined) {
+        return json(
+          {
+            ok: false,
+            allowed: false,
+            code: "BOUNDARY_RESPONSE_INVALID",
+            action,
+            retryable: true,
+          },
+          502,
+        );
+      }
+
+      return json({
+        ok: true,
+        allowed: true,
+        code: "OK",
+        action,
+        draft,
+      });
+    }
+
+    if (action === "SAVE_ONBOARDING_DRAFT") {
+      const draft = parseOnboardingDraft(body.draft);
+
+      if (!draft) {
+        return json(
+          { ok: false, allowed: false, code: "INVALID_DRAFT_INPUT", action },
+          400,
+        );
+      }
+
+      const { data, error } = await ctx.supabaseAdmin.rpc(
+        "genesis_athlete_save_onboarding_draft",
+        {
+          p_actor_user_id: actorUserId,
+          p_actor_session_id: actorSessionId,
+          p_draft: {
+            step: draft.step,
+            coach_code: draft.coachCode,
+            full_name: draft.fullName,
+            age: draft.age,
+            weight: draft.weight,
+            height: draft.height,
+            gender: draft.gender,
+            goal: draft.goal,
+            injuries: draft.injuries,
+            legal_accepted: draft.legalAccepted,
+            front_path: draft.frontPath,
+            side_path: draft.sidePath,
+            back_path: draft.backPath,
+          },
+        },
+      );
+
+      if (error) return rpcFailure(action, error);
+
+      const checked = businessResult(action, data);
+      if ("response" in checked) return checked.response;
+
+      const savedDraft = draftResponse(checked.result.draft);
+
+      if (savedDraft === undefined || savedDraft === null) {
+        return json(
+          {
+            ok: false,
+            allowed: false,
+            code: "BOUNDARY_RESPONSE_INVALID",
+            action,
+            retryable: true,
+          },
+          502,
+        );
+      }
+
+      const replacedPaths = Array.isArray(checked.result.replaced_paths)
+        ? checked.result.replaced_paths.filter(
+            (value): value is string =>
+              typeof value === "string" &&
+              value.length > 0 &&
+              value.length <= 1_024,
+          )
+        : [];
+
+      if (replacedPaths.length > 0) {
+        const { error: cleanupError } = await ctx.supabaseAdmin.storage
+          .from("athlete_evidence")
+          .remove(replacedPaths);
+
+        if (cleanupError) {
+          console.error("Genesis onboarding draft cleanup failed", {
+            count: replacedPaths.length,
+          });
+        }
+      }
+
+      return json({
+        ok: true,
+        allowed: true,
+        code: "OK",
+        action,
+        draft: savedDraft,
       });
     }
 
