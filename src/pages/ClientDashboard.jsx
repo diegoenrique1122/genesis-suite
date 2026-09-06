@@ -18,6 +18,10 @@ export default function ClientDashboard() {
   
   const [currentWeek, setCurrentWeek] = useState(0);
   const [isActive, setIsActive] = useState(false);
+  const [program, setProgram] = useState(null);
+  const [programEndsAt, setProgramEndsAt] = useState(null);
+  const [programExpired, setProgramExpired] = useState(false);
+  const [programTotalWeeks, setProgramTotalWeeks] = useState(12);
   const [fenixUnlocked, setFenixUnlocked] = useState(false); 
 
   useEffect(() => {
@@ -63,24 +67,48 @@ export default function ClientDashboard() {
       const badgeResult = await evaluateBadges(athleteData.id);
       setFenixUnlocked(Boolean(badgeResult?.fenixUnlocked));
 
-      if (athleteData.program_start_date) {
-        setIsActive(true);
-        const startDate = new Date(athleteData.program_start_date);
-        const today = new Date();
-        
-        const diffTime = today.getTime() - startDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        let calcWeek = Math.floor(diffDays / 7) + 1;
-        if (calcWeek < 1) calcWeek = 1;
-        
-        // El cálculo local solo controla la visualización del progreso.
-        // NO otorga badges.
-        if (diffDays >= 84) {
-          calcWeek = 12;
+      const { data: programData, error: programLoadError } = await supabase
+        .from('athlete_programs')
+        .select('id, package_tier, service_focus, duration_value, duration_unit, starts_at, ends_at, status')
+        .eq('athlete_id', athleteData.id)
+        .in('status', ['ACTIVE', 'SCHEDULED', 'PAUSED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (programLoadError) {
+        console.warn('No se pudo cargar el programa comercial:', programLoadError);
+      }
+
+      setProgram(programData || null);
+
+      const now = new Date();
+      const programStart = programData?.starts_at ? new Date(programData.starts_at) : null;
+      const programEnd = programData?.ends_at ? new Date(programData.ends_at) : null;
+
+      setProgramEndsAt(programData?.ends_at || null);
+
+      if (programStart && programEnd) {
+        const totalProgramWeeks = Math.max(1, Math.ceil((programEnd.getTime() - programStart.getTime()) / (1000 * 60 * 60 * 24 * 7)));
+        setProgramTotalWeeks(totalProgramWeeks);
+
+        const isExpired = now >= programEnd;
+        const isCurrentlyActive = programData.status === 'ACTIVE' && now >= programStart && now < programEnd;
+
+        setProgramExpired(isExpired);
+        setIsActive(isCurrentlyActive);
+
+        if (isCurrentlyActive) {
+          const diffDays = Math.max(0, Math.floor((now.getTime() - programStart.getTime()) / (1000 * 60 * 60 * 24)));
+          setCurrentWeek(Math.min(totalProgramWeeks, Math.floor(diffDays / 7) + 1));
         }
-        
-        setCurrentWeek(calcWeek);
+      } else if (athleteData.program_start_date) {
+        setIsActive(true);
+        setProgramExpired(false);
+
+        const startDate = new Date(athleteData.program_start_date);
+        const diffDays = Math.max(0, Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+        setCurrentWeek(Math.max(1, Math.floor(diffDays / 7) + 1));
       }
 
     } catch (error) {
@@ -137,7 +165,20 @@ export default function ClientDashboard() {
           </div>
         )}
 
-        {isActive ? (
+        {programExpired ? (
+          <div className="bg-red-950/30 border border-red-900/50 rounded-3xl p-6 flex items-start gap-4">
+            <Clock className="text-red-400 shrink-0" size={24} />
+            <div>
+              <h2 className="text-sm font-black uppercase text-red-300 mb-1">Programa vencido</h2>
+              <p className="text-xs text-neutral-400 font-mono">Tu acceso esta pausado porque el paquete contratado termino.</p>
+              {programEndsAt && (
+                <p className="text-xs text-red-300 font-mono mt-2">
+                  Vencio el {new Intl.DateTimeFormat('es-US', { dateStyle: 'medium' }).format(new Date(programEndsAt))}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : isActive ? (
           <div className={`bg-[#111] border rounded-3xl p-6 relative overflow-hidden transition-all duration-700 ${fenixUnlocked ? 'border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]' : 'border-neutral-800'}`}>
             <div className="absolute top-0 right-0 w-32 h-32 opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: fenixUnlocked ? '#EAB308' : (theme?.brandColor || '#f59e0b') }}></div>
             
@@ -145,18 +186,18 @@ export default function ClientDashboard() {
               <div>
                 <p className="text-[10px] uppercase font-black tracking-widest text-neutral-500 mb-1">{fenixUnlocked ? 'Ciclo Completado' : 'Tu Progreso'}</p>
                 <h2 className="text-4xl font-black font-mono leading-none">
-                  Semana {currentWeek}<span className="text-lg text-neutral-600">/12</span>
+                  Semana {currentWeek}<span className="text-lg text-neutral-600">/{programTotalWeeks}</span>
                 </h2>
               </div>
               <div className="w-12 h-12 rounded-full border-[3px] flex items-center justify-center font-black text-sm relative z-10 bg-black/50" style={{ borderColor: fenixUnlocked ? '#EAB308' : (theme?.brandColor || '#f59e0b'), color: fenixUnlocked ? '#EAB308' : (theme?.brandColor || '#f59e0b') }}>
-                {fenixUnlocked ? '100%' : `${Math.round((currentWeek / 12) * 100)}%`}
+                {fenixUnlocked ? '100%' : `${Math.round((currentWeek / programTotalWeeks) * 100)}%`}
               </div>
             </div>
 
             <div className="w-full bg-neutral-900 h-2 rounded-full overflow-hidden relative z-10">
               <div 
                 className="h-full transition-all duration-1000 ease-out"
-                style={{ width: `${fenixUnlocked ? 100 : (currentWeek / 12) * 100}%`, backgroundColor: fenixUnlocked ? '#EAB308' : (theme?.brandColor || '#f59e0b') }}
+                style={{ width: `${fenixUnlocked ? 100 : (currentWeek / programTotalWeeks) * 100}%`, backgroundColor: fenixUnlocked ? '#EAB308' : (theme?.brandColor || '#f59e0b') }}
               ></div>
             </div>
           </div>
