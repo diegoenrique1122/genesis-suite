@@ -86,6 +86,13 @@ export default function ClientProfile() {
   const [weeklyCalendar, setWeeklyCalendar] = useState([]);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState('Lunes');
   const [isSavingDiet, setIsSavingDiet] = useState(false);
+  const [program, setProgram] = useState(null);
+  const [programPlan, setProgramPlan] = useState('IGNICION');
+  const [programFocus, setProgramFocus] = useState('TRAINING');
+  const [programDurationValue, setProgramDurationValue] = useState(4);
+  const [programDurationUnit, setProgramDurationUnit] = useState('WEEK');
+  const [programActivating, setProgramActivating] = useState(false);
+  const [programError, setProgramError] = useState('');
 
   // 🧰 ESTADOS CUSTOMIZACIÓN
   const [editAlerts, setEditAlerts] = useState([]);
@@ -198,6 +205,28 @@ export default function ClientProfile() {
       if (!profileData) return setLoading(false);
 
       setAthlete(profileData);
+      setProgramPlan(profileData.b2c_plan || 'IGNICION');
+      setProgramFocus(profileData.b2c_plan === 'IGNICION' ? 'TRAINING' : 'BOTH');
+
+      const { data: programData, error: programLoadError } = await supabase
+        .from('athlete_programs')
+        .select('id, package_tier, service_focus, duration_value, duration_unit, starts_at, ends_at, status')
+        .eq('athlete_id', profileData.id)
+        .in('status', ['ACTIVE', 'SCHEDULED', 'PAUSED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (programLoadError) {
+        console.warn('No se pudo cargar el programa comercial:', programLoadError);
+        setProgram(null);
+      } else if (programData) {
+        setProgram(programData);
+        setProgramPlan(programData.package_tier);
+        setProgramFocus(programData.service_focus);
+        setProgramDurationValue(programData.duration_value);
+        setProgramDurationUnit(programData.duration_unit);
+      }
       
       // ESTADOS BÁSICOS
       if (profileData.ai_diagnosis) setDiagnosis(profileData.ai_diagnosis);
@@ -332,14 +361,68 @@ export default function ClientProfile() {
     } catch (err) { alert("Error guardando cambios: " + err.message); } finally { setIsSavingDiet(false); }
   };
 
-  const handleChangeAthletePlan = async (newPlan) => {
-    if (!window.confirm(`¿Ascender/Degradar a este atleta al plan ${newPlan}?`)) return;
+  const handleChangeAthletePlan = (newPlan) => {
+    setProgramPlan(newPlan);
+    setProgramFocus(newPlan === 'IGNICION' ? 'TRAINING' : 'BOTH');
+  };
+
+  const handleActivateAthleteProgram = async () => {
+    const durationValue = Number.parseInt(String(programDurationValue), 10);
+
+    if (!Number.isInteger(durationValue) || durationValue < 1 || durationValue > 1200) {
+      alert('La duraciÃ³n debe ser un nÃºmero entero entre 1 y 1200.');
+      return;
+    }
+
+    if (!window.confirm(`Â¿Activar ${programPlan} durante ${durationValue} ${programDurationUnit}?`)) {
+      return;
+    }
+
+    setProgramActivating(true);
+    setProgramError('');
+
     try {
-      const { error } = await supabase.from('athletes_profile').update({ b2c_plan: newPlan }).eq('id', athlete.id);
+      const { data, error } = await supabase.rpc(
+        'genesis_coach_activate_athlete_program',
+        {
+          p_athlete_id: athlete.id,
+          p_package_tier: programPlan,
+          p_service_focus: programFocus,
+          p_duration_value: durationValue,
+          p_duration_unit: programDurationUnit,
+          p_starts_at: new Date().toISOString()
+        }
+      );
+
       if (error) throw error;
-      setAthlete({...athlete, b2c_plan: newPlan});
-      alert(`✅ Plan del atleta actualizado exitosamente a ${newPlan}.`);
-    } catch (err) { alert("❌ Error actualizando plan: " + err.message); }
+
+      if (!data?.ok) {
+        throw new Error(data?.code || 'GENESIS_PROGRAM_ACTIVATION_FAILED');
+      }
+
+      setProgram(data);
+      setAthlete({
+        ...athlete,
+        b2c_plan: data.package_tier,
+        program_start_date: data.starts_at,
+        selected_app_single:
+          data.service_focus === 'NUTRITION'
+            ? 'NUTRITION'
+            : 'TRAINING'
+      });
+
+      const endsAtLabel = data.ends_at
+        ? new Intl.DateTimeFormat('es-US', { dateStyle: 'medium' }).format(new Date(data.ends_at))
+        : 'fecha no disponible';
+
+      alert(`Programa activado correctamente. Vence el ${endsAtLabel}.`);
+    } catch (error) {
+      const message = error?.message || 'No se pudo activar el programa.';
+      setProgramError(message);
+      alert(`Error al activar el programa: ${message}`);
+    } finally {
+      setProgramActivating(false);
+    }
   };
 
   const handleExChange = (dayIndex, exIndex, field, value) => {
@@ -526,9 +609,6 @@ export default function ClientProfile() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-black uppercase tracking-tight">Expediente 360°</h1>
-                {!athlete.program_start_date && (
-                  <button onClick={async () => { if(window.confirm("¿Activar Atleta?")) { await supabase.from('athletes_profile').update({ program_start_date: new Date().toISOString() }).eq('id', athlete.id); setAthlete({...athlete, program_start_date: new Date().toISOString()}); } }} className="bg-green-600 text-white font-black uppercase text-[9px] px-3 py-1.5 rounded-lg flex items-center gap-1"><CheckCircle2 size={12}/> Activar</button>
-                )}
               </div>
               <p className="text-xs text-neutral-400 font-mono mt-0.5">Atleta: <span className="font-bold text-white uppercase">{athlete.full_name || 'Sin Nombre'}</span> | Plan: <span style={{ color: theme?.brandColor || '#f59e0b' }} className="font-bold">{athlete.b2c_plan || 'N/A'}</span></p>
             </div>
@@ -564,7 +644,74 @@ export default function ClientProfile() {
                 </div>
               </div>
 
-              {coachIsElite && (
+              {!athlete.program_start_date && (
+                <div className="bg-[#111] border border-green-900/50 p-6 rounded-3xl relative overflow-hidden">
+                  <h2 className="text-xs font-black uppercase text-green-400 mb-4 flex items-center gap-2">
+                    <Calendar size={16} /> Configurar programa
+                  </h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                      Enfoque contratado
+                      {programPlan === 'IGNICION' ? (
+                        <select
+                          value={programFocus}
+                          onChange={(event) => setProgramFocus(event.target.value)}
+                          className="mt-2 w-full bg-black border border-neutral-700 rounded-xl p-3 text-xs text-white"
+                        >
+                          <option value="TRAINING">Entrenamiento</option>
+                          <option value="NUTRITION">NutriciÃ³n</option>
+                        </select>
+                      ) : (
+                        <div className="mt-2 w-full bg-black border border-neutral-800 rounded-xl p-3 text-xs text-white">
+                          NutriciÃ³n + Entrenamiento
+                        </div>
+                      )}
+                    </label>
+
+                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                      DuraciÃ³n
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="1200"
+                          value={programDurationValue}
+                          onChange={(event) => setProgramDurationValue(event.target.value)}
+                          className="w-full bg-black border border-neutral-700 rounded-xl p-3 text-xs text-white"
+                        />
+                        <select
+                          value={programDurationUnit}
+                          onChange={(event) => setProgramDurationUnit(event.target.value)}
+                          className="w-full bg-black border border-neutral-700 rounded-xl p-3 text-xs text-white"
+                        >
+                          <option value="DAY">DÃ­as</option>
+                          <option value="WEEK">Semanas</option>
+                          <option value="MONTH">Meses</option>
+                          <option value="YEAR">AÃ±os</option>
+                        </select>
+                      </div>
+                    </label>
+                  </div>
+
+                  <p className="text-[10px] text-neutral-500 mt-4">
+                    El servidor calcularÃ¡ la fecha de vencimiento. El atleta no puede modificar estos valores.
+                  </p>
+
+                  {programError && (
+                    <p className="text-xs text-red-400 mt-3">{programError}</p>
+                  )}
+
+                  <button
+                    onClick={handleActivateAthleteProgram}
+                    disabled={programActivating}
+                    className="mt-4 w-full bg-green-600 disabled:bg-neutral-700 text-white font-black uppercase text-[10px] px-4 py-3 rounded-xl"
+                  >
+                    {programActivating ? 'Activando programa...' : 'Activar programa contratado'}
+                  </button>
+                </div>
+              )}
+              {coachIsElite && !athlete.program_start_date && (
                 <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme?.brandColor || '#f59e0b' }}></div>
                   <h2 className="text-xs font-black uppercase text-neutral-400 mb-4 flex items-center gap-2 relative z-10"><Target size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Gestión de Suscripción VIP</h2>
@@ -575,7 +722,7 @@ export default function ClientProfile() {
                     </div>
                     <div>
                       <select 
-                        value={athlete.b2c_plan} 
+                        value={programPlan}
                         onChange={(e) => handleChangeAthletePlan(e.target.value)} 
                         className="bg-black border border-neutral-700 rounded-xl p-2 text-xs font-mono font-bold uppercase text-white outline-none cursor-pointer"
                       >
