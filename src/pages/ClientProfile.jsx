@@ -10,6 +10,11 @@ import {
   Bell, X, ShoppingCart, Info, Zap
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import {
+  centimetersToFeetInches,
+  formatMeasurementInput,
+  kilogramsToPounds,
+} from '../core/measurementUnits';
 import CoachMonitoringPanel from '../components/CoachMonitoringPanel';
 import { createEvidenceSignedUrl } from '../services/evidenceStorageService';
 
@@ -93,6 +98,7 @@ export default function ClientProfile() {
   const [programDurationUnit, setProgramDurationUnit] = useState('WEEK');
   const [programActivating, setProgramActivating] = useState(false);
   const [programError, setProgramError] = useState('');
+  const [coachUnitSystem, setCoachUnitSystem] = useState('METRIC');
 
   // 🧰 ESTADOS CUSTOMIZACIÓN
   const [editAlerts, setEditAlerts] = useState([]);
@@ -201,6 +207,20 @@ export default function ClientProfile() {
       const { data: coachData } = await supabase.from('coaches_profile').select('b2b_plan').eq('user_id', session.user.id).maybeSingle();
       if (coachData?.b2b_plan === 'ELITE') setCoachIsElite(true);
 
+      const { data: preferences, error: preferencesError } = await supabase
+        .from('user_preferences')
+        .select('coach_admin_unit_system, preferred_unit_system')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (preferencesError) throw preferencesError;
+
+      setCoachUnitSystem(
+        preferences?.coach_admin_unit_system ||
+        preferences?.preferred_unit_system ||
+        'METRIC'
+      );
+
       const { data: profileData } = await supabase.from('athletes_profile').select('*').or(`id.eq.${id},user_id.eq.${id}`).maybeSingle();
       if (!profileData) return setLoading(false);
 
@@ -280,6 +300,28 @@ export default function ClientProfile() {
       setAllPhotos(photosData || []);
 
     } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
+  };
+
+  const formatCoachWeight = (weightKg) => {
+    const numericWeight = Number.parseFloat(weightKg);
+    if (!Number.isFinite(numericWeight) || numericWeight <= 0) return 'N/A';
+    return coachUnitSystem === 'IMPERIAL'
+      ? `${formatMeasurementInput(kilogramsToPounds(numericWeight))} lb`
+      : `${formatMeasurementInput(numericWeight)} kg`;
+  };
+
+  const formatCoachHeight = (heightCm) => {
+    const numericHeight = Number.parseFloat(heightCm);
+    if (!Number.isFinite(numericHeight) || numericHeight <= 0) return 'N/A';
+
+    if (coachUnitSystem === 'IMPERIAL') {
+      const imperialHeight = centimetersToFeetInches(numericHeight);
+      return imperialHeight
+        ? `${imperialHeight.feet} ft ${imperialHeight.inches} in`
+        : 'N/A';
+    }
+
+    return `${formatMeasurementInput(numericHeight, 0)} cm`;
   };
 
   const calculateBaseMacros = (weightKg, goal) => {
@@ -638,8 +680,9 @@ export default function ClientProfile() {
                 <div className="space-y-4">
                   <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Género</span><span className="text-sm font-bold uppercase text-white">{athlete.gender || 'N/A'}</span></div>
                   <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Edad</span><span className="text-sm font-bold text-white">{athlete.age || 0} años</span></div>
-                  <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Peso Base</span><span className="text-sm font-bold text-white">{athlete.weight || 0} kg</span></div>
-                  <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Objetivo</span><span className="text-sm font-black text-blue-400">{athlete.goal || 'N/A'}</span></div>
+                  <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Peso Base</span><span className="text-sm font-bold text-white">{formatCoachWeight(athlete.weight)}</span></div>
+                  <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Altura</span><span className="text-sm font-bold text-white">{formatCoachHeight(athlete.height)}</span></div>
+                   <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Objetivo</span><span className="text-sm font-black text-blue-400">{athlete.goal || 'N/A'}</span></div>
                   <div className="flex justify-between border-b border-neutral-800/50 pb-3"><span className="text-xs text-neutral-500">Lesiones</span><span className="text-[10px] font-mono text-red-400 max-w-[60%] text-right">{athlete.injuries || 'Ninguna'}</span></div>
                 </div>
               </div>
@@ -1127,7 +1170,7 @@ export default function ClientProfile() {
                 <div className="space-y-4">
                   {currentPhotoSet.weight_recorded && (
                     <p className="text-xs font-mono text-neutral-400 bg-black border border-neutral-800 px-4 py-2 rounded-xl w-fit">
-                      Peso en esta fecha: <strong className="text-amber-500">{currentPhotoSet.weight_recorded} KG</strong>
+                      Peso en esta fecha: <strong className="text-amber-500">{formatCoachWeight(currentPhotoSet.weight_recorded)}</strong>
                     </p>
                   )}
 
