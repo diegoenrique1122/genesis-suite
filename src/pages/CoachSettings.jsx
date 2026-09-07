@@ -43,6 +43,9 @@ export default function CoachSettings() {
   const [instagramHandle, setInstagramHandle] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [commMode, setCommMode] = useState('BOTH');
+  const [preferredLocale, setPreferredLocale] = useState('es');
+  const [coachAdminUnitSystem, setCoachAdminUnitSystem] = useState('METRIC');
+  const [preferencesSaving, setPreferencesSaving] = useState(false);
 
   // Estados Request Admin
   const [requestType, setRequestType] = useState('UPGRADE');
@@ -77,6 +80,23 @@ export default function CoachSettings() {
       // 2. Settings Globales
       const { data: globals } = await supabase.from('super_admin_settings').select('*').eq('id', 1).maybeSingle();
       if (globals) setGlobalSettings(globals);
+
+      const { data: preferences, error: preferencesError } = await supabase
+        .from('user_preferences')
+        .select('preferred_locale, preferred_unit_system, coach_admin_unit_system')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (preferencesError) throw preferencesError;
+
+      if (preferences) {
+        setPreferredLocale(preferences.preferred_locale || 'es');
+        setCoachAdminUnitSystem(
+          preferences.coach_admin_unit_system ||
+          preferences.preferred_unit_system ||
+          'METRIC'
+        );
+      }
 
       // 3. Cargar Atletas (Roster)
       const { data: athletesList } = await supabase
@@ -184,6 +204,38 @@ export default function CoachSettings() {
       
       alert("✅ Identidad Élite guardada. Tu app y la de tus atletas han sido actualizadas.");
     } catch (err) { alert("❌ Error al guardar: " + err.message); } finally { setSaving(false); }
+  };
+
+  const handleSaveOperationalPreferences = async (event) => {
+    event.preventDefault();
+
+    if (!coach?.user_id) {
+      return alert('No se pudo identificar la cuenta del coach.');
+    }
+
+    try {
+      setPreferencesSaving(true);
+
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert(
+          {
+            user_id: coach.user_id,
+            preferred_locale: preferredLocale,
+            preferred_unit_system: coachAdminUnitSystem,
+            coach_admin_unit_system: coachAdminUnitSystem,
+          },
+          { onConflict: 'user_id' }
+        );
+
+      if (error) throw error;
+
+      alert('Preferencias operativas guardadas.');
+    } catch (err) {
+      alert('Error al guardar preferencias: ' + err.message);
+    } finally {
+      setPreferencesSaving(false);
+    }
   };
 
   const handleSendAdminRequest = async (e) => {
@@ -304,6 +356,7 @@ const handleImmersiveMode = async () => {
         <div className="flex gap-2 border-b border-neutral-800 pb-4 overflow-x-auto scrollbar-hide">
           {[
             { id: 'BRANDING', label: 'Identidad Visual' },
+            { id: 'PREFERENCES', label: 'Preferencias' },
             { id: 'ROSTER', label: 'Mi Roster' },
             { id: 'MULTILEVEL', label: 'Red B2B' },
             { id: 'COMM', label: 'Comunicaciones' },
@@ -318,6 +371,59 @@ const handleImmersiveMode = async () => {
             </button>
           ))}
         </div>
+
+        {activeTab === 'PREFERENCES' && (
+          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
+            <div className="flex items-center gap-4 border-b border-neutral-800/50 pb-6">
+              <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}>
+                <User className={activeTheme.accent} size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight">Preferencias Operativas</h2>
+                <p className="text-[11px] font-mono opacity-60 mt-1">
+                  Define como Genesis presenta medidas en tu administracion. Los datos clinicos se conservan internamente en kg y cm.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveOperationalPreferences} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase opacity-60 block mb-2">Idioma preferido</label>
+                  <select
+                    value={preferredLocale}
+                    onChange={(event) => setPreferredLocale(event.target.value)}
+                    className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}
+                  >
+                    <option value="es" className="text-black">Español</option>
+                    <option value="en" className="text-black">English</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase opacity-60 block mb-2">Unidades administrativas</label>
+                  <select
+                    value={coachAdminUnitSystem}
+                    onChange={(event) => setCoachAdminUnitSystem(event.target.value)}
+                    className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}
+                  >
+                    <option value="METRIC" className="text-black">Métrico (kg / cm)</option>
+                    <option value="IMPERIAL" className="text-black">Americano (lb / ft)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={preferencesSaving}
+                className="bg-white hover:bg-neutral-200 text-black font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {preferencesSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                Guardar Preferencias
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* 1. PESTAÑA: MARCA BLANCA (TU CÓDIGO INTACTO) */}
         {activeTab === 'BRANDING' && (
