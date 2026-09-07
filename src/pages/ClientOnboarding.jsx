@@ -12,6 +12,13 @@ import {
   Scale,
   ShieldCheck,
 } from 'lucide-react';
+import {
+  centimetersToFeetInches,
+  feetInchesToCentimeters,
+  formatMeasurementInput,
+  kilogramsToPounds,
+  poundsToKilograms,
+} from '../core/measurementUnits';
 
 const DRAFT_SAVE_DELAY_MS = 800;
 
@@ -94,6 +101,57 @@ export default function ClientOnboarding() {
   const [frontPath, setFrontPath] = useState(null);
   const [sidePath, setSidePath] = useState(null);
   const [backPath, setBackPath] = useState(null);
+  const [preferredLocale, setPreferredLocale] = useState('es');
+  const [unitSystem, setUnitSystem] = useState('METRIC');
+  const [heightFeet, setHeightFeet] = useState('');
+  const [heightInches, setHeightInches] = useState('');
+
+  const getCanonicalWeight = useCallback(() => {
+    const parsed = asDraftNumber(weight);
+    if (parsed === null) return null;
+    return unitSystem === 'IMPERIAL' ? poundsToKilograms(parsed) : parsed;
+  }, [unitSystem, weight]);
+
+  const getCanonicalHeight = useCallback(() => {
+    if (unitSystem === 'IMPERIAL') {
+      return feetInchesToCentimeters(heightFeet, heightInches);
+    }
+
+    return asDraftNumber(height);
+  }, [height, heightFeet, heightInches, unitSystem]);
+
+  const handleUnitSystemChange = (nextUnitSystem) => {
+    if (nextUnitSystem === unitSystem) return;
+
+    const canonicalWeight = getCanonicalWeight();
+    const canonicalHeight = getCanonicalHeight();
+
+    setUnitSystem(nextUnitSystem);
+
+    if (canonicalWeight !== null) {
+      setWeight(
+        nextUnitSystem === 'IMPERIAL'
+          ? formatMeasurementInput(kilogramsToPounds(canonicalWeight))
+          : formatMeasurementInput(canonicalWeight)
+      );
+    }
+
+    if (nextUnitSystem === 'METRIC') {
+      setHeight(
+        canonicalHeight === null
+          ? ''
+          : formatMeasurementInput(canonicalHeight, 0)
+      );
+      setHeightFeet('');
+      setHeightInches('');
+      return;
+    }
+
+    const imperialHeight = centimetersToFeetInches(canonicalHeight);
+    setHeight('');
+    setHeightFeet(imperialHeight ? imperialHeight.feet.toString() : '');
+    setHeightInches(imperialHeight ? imperialHeight.inches.toString() : '');
+  };
 
   const buildDraft = useCallback(
     (overrides = {}) => ({
@@ -101,8 +159,14 @@ export default function ClientOnboarding() {
       coachCode: (overrides.coachCode ?? coachCode).trim().toUpperCase() || null,
       fullName: (overrides.fullName ?? fullName).trim() || null,
       age: asDraftInteger(overrides.age ?? age),
-      weight: asDraftNumber(overrides.weight ?? weight),
-      height: asDraftNumber(overrides.height ?? height),
+      weight:
+        overrides.weight === undefined
+          ? getCanonicalWeight()
+          : asDraftNumber(overrides.weight),
+      height:
+        overrides.height === undefined
+          ? getCanonicalHeight()
+          : asDraftNumber(overrides.height),
       gender: overrides.gender ?? gender ?? null,
       goal: overrides.goal ?? goal ?? null,
       injuries: (overrides.injuries ?? injuries).trim() || null,
@@ -125,6 +189,8 @@ export default function ClientOnboarding() {
       frontPath,
       sidePath,
       backPath,
+      getCanonicalWeight,
+      getCanonicalHeight,
     ]
   );
 
@@ -366,14 +432,39 @@ export default function ClientOnboarding() {
         throw new Error('Tu sesión o código de invitación no pudo ser validado.');
       }
 
+      const canonicalWeight = getCanonicalWeight();
+      const canonicalHeight = getCanonicalHeight();
+
+      if (
+        canonicalWeight === null ||
+        canonicalHeight === null ||
+        canonicalWeight <= 0 ||
+        canonicalHeight <= 0
+      ) {
+        throw new Error('Ingresa peso y altura validos antes de continuar.');
+      }
+
+      const { error: preferenceError } = await supabase
+        .from('user_preferences')
+        .upsert(
+          {
+            user_id: currentUser.id,
+            preferred_locale: preferredLocale,
+            preferred_unit_system: unitSystem,
+          },
+          { onConflict: 'user_id' }
+        );
+
+      if (preferenceError) throw preferenceError;
+
       const onboardingResult = await invokeAthleteBoundary(
         'COMPLETE_ONBOARDING',
         {
           code,
           fullName: fullName.trim(),
           age: Number.parseInt(age, 10),
-          weight: Number.parseFloat(weight),
-          height: Number.parseFloat(height),
+          weight: canonicalWeight,
+          height: canonicalHeight,
           gender,
           goal,
           injuries: injuries.trim() || 'Ninguna',
@@ -543,6 +634,35 @@ export default function ClientOnboarding() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
+                    Idioma / Language
+                  </label>
+                  <select
+                    value={preferredLocale}
+                    onChange={(event) => setPreferredLocale(event.target.value)}
+                    className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
+                  >
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
+                    Medidas / Units
+                  </label>
+                  <select
+                    value={unitSystem}
+                    onChange={(event) => handleUnitSystemChange(event.target.value)}
+                    className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
+                  >
+                    <option value="METRIC">Métrico (kg / cm)</option>
+                    <option value="IMPERIAL">American (lb / ft)</option>
+                  </select>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -560,7 +680,7 @@ export default function ClientOnboarding() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
-                    Peso (KG)
+                    {unitSystem === 'IMPERIAL' ? 'Weight (lb)' : 'Peso (kg)'}
                   </label>
                   <input
                     type="number"
@@ -568,24 +688,56 @@ export default function ClientOnboarding() {
                     value={weight}
                     onChange={(event) => setWeight(event.target.value)}
                     required
-                    placeholder="70.5"
+                    placeholder={unitSystem === 'IMPERIAL' ? '155.4' : '70.5'}
                     className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
                   />
                 </div>
 
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
-                    Altura (CM)
-                  </label>
-                  <input
-                    type="number"
-                    value={height}
-                    onChange={(event) => setHeight(event.target.value)}
-                    required
-                    placeholder="175"
-                    className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
-                  />
-                </div>
+                {unitSystem === 'IMPERIAL' ? (
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
+                      Height (ft / in)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        value={heightFeet}
+                        onChange={(event) => setHeightFeet(event.target.value)}
+                        required
+                        min="1"
+                        max="8"
+                        placeholder="5"
+                        aria-label="Feet"
+                        className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
+                      />
+                      <input
+                        type="number"
+                        value={heightInches}
+                        onChange={(event) => setHeightInches(event.target.value)}
+                        required
+                        min="0"
+                        max="11"
+                        placeholder="9"
+                        aria-label="Inches"
+                        className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
+                      Altura (cm)
+                    </label>
+                    <input
+                      type="number"
+                      value={height}
+                      onChange={(event) => setHeight(event.target.value)}
+                      required
+                      placeholder="175"
+                      className="w-full bg-black border border-neutral-800 rounded-xl p-3 text-sm text-white outline-none focus:border-amber-500"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
