@@ -29,7 +29,7 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true);
   const [coachProfile, setCoachProfile] = useState(null);
   const [roster, setRoster] = useState([]);
-  const [stats, setStats] = useState({ total: 0, pending: 0, active: 0 });
+  const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, waiting: 0 });
 
   // 🚀 NUEVA ARQUITECTURA DE PESTAÑAS
   const [activeTab, setActiveTab] = useState('ROSTER'); // 'ROSTER' | 'MY_APPS'
@@ -83,10 +83,15 @@ export default function CoachDashboard() {
       setStats({
         total: realClients.length,
         pending: realClients.filter(
-          (athlete) => athlete.routine_status === 'PENDING_AUDIT'
+          (athlete) =>
+            athlete.program_start_date !== null &&
+            athlete.routine_status === 'PENDING_AUDIT'
         ).length,
         active: realClients.filter(
           (athlete) => athlete.program_start_date !== null
+        ).length,
+        waiting: realClients.filter(
+          (athlete) => athlete.program_start_date === null
         ).length,
       });
     } catch (err) { console.error("Error:", err); } finally { setLoading(false); }
@@ -149,19 +154,27 @@ export default function CoachDashboard() {
         {/* ========================================================= */}
         {activeTab === 'ROSTER' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
               <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
                 <h1 className="text-2xl font-black uppercase tracking-tight mb-1">{copy('Hola,', 'Hello,')} {coachProfile?.full_name?.split(' ')[0] || 'Coach'}</h1>
-                <p className="text-xs text-neutral-400 font-mono">{copy('Tienes', 'You have')} {stats.pending} {copy('atletas requiriendo auditoría clínica hoy.', 'athletes requiring clinical review today.')}</p>
+                <p className="text-xs text-neutral-400 font-mono">
+                  {copy('Prioridad operativa: ', 'Operational priority: ')}
+                  <span className="font-bold text-amber-400">{stats.pending}</span> {copy('auditorías y ', 'reviews and ')}
+                  <span className="font-bold text-neutral-200">{stats.waiting}</span> {copy('atletas esperando activación.', 'athletes waiting for activation.')}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4 md:col-span-3">
+                <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
+                  <span className="genesis-kpi-value text-3xl font-black font-mono text-white">{stats.total}</span>
+                  <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">{copy("Roster", "Roster")}</span>
+                </div>
                 <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
                   <span className="genesis-kpi-value text-3xl font-black font-mono text-white">{stats.active}</span>
                   <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">{copy("Activos", "Active")}</span>
                 </div>
                 <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
                   <span className="genesis-kpi-value text-3xl font-black font-mono text-amber-500">{stats.pending}</span>
-                  <span className="text-[9px] uppercase font-black tracking-widest text-amber-500/70 mt-1">{copy("Pendientes", "Pending")}</span>
+                  <span className="text-[9px] uppercase font-black tracking-widest text-amber-500/70 mt-1">{copy("Auditorías", "Reviews")}</span>
                 </div>
               </div>
             </div>
