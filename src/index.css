@@ -8,3 +8,76 @@ body {
 }
 
 /* LA PRUEBA ROJA */
+
+
+/* Genesis OS visual system: shared typography and layout tokens. */
+:root {
+  --genesis-font-body: "Inter", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --genesis-font-display: "Inter", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --genesis-font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --genesis-text-xs: 0.6875rem;
+  --genesis-text-sm: 0.8125rem;
+  --genesis-text-md: 0.9375rem;
+  --genesis-title-sm: 1.125rem;
+  --genesis-title-md: 1.5rem;
+  --genesis-title-lg: 2rem;
+  --genesis-space-card: 1.5rem;
+  --genesis-radius-panel: 1.5rem;
+  --genesis-radius-control: 0.75rem;
+  --genesis-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+html {
+  font-family: var(--genesis-font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--genesis-font-body);
+}
+
+.font-sans {
+  font-family: var(--genesis-font-body) !important;
+}
+
+.font-mono {
+  font-family: var(--genesis-font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.genesis-theme-root h1,
+.genesis-theme-root h2,
+.genesis-theme-root h3,
+.genesis-theme-root h4 {
+  font-family: var(--genesis-font-display);
+  text-wrap: balance;
+}
+
+.genesis-theme-root button,
+.genesis-theme-root input,
+.genesis-theme-root select,
+.genesis-theme-root textarea {
+  letter-spacing: 0.01em;
+}
+
+.genesis-panel {
+  border-radius: var(--genesis-radius-panel);
+  box-shadow: var(--genesis-shadow-panel);
+}
+
+.genesis-control {
+  border-radius: var(--genesis-radius-control);
+  min-height: 2.75rem;
+}
+
+.genesis-kpi-value {
+  font-family: var(--genesis-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
