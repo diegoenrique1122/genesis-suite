@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { evaluateBadges } from '../services/badgeService';
+import AthletePreferences from '../components/AthletePreferences';
 import { 
   Dumbbell, Utensils, Activity, MessageSquare, 
-  LogOut, Loader2, Clock, ShieldCheck, Droplets, Award, Flame
+  LogOut, Loader2, Clock, ShieldCheck, Droplets, Award, Flame, Settings
 } from 'lucide-react';
 
 export default function ClientDashboard() {
@@ -22,7 +23,8 @@ export default function ClientDashboard() {
   const [programEndsAt, setProgramEndsAt] = useState(null);
   const [programExpired, setProgramExpired] = useState(false);
   const [programTotalWeeks, setProgramTotalWeeks] = useState(12);
-  const [fenixUnlocked, setFenixUnlocked] = useState(false); 
+  const [fenixUnlocked, setFenixUnlocked] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
 
   useEffect(() => {
     fetchAthleteData();
@@ -33,7 +35,7 @@ export default function ClientDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return navigate('/');
 
-      // 🚀 ESCUDO ANTI-FANTASMAS: Usamos maybeSingle() para no colapsar si la cuenta fue borrada
+      // Ã°Å¸Å¡â‚¬ ESCUDO ANTI-FANTASMAS: Usamos maybeSingle() para no colapsar si la cuenta fue borrada
       const { data: athleteData, error: athleteErr } = await supabase
         .from('athletes_profile')
         .select('*')
@@ -41,7 +43,7 @@ export default function ClientDashboard() {
         .maybeSingle();
 
       if (athleteErr || !athleteData) {
-        // Si el perfil no existe (fue borrado en Supabase), cerramos sesión forzosamente
+        // Si el perfil no existe (fue borrado en Supabase), cerramos sesiÃƒÂ³n forzosamente
         await supabase.auth.signOut();
         navigate('/');
         return;
@@ -63,7 +65,7 @@ export default function ClientDashboard() {
       if (coachData) setCoachName(coachData.full_name);
 
       // La autoridad del badge vive en PostgreSQL. El navegador solo solicita
-      // evaluación determinística y lee el resultado autorizado.
+      // evaluaciÃƒÂ³n determinÃƒÂ­stica y lee el resultado autorizado.
       const badgeResult = await evaluateBadges(athleteData.id);
       setFenixUnlocked(Boolean(badgeResult?.fenixUnlocked));
 
@@ -136,9 +138,16 @@ export default function ClientDashboard() {
             <ShieldCheck size={20} style={{ color: theme?.brandColor || '#f59e0b' }} />
             <span className="text-xs font-black uppercase tracking-widest text-neutral-300">Team {(coachName || 'Coach').split(' ')[0]}</span>
           </div>
-          <button onClick={handleLogout} className="text-neutral-500 hover:text-white transition-colors"><LogOut size={18} /></button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setPreferencesOpen(true)} className="min-h-11 min-w-11 rounded-xl text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-white" aria-label="Preferencias"><Settings className="mx-auto" size={18} /></button>
+            <button onClick={handleLogout} className="text-neutral-500 hover:text-white transition-colors"><LogOut size={18} /></button>
+          </div>
         </div>
       </nav>
+
+      {preferencesOpen && (
+        <AthletePreferences onClose={() => setPreferencesOpen(false)} />
+      )}
 
       <main className="max-w-md mx-auto px-6 py-8 relative z-10 space-y-8 pb-20">
         
@@ -156,10 +165,10 @@ export default function ClientDashboard() {
             </div>
             <div>
               <h2 className="text-sm font-black uppercase text-yellow-500 tracking-widest flex items-center gap-2">
-                Medalla Fénix Desbloqueada <Award size={14}/>
+                Medalla FÃƒÂ©nix Desbloqueada <Award size={14}/>
               </h2>
               <p className="text-[11px] text-yellow-200/70 font-mono mt-1 leading-relaxed">
-                Has completado el protocolo innegociable de 12 semanas. Ya no eres la misma persona que empezó. Eres de Élite.
+                Has completado el protocolo innegociable de 12 semanas. Ya no eres la misma persona que empezÃƒÂ³. Eres de Ãƒâ€°lite.
               </p>
             </div>
           </div>
@@ -206,7 +215,7 @@ export default function ClientDashboard() {
             <Clock className="text-yellow-500 shrink-0" size={24} />
             <div>
               <h2 className="text-sm font-black uppercase text-white mb-1">Sala de Espera</h2>
-              <p className="text-xs text-neutral-400 font-mono">Estamos esperando que el Coach <strong className="text-white">{coachName || 'asignado'}</strong> evalúe tu biometría y active tu fecha de inicio.</p>
+              <p className="text-xs text-neutral-400 font-mono">Estamos esperando que el Coach <strong className="text-white">{coachName || 'asignado'}</strong> evalÃƒÂºe tu biometrÃƒÂ­a y active tu fecha de inicio.</p>
             </div>
           </div>
         )}
@@ -237,7 +246,7 @@ export default function ClientDashboard() {
                   <Activity size={20} style={{ color: theme?.brandColor || '#f59e0b' }} />
                 </div>
                 <h4 className="font-bold text-sm text-white leading-tight">Monitoreo de Disciplina</h4>
-                <p className="text-[10px] text-neutral-500 font-mono mt-1">Check-in, Pasos y Hábitos</p>
+                <p className="text-[10px] text-neutral-500 font-mono mt-1">Check-in, Pasos y HÃƒÂ¡bitos</p>
               </div>
               {isActive && new Date().getDay() === 0 && (
                 <span className="text-[9px] font-black uppercase bg-red-500/20 text-red-500 px-3 py-1 rounded-full border border-red-500/30 animate-pulse">Pendiente</span>
@@ -250,7 +259,7 @@ export default function ClientDashboard() {
                 <div className="w-10 h-10 rounded-full bg-pink-500/10 flex items-center justify-center border border-pink-500/30 shrink-0"><Droplets size={20} className="text-pink-500" /></div>
                 <h2 className="text-xl font-black uppercase tracking-tight text-white">Sync Hormonal</h2>
               </div>
-              <p className="text-[11px] text-neutral-400 font-mono leading-relaxed relative z-10">Sincronización del ciclo menstrual con tu matriz física. <span className="text-pink-400 font-bold">Exclusivo Mujeres Élite.</span></p>
+              <p className="text-[11px] text-neutral-400 font-mono leading-relaxed relative z-10">SincronizaciÃƒÂ³n del ciclo menstrual con tu matriz fÃƒÂ­sica. <span className="text-pink-400 font-bold">Exclusivo Mujeres Ãƒâ€°lite.</span></p>
             </button>
 
             <button onClick={() => navigate('/chat')} className="bg-[#111] border border-neutral-800 rounded-[2rem] p-5 text-left transition-all hover:bg-neutral-900 hover:border-neutral-700 group col-span-2 flex items-center gap-4">
