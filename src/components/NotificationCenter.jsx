@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, BellRing, CheckCheck, Circle, Inbox, Radio } from 'lucide-react';
+import { Bell, BellRing, CheckCheck, Circle, Inbox, Radio, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useLocale } from '../contexts/LocaleContext';
 
@@ -21,7 +21,7 @@ const notificationTypeLabel = (type, copy) => {
     NEW_ATHLETE: copy('Nuevo atleta', 'New athlete'),
     PROGRAM_ACTIVATED: copy('Programa activado', 'Program activated'),
     PROGRAM_EXPIRING: copy('Programa por vencer', 'Program expiring'),
-    ROUTINE_REVIEW: copy('AuditorÃ­a requerida', 'Review required'),
+    ROUTINE_REVIEW: copy('AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a requerida', 'Review required'),
     ADMIN_REQUEST: copy('Solicitud administrativa', 'Administrative request'),
     ACCOUNT_SECURITY: copy('Seguridad de cuenta', 'Account security'),
   };
@@ -29,6 +29,36 @@ const notificationTypeLabel = (type, copy) => {
   return labels[type] || copy('Actividad del sistema', 'System activity');
 };
 
+const notificationMessage = (type, copy, fallback) => {
+  const messages = {
+    NEW_ATHLETE: copy(
+      'Se registr\u00f3 un atleta nuevo. Revisa el roster para consultar la informaci\u00f3n autorizada.',
+      'A new athlete registered. Review the roster for authorized information.'
+    ),
+    ADMIN_REQUEST: copy(
+      'Un coach envi\u00f3 una solicitud administrativa. Revisa la bandeja de gesti\u00f3n.',
+      'A coach submitted an administrative request. Review the management inbox.'
+    ),
+    PROGRAM_ACTIVATED: copy(
+      'Se actualizÃƒÂ³ el estado de un programa.',
+      'A program status was updated.'
+    ),
+    PROGRAM_EXPIRING: copy(
+      'Un programa requiere seguimiento de vencimiento.',
+      'A program requires expiration follow-up.'
+    ),
+    ROUTINE_REVIEW: copy(
+      'Hay una revisiÃƒÂ³n operativa pendiente.',
+      'There is an operational review pending.'
+    ),
+    ACCOUNT_SECURITY: copy(
+      'Se registrÃƒÂ³ un evento de seguridad de cuenta.',
+      'An account security event was recorded.'
+    ),
+  };
+
+  return messages[type] || fallback;
+};
 export default function NotificationCenter({
   showSystemActivity = false,
   panelClass = 'bg-[#111] text-white',
@@ -44,6 +74,11 @@ export default function NotificationCenter({
   const [systemActivity, setSystemActivity] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [activeView, setActiveView] = useState('INBOX');
+
+  const readCount = useMemo(
+    () => inbox.filter((notification) => notification.read).length,
+    [inbox]
+  );
 
   const unreadCount = useMemo(
     () => inbox.filter((notification) => !notification.read).length,
@@ -153,6 +188,33 @@ export default function NotificationCenter({
     );
   };
 
+  const clearReadNotifications = async () => {
+    if (!currentUserId || readCount === 0) return;
+
+    const confirmed = window.confirm(
+      copy(
+        'Eliminar todas las alertas leídas de tu bandeja?',
+        'Remove all read alerts from your inbox?'
+      )
+    );
+
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('system_notifications')
+      .delete()
+      .eq('recipient_id', currentUserId)
+      .eq('read', true);
+
+    if (error) {
+      console.error('Genesis notification clear-read error:', error);
+      return;
+    }
+
+    setInbox((current) =>
+      current.filter((notification) => !notification.read)
+    );
+  };
   const visibleNotifications =
     activeView === 'SYSTEM' ? systemActivity : inbox;
 
@@ -189,7 +251,7 @@ export default function NotificationCenter({
                 {copy('Centro de notificaciones', 'Notification center')}
               </p>
               <h2 className="mt-1 text-sm font-black uppercase tracking-tight">
-                {copy('Actividad que requiere atenciÃ³n', 'Activity requiring attention')}
+                {copy('Actividad que requiere atenci\u00f3n', 'Activity requiring attention')}
               </h2>
             </div>
             {activeView === 'INBOX' && unreadCount > 0 && (
@@ -199,11 +261,23 @@ export default function NotificationCenter({
                 className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider opacity-70 transition hover:opacity-100"
               >
                 <CheckCheck size={14} />
-                {copy('LeÃ­das', 'Read')}
+                {copy('LeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­das', 'Read')}
               </button>
             )}
           </div>
 
+          {activeView === 'INBOX' && readCount > 0 && (
+            <div className={'border-b px-4 py-2 text-right ' + borderClass}>
+              <button
+                type="button"
+                onClick={clearReadNotifications}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider opacity-70 transition hover:opacity-100"
+              >
+                <Trash2 size={13} />
+                {copy('Limpiar leídas', 'Clear read')}
+              </button>
+            </div>
+          )}
           {showSystemActivity && (
             <div className={'flex gap-2 border-b px-4 py-3 ' + borderClass}>
               <button
@@ -232,7 +306,7 @@ export default function NotificationCenter({
           <div className="max-h-[26rem] overflow-y-auto p-2">
             {loading ? (
               <div className="px-4 py-10 text-center text-xs font-mono opacity-60">
-                {copy('Cargando alertasâ€¦', 'Loading alertsâ€¦')}
+                {copy('Cargando alertasÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦', 'Loading alertsÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦')}
               </div>
             ) : visibleNotifications.length === 0 ? (
               <div className="px-4 py-10 text-center">
@@ -268,18 +342,14 @@ export default function NotificationCenter({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <p className="truncate text-[11px] font-black uppercase tracking-wide">
-                            {activeView === 'SYSTEM'
-                              ? notificationTypeLabel(notification.type, copy)
-                              : notification.title}
+                            {notificationTypeLabel(notification.type, copy)}
                           </p>
                           <span className="shrink-0 text-[9px] font-mono opacity-50">
                             {formatNotificationDate(notification.created_at, locale)}
                           </span>
                         </div>
                         <p className="mt-1 text-[10px] leading-relaxed opacity-65">
-                          {activeView === 'SYSTEM'
-                            ? systemActivityCopy(notification.type, copy)
-                            : notification.message}
+                          {notificationMessage(notification.type, copy, notification.message)}
                         </p>
                         <p className={'mt-2 text-[9px] font-black uppercase tracking-widest ' + accentClass}>
                           {notificationTypeLabel(notification.type, copy)}
