@@ -1,4 +1,4 @@
-﻿import React, {
+import React, {
   useEffect,
   useMemo,
   useState,
@@ -32,7 +32,7 @@ import {
   ThemeProvider,
 } from './contexts/ThemeContext';
 
-import { LocaleProvider } from './contexts/LocaleContext';
+import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 
 
 // ======================================================
@@ -63,6 +63,27 @@ import RegulacionHormonal from './pages/RegulacionHormonal';
 import Chat from './pages/Chat';
 
 
+const SECURITY_COPY = {
+  es: {
+    signOut: 'Cerrar sesi\u00f3n', restricted: 'Acceso restringido', back: 'Volver al portal',
+    defaultAccess: 'Tu cuenta no tiene autorizaci\u00f3n para acceder a este recurso.',
+    validating: 'Validando seguridad Genesis...', identityTitle: 'Error de identidad', identityMessage: 'Genesis no pudo validar la identidad de esta sesi\u00f3n.',
+    pendingTitle: 'Cuenta en revisi\u00f3n', pendingMessage: 'Tu solicitud de licencia o acceso est\u00e1 pendiente de revisi\u00f3n.',
+    suspendedTitle: 'Cuenta suspendida', suspendedMessage: 'El acceso a esta cuenta se encuentra suspendido. Contacta con administraci\u00f3n.',
+    invalidTitle: 'Estado de cuenta inv\u00e1lido', invalidMessage: 'Genesis no reconoce el estado actual de esta cuenta.',
+    modeDenied: 'Tu rol o plan actual no permite utilizar este modo operacional.', coachProfileDenied: 'Genesis no encontr\u00f3 el perfil operacional Coach requerido para esta experiencia.',
+    athleteProfileDenied: 'Genesis no encontr\u00f3 el perfil operacional Athlete requerido para esta experiencia.', appDenied: 'Esta aplicaci\u00f3n no est\u00e1 incluida en tu plan o no cumple las reglas de elegibilidad.',
+  },
+  en: {
+    signOut: 'Sign out', restricted: 'Access restricted', back: 'Back to portal', defaultAccess: 'Your account is not authorized to access this resource.',
+    validating: 'Validating Genesis security...', identityTitle: 'Identity error', identityMessage: 'Genesis could not validate this session identity.',
+    pendingTitle: 'Account under review', pendingMessage: 'Your license or access request is pending review.',
+    suspendedTitle: 'Account suspended', suspendedMessage: 'Access to this account is suspended. Contact administration.',
+    invalidTitle: 'Invalid account state', invalidMessage: 'Genesis does not recognize the current account state.',
+    modeDenied: 'Your current role or plan cannot use this operational mode.', coachProfileDenied: 'Genesis could not find the Coach operational profile required for this experience.',
+    athleteProfileDenied: 'Genesis could not find the Athlete operational profile required for this experience.', appDenied: 'This application is not included in your plan or does not meet eligibility rules.',
+  },
+};
 // ======================================================
 // ROLE HOME
 // ======================================================
@@ -93,7 +114,9 @@ function SecurityScreen({
   title,
   message,
   allowLogout = true,
-}) {
+}) {  const { locale } = useLocale();
+  const security = SECURITY_COPY[locale] || SECURITY_COPY.es;
+
 
   const handleLogout = async () => {
 
@@ -129,8 +152,7 @@ function SecurityScreen({
           onClick={handleLogout}
           className="mt-8 text-[10px] uppercase font-bold text-neutral-600 hover:text-white transition-colors"
         >
-
-          Cerrar SesiÃ³n
+          {security.signOut}
 
         </button>
 
@@ -147,8 +169,10 @@ function SecurityScreen({
 
 function AccessDenied({
   role,
-  message = 'Tu cuenta no tiene autorizaciÃ³n para acceder a este recurso.',
+  message = null,
 }) {
+  const { locale } = useLocale();
+  const security = SECURITY_COPY[locale] || SECURITY_COPY.es;
 
   return (
 
@@ -162,15 +186,13 @@ function AccessDenied({
 
 
       <h1 className="text-xl font-black uppercase tracking-widest mb-3">
-
-        Acceso Restringido
-
+        {security.restricted}
       </h1>
 
 
       <p className="text-sm text-neutral-500 font-mono max-w-lg mb-8">
 
-        {message}
+        {message || security.defaultAccess}
 
       </p>
 
@@ -179,9 +201,7 @@ function AccessDenied({
         href={getHomeForRole(role)}
         className="bg-white text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest"
       >
-
-        Volver al Portal
-
+        {security.back}
       </a>
 
     </div>
@@ -209,6 +229,9 @@ const ProtectedRoute = ({
     mode,
     switchMode,
   } = useGenesisMode();
+  const { locale } = useLocale();
+  const security = SECURITY_COPY[locale] || SECURITY_COPY.es;
+
 
 
   const [
@@ -681,7 +704,7 @@ const ProtectedRoute = ({
 
       <div className="min-h-screen bg-[#0a0a0a] text-amber-500 flex items-center justify-center font-bold uppercase tracking-widest">
 
-        Validando Seguridad Genesis...
+        {security.validating}
 
       </div>
     );
@@ -697,8 +720,8 @@ const ProtectedRoute = ({
     return (
 
       <SecurityScreen
-        title="Error de Identidad"
-        message="Genesis no pudo validar la identidad de esta sesiÃ³n."
+        title={security.identityTitle}
+        message={security.identityMessage}
       />
     );
   }
@@ -733,8 +756,8 @@ const ProtectedRoute = ({
     return (
 
       <SecurityScreen
-        title="Cuenta en RevisiÃ³n"
-        message="Tu solicitud de licencia o acceso estÃ¡ pendiente de revisiÃ³n."
+        title={security.pendingTitle}
+        message={security.pendingMessage}
       />
     );
   }
@@ -747,8 +770,8 @@ const ProtectedRoute = ({
     return (
 
       <SecurityScreen
-        title="Cuenta Suspendida"
-        message="El acceso a esta cuenta se encuentra suspendido. Contacta con administraciÃ³n."
+        title={security.suspendedTitle}
+        message={security.suspendedMessage}
       />
     );
   }
@@ -767,8 +790,8 @@ const ProtectedRoute = ({
     return (
 
       <SecurityScreen
-        title="Estado de Cuenta InvÃ¡lido"
-        message="Genesis no reconoce el estado actual de esta cuenta."
+        title={security.invalidTitle}
+        message={security.invalidMessage}
       />
     );
   }
@@ -805,7 +828,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Tu rol o plan actual no permite utilizar este modo operacional."
+        message={security.modeDenied}
       />
     );
   }
@@ -825,7 +848,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Genesis no encontrÃ³ el perfil operacional Coach requerido para esta experiencia."
+        message={security.coachProfileDenied}
       />
     );
   }
@@ -841,7 +864,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Genesis no encontrÃ³ el perfil operacional Athlete requerido para esta experiencia."
+        message={security.athleteProfileDenied}
       />
     );
   }
@@ -862,7 +885,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Esta aplicaciÃ³n no estÃ¡ incluida en tu plan o no cumple las reglas de elegibilidad."
+        message={security.appDenied}
       />
     );
   }

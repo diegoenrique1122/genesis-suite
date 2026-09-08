@@ -76,7 +76,7 @@ export default function Login() {
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 selection:bg-amber-500 selection:text-black">
       <div className="w-full max-w-md bg-[#111] border border-neutral-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500 opacity-5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute right-6 top-6"><LocaleToggle /></div>
+        <div className="absolute right-6 top-6 z-20"><LocaleToggle /></div>
 
         <div className="flex flex-col items-center mb-8 relative z-10">
           <Shield size={48} className="text-amber-500 mb-4" />
