@@ -121,7 +121,7 @@ export default function CoachDashboard() {
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck size={20} style={{ color: brand }} />
-            <span className="text-sm font-black uppercase tracking-widest text-white">Command Center</span>
+            <span className="text-sm font-black uppercase tracking-widest text-white">{copy('Centro de Control', 'Command Center')}</span>
             <span className="text-[9px] bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded font-mono ml-2">{coachProfile?.b2b_plan}</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
@@ -314,7 +314,7 @@ export default function CoachDashboard() {
                 <Dumbbell className="text-amber-500" /> Mi Ecosistema Personal
               </h2>
               <p className="text-xs text-neutral-400 font-mono mb-8 max-w-2xl">
-                Como Entrenador Élite, tienes acceso total e inmersivo a todas las aplicaciones B2C de Genesis OS para llevar tu propio progreso al más alto nivel.
+                {copy('Como Entrenador Élite, tienes acceso total e inmersivo a todas las aplicaciones B2C de Genesis OS para llevar tu propio progreso al más alto nivel.', 'As an Elite Coach, you have full immersive access to all Genesis OS B2C applications to take your own progress to the next level.')}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
