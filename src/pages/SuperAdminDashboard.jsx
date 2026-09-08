@@ -931,9 +931,8 @@ export default function SuperAdminDashboard() {
                       const lifecycleBusy =
                         lifecycleAction?.userId === accountUserId;
 
-                      return (
-                        <React.Fragment key={c.id}>
-                          <tr className="hover:bg-white/5 transition-colors">
+                      return [
+                        <tr key={`${c.id}-row`} className="hover:bg-white/5 transition-colors">
                           <td className="py-4 pl-2"><p className="font-bold uppercase text-sm">{c.full_name}</p><p className="text-[10px] opacity-50">{c.email}</p></td>
                           <td className="py-4 pr-4">
                             {editingCoachId === c.user_id ? (
@@ -991,9 +990,9 @@ export default function SuperAdminDashboard() {
                                 : <Trash2 size={16}/>}
                             </button>
                           </td>
-                        </tr>
-                        {expandedCoachId === c.id && (
-                          <tr className={activeTheme.border}>
+                        </tr>,
+                        expandedCoachId === c.id ? (
+                          <tr key={`${c.id}-detail`} className={activeTheme.border}>
                             <td colSpan="6" className={`border-b ${activeTheme.border} bg-black/20 p-4`}>
                               <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
                                 <div>
@@ -1024,8 +1023,8 @@ export default function SuperAdminDashboard() {
                               <p className="mt-4 border-t border-neutral-800/60 pt-3 text-[10px] font-mono opacity-60">{c.email}</p>
                             </td>
                           </tr>
-                        </React.Fragment>
-                      );
+                        ) : null
+                      ];
                     })}
                   </tbody>
                 </table>
