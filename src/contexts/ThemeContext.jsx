@@ -176,6 +176,15 @@ export default function ThemeProviderComponent({ children }) {
         data-theme-id={theme.themeId}
         style={{ ...themeVariables, backgroundColor: theme.bgColor, color: theme.textColor }}
       >
+        <style>{`
+          .genesis-theme-root .genesis-surface { background-color: var(--genesis-surface) !important; }
+          .genesis-theme-root .genesis-bg { background-color: var(--genesis-bg) !important; }
+          .genesis-theme-root .genesis-border { border-color: var(--genesis-border) !important; }
+          .genesis-theme-root[data-theme-id="light"] .text-white { color: var(--genesis-text) !important; }
+          .genesis-theme-root[data-theme-id="light"] .text-neutral-300 { color: #404040 !important; }
+          .genesis-theme-root[data-theme-id="light"] .text-neutral-400,
+          .genesis-theme-root[data-theme-id="light"] .text-neutral-500 { color: #525252 !important; }
+        `}</style>
         {theme.logoUrl ? (
           <div
             className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden"
