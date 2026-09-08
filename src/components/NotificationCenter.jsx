@@ -153,9 +153,12 @@ export default function NotificationCenter({
           table: 'system_notifications',
           filter: `recipient_id=eq.${currentUserId}`,
         },
-        () => {
+        (payload) => {
           loadNotifications();
-          onInboxChange?.();
+
+          if (payload.eventType === 'INSERT') {
+            onInboxChange?.();
+          }
         }
       )
       .subscribe();
