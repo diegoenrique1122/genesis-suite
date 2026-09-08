@@ -136,7 +136,7 @@ export default function ClientDashboard() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-neutral-800 relative" style={{ backgroundColor: theme?.bgColor || "#0a0a0a", color: theme?.textColor || "#ffffff" }}>
       <div className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none" style={{ background: `linear-gradient(180deg, ${theme?.brandColor || '#f59e0b'} 0%, transparent 100%)` }} />
-      <nav className="relative z-10 border-b genesis-border bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0">
+      <nav className="relative z-10 border-b genesis-border genesis-bg backdrop-blur-md sticky top-0">
         <div className="max-w-md mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2"><ShieldCheck size={20} style={{ color: theme?.brandColor || '#f59e0b' }} /><span className="text-xs font-black uppercase tracking-widest text-neutral-300">{text.team} {(coachName || text.coach).split(' ')[0]}</span></div>
           <div className="flex items-center gap-2"><button type="button" onClick={() => setPreferencesOpen(true)} className="min-h-11 min-w-11 rounded-xl text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-white" aria-label={text.preferences}><Settings className="mx-auto" size={18} /></button><button type="button" onClick={handleLogout} className="min-h-11 min-w-11 rounded-xl text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-white" aria-label={text.signOut}><LogOut className="mx-auto" size={18} /></button></div>
