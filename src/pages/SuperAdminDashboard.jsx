@@ -7,6 +7,7 @@ import {
   Eye, Palette, Clock, UserCheck, Activity, RefreshCcw, Settings, 
   Upload, AtSign, MessageCircle, X, Send, LayoutDashboard, Globe, Copy, Check, Edit3, Save, Dumbbell, Utensils, Droplets
 } from 'lucide-react';
+import LocaleToggle from '../components/LocaleToggle';
 
 const ADMIN_THEMES = [
   { id: 'dark', name: 'Dark Genesis', bg: 'bg-[#0a0a0a]', card: 'bg-[#111111]', border: 'border-neutral-800', text: 'text-white', accent: 'text-amber-500' },
@@ -655,6 +656,7 @@ export default function SuperAdminDashboard() {
             </button>
             
             <button onClick={() => setShowThemeSelector(!showThemeSelector)} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
+            <LocaleToggle className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors p-2"><LogOut size={20} /></button>
           </div>
         </div>
