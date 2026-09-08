@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { Check, Globe2, Loader2, Ruler, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useLocale } from '../contexts/LocaleContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const COPY = {
   es: {
     title: 'Ajustes personales',
-    description: 'Elige como quieres ver Genesis y tus medidas.',
+    description: 'Elige cómo quieres ver Genesis y tus medidas.',
     language: 'Idioma de Genesis',
     units: 'Sistema de medidas',
-    metric: 'Metrico',
+    metric: 'Métrico',
     metricHint: 'Kilogramos y centimetros',
     imperial: 'Americano',
     imperialHint: 'Libras y pies/pulgadas',
@@ -38,6 +39,8 @@ const COPY = {
 
 export default function AthletePreferences({ onClose }) {
   const { locale, setLocale } = useLocale();
+  const { theme } = useTheme();
+  const brandColor = theme?.brandColor || '#f59e0b';
   const [selectedLocale, setSelectedLocale] = useState(locale);
   const [unitSystem, setUnitSystem] = useState('METRIC');
   const [loading, setLoading] = useState(true);
@@ -111,7 +114,7 @@ export default function AthletePreferences({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-label={labels.title}>
-      <section className="w-full max-w-md rounded-3xl border border-neutral-700 bg-[#111] p-6 shadow-2xl">
+      <section className="w-full max-w-md rounded-3xl border bg-[#111] p-6 shadow-2xl" style={{ borderColor: `${brandColor}66` }}>
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-black uppercase tracking-wide text-white">{labels.title}</h2>
@@ -127,23 +130,23 @@ export default function AthletePreferences({ onClose }) {
         ) : (
           <div className="space-y-6">
             <fieldset>
-              <legend className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-neutral-300"><Globe2 size={16} className="text-amber-500" />{labels.language}</legend>
+              <legend className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-neutral-300"><Globe2 size={16} style={{ color: brandColor }} />{labels.language}</legend>
               <div className="grid grid-cols-2 gap-3">
                 {['es', 'en'].map((option) => (
-                  <button key={option} type="button" onClick={() => setSelectedLocale(option)} className={`min-h-[52px] rounded-xl border px-4 text-sm font-black transition-colors ${selectedLocale === option ? 'border-amber-500 bg-amber-500 text-black' : 'border-neutral-700 bg-black text-neutral-300 hover:border-neutral-500 hover:text-white'}`}>
-                    {option === 'es' ? 'Espanol' : 'English'}
+                  <button key={option} type="button" onClick={() => setSelectedLocale(option)} className={`min-h-[52px] rounded-xl border px-4 text-sm font-black transition-colors ${selectedLocale === option ? 'text-black' : 'border-neutral-700 bg-black text-neutral-300 hover:border-neutral-500 hover:text-white'}`} style={selectedLocale === option ? { borderColor: brandColor, backgroundColor: brandColor } : undefined}>
+                    {option === 'es' ? 'Español' : 'English'}
                   </button>
                 ))}
               </div>
             </fieldset>
 
             <fieldset>
-              <legend className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-neutral-300"><Ruler size={16} className="text-amber-500" />{labels.units}</legend>
+              <legend className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-neutral-300"><Ruler size={16} style={{ color: brandColor }} />{labels.units}</legend>
               <div className="space-y-3">
                 {[{ id: 'METRIC', title: labels.metric, hint: labels.metricHint }, { id: 'IMPERIAL', title: labels.imperial, hint: labels.imperialHint }].map((option) => (
-                  <button key={option.id} type="button" onClick={() => setUnitSystem(option.id)} className={`flex min-h-[64px] w-full items-center justify-between rounded-xl border px-4 text-left transition-colors ${unitSystem === option.id ? 'border-amber-500 bg-amber-500/10' : 'border-neutral-700 bg-black hover:border-neutral-500'}`}>
+                  <button key={option.id} type="button" onClick={() => setUnitSystem(option.id)} className={`flex min-h-[64px] w-full items-center justify-between rounded-xl border px-4 text-left transition-colors ${unitSystem === option.id ? 'bg-black/40' : 'border-neutral-700 bg-black hover:border-neutral-500'}`} style={unitSystem === option.id ? { borderColor: brandColor } : undefined}>
                     <span><span className="block text-sm font-black text-white">{option.title}</span><span className="mt-0.5 block text-xs text-neutral-400">{option.hint}</span></span>
-                    {unitSystem === option.id && <Check size={18} className="text-amber-500" />}
+                    {unitSystem === option.id && <Check size={18} style={{ color: brandColor }} />}
                   </button>
                 ))}
               </div>
@@ -151,7 +154,7 @@ export default function AthletePreferences({ onClose }) {
 
             {message && <p className="rounded-xl border border-neutral-700 bg-black px-4 py-3 text-xs text-neutral-300">{message}</p>}
 
-            <button type="button" onClick={savePreferences} disabled={saving} className="flex min-h-[52px] w-full items-center justify-center rounded-xl bg-amber-500 px-4 text-xs font-black uppercase tracking-widest text-black transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60">
+            <button type="button" onClick={savePreferences} disabled={saving} className="flex min-h-[52px] w-full items-center justify-center rounded-xl px-4 text-xs font-black uppercase tracking-widest text-black transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60" style={{ backgroundColor: brandColor }}>
               {saving ? <Loader2 className="animate-spin" size={18} /> : labels.save}
             </button>
           </div>
