@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import LocaleToggle from '../components/LocaleToggle';
 import { useLocale } from '../contexts/LocaleContext';
+import NotificationCenter from '../components/NotificationCenter';
 
 const formatRosterActivityDate = (dateKey, emptyLabel = 'Sin registro') => {
   if (!dateKey || typeof dateKey !== 'string') return emptyLabel;
@@ -141,6 +142,11 @@ export default function CoachDashboard() {
 
             <div className="w-px h-6 bg-neutral-800 mx-2"></div>
             <button onClick={() => navigate('/coach/settings')} className="text-neutral-500 hover:text-white transition-colors flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest"><Settings size={16} /> {copy("Ajustes", "Settings")}</button>
+            <NotificationCenter
+              panelClass="bg-[#111] text-white"
+              borderClass="border-neutral-800"
+              accentClass="text-blue-400"
+            />
             <LocaleToggle compact className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-neutral-500 hover:text-red-500 transition-colors"><LogOut size={16} /></button>
           </div>
