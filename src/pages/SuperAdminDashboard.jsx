@@ -716,12 +716,35 @@ export default function SuperAdminDashboard() {
         {/* ======================================================== */}
         {activeTab === 'DASHBOARD' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">{copy('Centro de operaciones', 'Operations center')}</p>
+                <h2 className="mt-2 text-2xl font-black uppercase tracking-tight">{copy('Visión general del ecosistema', 'Ecosystem overview')}</h2>
+                <p className="mt-2 max-w-2xl text-xs font-mono opacity-60">
+                  {copy('Supervisa actividad, solicitudes y crecimiento de tus coaches desde un solo lugar.', 'Monitor activity, requests, and coach growth from one place.')}
+                </p>
+              </div>
+              <div className="rounded-full border border-neutral-800 bg-black/20 px-4 py-2 text-[10px] font-black uppercase tracking-widest opacity-70">
+                {copy('Actualización en tiempo real', 'Live operations')}
+              </div>
+            </div>
+
             {/* KPI GLOBALES */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Activos", "Active Coaches")}</p><h2 className="text-4xl font-black font-mono mt-2">{stats.totalCoaches}</h2></div>
               <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Total Atletas", "Total Athletes")}</p><h2 className="text-4xl font-black font-mono text-blue-400 mt-2">{stats.totalAthletes}</h2></div>
               <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Pendientes", "Pending Coaches")}</p><h2 className="text-4xl font-black font-mono text-amber-500 mt-2">{stats.pendingCoaches}</h2></div>
               <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Peticiones Licencia", "License Requests")}</p><h2 className="text-4xl font-black font-mono text-purple-400 mt-2">{stats.pendingRequests}</h2></div>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">{copy('Cola de solicitudes', 'Request queue')}</p>
+                <p className="mt-1 text-xs opacity-60">{copy('Revisa cambios de licencia y peticiones pendientes.', 'Review license changes and pending requests.')}</p>
+              </div>
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px] font-black text-amber-500">
+                {requests.length}
+              </span>
             </div>
 
             {/* PETICIONES DE CAMBIO DE PLAN */}
@@ -744,6 +767,16 @@ export default function SuperAdminDashboard() {
               </div>
             )}
 
+            <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">{copy('Aprobaciones pendientes', 'Pending approvals')}</p>
+                <p className="mt-1 text-xs opacity-60">{copy('Cuentas que requieren una decisión administrativa.', 'Accounts requiring an administrative decision.')}</p>
+              </div>
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px] font-black text-amber-500">
+                {pendingCoaches.length}
+              </span>
+            </div>
+
             {/* COACHES PENDIENTES */}
             {pendingCoaches.length > 0 && (
               <div className="bg-amber-500/10 border border-amber-500/50 p-8 rounded-3xl shadow-[0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-lg">
@@ -758,6 +791,11 @@ export default function SuperAdminDashboard() {
                 </div>
               </div>
             )}
+
+            <div className="border-b border-neutral-800/60 pb-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">{copy('Directorio de coaches', 'Coach directory')}</p>
+              <p className="mt-1 text-xs opacity-60">{copy('Ordenado por cantidad de atletas para priorizar la gestión.', 'Sorted by athlete count to prioritize management.')}</p>
+            </div>
 
             {/* COACHES ACTIVOS (ROSTER GLOBAL) */}
             <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl shadow-xl`}>
