@@ -65,6 +65,8 @@ export default function NotificationCenter({
   borderClass = 'border-neutral-800',
   accentClass = 'text-amber-500',
   className = '',
+  onInboxChange = null,
+  onNotificationOpen = null,
 }) {
   const { locale } = useLocale();
   const copy = (es, en) => (locale === 'en' ? en : es);
@@ -153,6 +155,7 @@ export default function NotificationCenter({
         },
         () => {
           loadNotifications();
+          onInboxChange?.();
         }
       )
       .subscribe();
@@ -352,7 +355,16 @@ export default function NotificationCenter({
                   <button
                     type="button"
                     key={notification.id}
-                    onClick={() => canMarkRead && markAsRead(notification)}
+                    onClick={() => {
+                      if (canMarkRead) markAsRead(notification);
+
+                      if (
+                        activeView === 'INBOX' &&
+                        notification.recipient_id === currentUserId
+                      ) {
+                        onNotificationOpen?.(notification);
+                      }
+                    }}
                     className={'w-full rounded-xl px-3 py-3 text-left transition-colors ' + (canMarkRead ? 'hover:bg-black/10' : 'cursor-default') + (!notification.read && activeView === 'INBOX' ? ' bg-black/10' : '')}
                   >
                     <div className="flex gap-3">
