@@ -129,8 +129,16 @@ export default function SuperAdminDashboard() {
         };
       });
 
-      const pendingList = fullCoaches.filter(c => c.account_status === 'PENDING');
-      const activeList = fullCoaches.filter(c => c.account_status !== 'PENDING');
+      const pendingList = fullCoaches
+        .filter(c => c.account_status === 'PENDING')
+        .sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+      const activeList = fullCoaches
+        .filter(c => c.account_status !== 'PENDING')
+        .sort((a, b) => (
+          b.total_athletes - a.total_athletes ||
+          a.full_name.localeCompare(b.full_name)
+        ));
 
       setPendingCoaches(pendingList);
       setActiveCoaches(activeList);
