@@ -150,24 +150,24 @@ export default function CoachDashboard() {
         {activeTab === 'ROSTER' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="genesis-surface border genesis-border rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
+              <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
                 <h1 className="text-2xl font-black uppercase tracking-tight mb-1">{copy('Hola,', 'Hello,')} {coachProfile?.full_name?.split(' ')[0] || 'Coach'}</h1>
                 <p className="text-xs text-neutral-400 font-mono">{copy('Tienes', 'You have')} {stats.pending} {copy('atletas requiriendo auditoría clínica hoy.', 'athletes requiring clinical review today.')}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="genesis-bg border genesis-border rounded-3xl p-5 text-center flex flex-col justify-center">
-                  <span className="text-3xl font-black font-mono text-white">{stats.active}</span>
+                <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
+                  <span className="genesis-kpi-value text-3xl font-black font-mono text-white">{stats.active}</span>
                   <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">{copy("Activos", "Active")}</span>
                 </div>
-                <div className="genesis-bg border genesis-border rounded-3xl p-5 text-center flex flex-col justify-center">
-                  <span className="text-3xl font-black font-mono text-amber-500">{stats.pending}</span>
+                <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
+                  <span className="genesis-kpi-value text-3xl font-black font-mono text-amber-500">{stats.pending}</span>
                   <span className="text-[9px] uppercase font-black tracking-widest text-amber-500/70 mt-1">{copy("Pendientes", "Pending")}</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button onClick={() => navigate('/chat')} className="genesis-surface border genesis-border hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
+              <button onClick={() => navigate('/chat')} className="genesis-surface border genesis-border hover:border-neutral-600 genesis-panel rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center genesis-bg border genesis-border group-hover:scale-110 transition-transform">{isElite ? <Globe size={20} style={{ color: brand }} /> : <MessageSquare size={20} style={{ color: brand }} />}</div>
                   <div className="text-left">
@@ -178,7 +178,7 @@ export default function CoachDashboard() {
                 <ArrowRight size={18} className="text-neutral-600 group-hover:text-white transition-colors" />
               </button>
 
-              <button onClick={() => setShowAcquisitionModal(true)} className="genesis-surface border genesis-border hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
+              <button onClick={() => setShowAcquisitionModal(true)} className="genesis-surface border genesis-border hover:border-neutral-600 genesis-panel rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center genesis-bg border genesis-border group-hover:scale-110 transition-transform"><UserPlus size={20} className="text-neutral-400" /></div>
                   <div className="text-left">
@@ -190,7 +190,7 @@ export default function CoachDashboard() {
               </button>
             </div>
 
-            <div className="genesis-surface border genesis-border rounded-3xl p-6 shadow-xl">
+            <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 shadow-xl">
               <div className="flex items-center justify-between border-b genesis-border pb-4 mb-4">
                 <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-2"><Activity size={16} style={{ color: brand }} /> {copy("Radar Global de Atletas", "Global Athlete Radar")}</h2>
               </div>
@@ -308,7 +308,7 @@ export default function CoachDashboard() {
         {/* ========================================================= */}
         {activeTab === 'MY_APPS' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="genesis-surface border border-amber-500/30 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+            <div className="genesis-surface border border-amber-500/30 genesis-panel rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.1)]">
               <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
               <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
                 <Dumbbell className="text-amber-500" /> Mi Ecosistema Personal
@@ -348,7 +348,7 @@ export default function CoachDashboard() {
       {/* MODAL CÓDIGOS (Se mantiene intacto) */}
       {showAcquisitionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 genesis-bg/80 backdrop-blur-sm animate-in fade-in">
-          <div className="genesis-surface border genesis-border rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
+          <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
             <button onClick={() => setShowAcquisitionModal(false)} className="absolute top-5 right-5 text-neutral-500 hover:text-white transition-colors"><X size={20} /></button>
             <h2 className="text-lg font-black uppercase text-white mb-1 flex items-center gap-2"><UserPlus className="text-amber-500" size={20} /> {copy("Adquisición B2C", "B2C Acquisition")}</h2>
             <p className="text-[11px] text-neutral-400 font-mono mb-6 leading-relaxed">{copy("Comparte estos códigos únicos con tus clientes. Al ingresarlos en su registro, se vincularán a tu Roster.", "Share these unique codes with your clients. When entered during registration, they will be linked to your roster.")}</p>
