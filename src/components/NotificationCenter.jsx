@@ -21,7 +21,7 @@ const notificationTypeLabel = (type, copy) => {
     NEW_ATHLETE: copy('Nuevo atleta', 'New athlete'),
     PROGRAM_ACTIVATED: copy('Programa activado', 'Program activated'),
     PROGRAM_EXPIRING: copy('Programa por vencer', 'Program expiring'),
-    ROUTINE_REVIEW: copy('AuditorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a requerida', 'Review required'),
+    ROUTINE_REVIEW: copy('Auditor\u00eda requerida', 'Review required'),
     ADMIN_REQUEST: copy('Solicitud administrativa', 'Administrative request'),
     ACCOUNT_SECURITY: copy('Seguridad de cuenta', 'Account security'),
   };
@@ -40,7 +40,7 @@ const notificationMessage = (type, copy, fallback) => {
       'A coach submitted an administrative request. Review the management inbox.'
     ),
     PROGRAM_ACTIVATED: copy(
-      'Se actualizÃƒÂ³ el estado de un programa.',
+      'Se actualiz\u00f3 el estado de un programa.',
       'A program status was updated.'
     ),
     PROGRAM_EXPIRING: copy(
@@ -48,11 +48,11 @@ const notificationMessage = (type, copy, fallback) => {
       'A program requires expiration follow-up.'
     ),
     ROUTINE_REVIEW: copy(
-      'Hay una revisiÃƒÂ³n operativa pendiente.',
+      'Hay una revisi\u00f3n operativa pendiente.',
       'There is an operational review pending.'
     ),
     ACCOUNT_SECURITY: copy(
-      'Se registrÃƒÂ³ un evento de seguridad de cuenta.',
+      'Se registr\u00f3 un evento de seguridad de cuenta.',
       'An account security event was recorded.'
     ),
   };
@@ -137,6 +137,30 @@ export default function NotificationCenter({
   useEffect(() => {
     loadNotifications();
   }, [showSystemActivity]);
+
+  useEffect(() => {
+    if (!currentUserId) return undefined;
+
+    const channel = supabase
+      .channel(`genesis-notifications:${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'system_notifications',
+          filter: `recipient_id=eq.${currentUserId}`,
+        },
+        () => {
+          loadNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, showSystemActivity]);
 
   const openCenter = () => {
     setIsOpen((current) => !current);
