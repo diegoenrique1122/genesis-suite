@@ -8,6 +8,7 @@ import {
   Upload, AtSign, MessageCircle, X, Send, LayoutDashboard, Globe, Copy, Check, Edit3, Save, Dumbbell, Utensils, Droplets
 } from 'lucide-react';
 import LocaleToggle from '../components/LocaleToggle';
+import { useLocale } from '../contexts/LocaleContext';
 
 const ADMIN_THEMES = [
   { id: 'dark', name: 'Dark Genesis', bg: 'bg-[#0a0a0a]', card: 'bg-[#111111]', border: 'border-neutral-800', text: 'text-white', accent: 'text-amber-500' },
@@ -22,6 +23,8 @@ const LIFECYCLE_RECOVERY_STORAGE_KEY = 'genesis_lifecycle_recovery_v1';
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
+  const { locale } = useLocale();
+  const copy = (es, en) => (locale === 'en' ? en : es);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -630,29 +633,29 @@ export default function SuperAdminDashboard() {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-black/30 border ${activeTheme.border}`}><ShieldCheck size={28} className={activeTheme.accent} /></div>
-            <div><h1 className="text-xl sm:text-2xl font-black uppercase tracking-widest leading-none">Genesis OS</h1><span className={`text-[10px] font-mono uppercase tracking-widest ${activeTheme.accent}`}>Súper Administrador</span></div>
+            <div><h1 className="text-xl sm:text-2xl font-black uppercase tracking-widest leading-none">Genesis OS</h1><span className={`text-[10px] font-mono uppercase tracking-widest ${activeTheme.accent}`}>{copy("Súper Administrador", "Super Administrator")}</span></div>
           </div>
           
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 sm:pb-0">
             {/* LAS 4 PESTAÑAS DEL SÚPER ADMIN */}
             <button onClick={() => setActiveTab('DASHBOARD')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${activeTab === 'DASHBOARD' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white bg-black/30 border border-transparent hover:border-neutral-700'}`}>
-              <LayoutDashboard size={14}/> SaaS Global
+              <LayoutDashboard size={14}/> {copy("SaaS Global", "Global SaaS")}
             </button>
             <button onClick={() => setActiveTab('MY_ROSTER')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${activeTab === 'MY_ROSTER' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-neutral-500 hover:text-amber-500 bg-black/30 border border-transparent hover:border-amber-500/30'}`}>
-              <Users size={14}/> Mi Roster VIP
+              <Users size={14}/> {copy("Mi Roster VIP", "My VIP Roster")}
             </button>
             <button onClick={() => setActiveTab('MY_APPS')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${activeTab === 'MY_APPS' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-neutral-500 hover:text-blue-400 bg-black/30 border border-transparent hover:border-blue-500/30'}`}>
-              <Dumbbell size={14}/> Mis Apps
+              <Dumbbell size={14}/> {copy("Mis Apps", "My Apps")}
             </button>
             <button onClick={() => setActiveTab('SETTINGS')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${activeTab === 'SETTINGS' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white bg-black/30 border border-transparent hover:border-neutral-700'}`}>
-              <Settings size={14}/> Ajustes
+              <Settings size={14}/> {copy("Ajustes", "Settings")}
             </button>
             
             <div className="w-px h-6 bg-neutral-800 mx-2 hidden sm:block"></div>
             
             {/* BOTÓN GOD MODE CHAT */}
             <button onClick={() => navigate('/chat')} className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border ${activeTheme.border} hover:bg-blue-500/20 text-blue-500 transition-colors`}>
-              <Globe size={16}/> Red Global
+              <Globe size={16}/> {copy("Red Global", "Global Network")}
             </button>
             
             <button onClick={() => setShowThemeSelector(!showThemeSelector)} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
@@ -679,14 +682,12 @@ export default function SuperAdminDashboard() {
           <section className={`${activeTheme.card} border ${activeTheme.border} rounded-2xl p-5 shadow-xl flex flex-col gap-4 md:flex-row md:items-center md:justify-between`}>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
-                Reconciliación pendiente
+                {copy("Reconciliación pendiente", "Pending reconciliation")}
               </p>
               <p className="mt-1 text-sm font-semibold">
-                Una eliminación requiere completar su auditoría final de forma segura.
+                {copy("Una eliminación requiere completar su auditoría final de forma segura.", "A deletion requires a secure final audit to be completed.")}
               </p>
-              <p className="mt-2 text-[10px] font-mono opacity-60 break-all">
-                Operación: {lifecycleRecovery.operationId} · Etapa: {lifecycleRecovery.stage}
-              </p>
+              <p className="mt-2 text-[10px] font-mono opacity-60 break-all">{copy('Operación:', 'Operation:')} {lifecycleRecovery.operationId} · {copy('Etapa:', 'Stage:')} {lifecycleRecovery.stage}</p>
             </div>
             <button
               type="button"
@@ -709,25 +710,25 @@ export default function SuperAdminDashboard() {
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* KPI GLOBALES */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">Coaches Activos</p><h2 className="text-4xl font-black font-mono mt-2">{stats.totalCoaches}</h2></div>
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">Total Atletas</p><h2 className="text-4xl font-black font-mono text-blue-400 mt-2">{stats.totalAthletes}</h2></div>
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">Coaches Pendientes</p><h2 className="text-4xl font-black font-mono text-amber-500 mt-2">{stats.pendingCoaches}</h2></div>
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">Peticiones Licencia</p><h2 className="text-4xl font-black font-mono text-purple-400 mt-2">{stats.pendingRequests}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Activos", "Active Coaches")}</p><h2 className="text-4xl font-black font-mono mt-2">{stats.totalCoaches}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Total Atletas", "Total Athletes")}</p><h2 className="text-4xl font-black font-mono text-blue-400 mt-2">{stats.totalAthletes}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Pendientes", "Pending Coaches")}</p><h2 className="text-4xl font-black font-mono text-amber-500 mt-2">{stats.pendingCoaches}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Peticiones Licencia", "License Requests")}</p><h2 className="text-4xl font-black font-mono text-purple-400 mt-2">{stats.pendingRequests}</h2></div>
             </div>
 
             {/* PETICIONES DE CAMBIO DE PLAN */}
             {requests.length > 0 && (
               <div className={`bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 p-8 rounded-3xl shadow-2xl backdrop-blur-lg`}>
-                <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><ShieldAlert size={20}/> Peticiones de Modificación B2B</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><ShieldAlert size={20}/> {copy("Peticiones de Modificación B2B", "B2B Modification Requests")}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {requests.map((r) => (
                     <div key={r.id} className={`${activeTheme.card} bg-opacity-80 border ${activeTheme.border} p-5 rounded-2xl`}>
                       <h3 className="font-bold text-base">{r.coach_data?.full_name || 'Desconocido'}</h3>
                       <p className="text-[10px] opacity-60 font-mono mb-3">ID: {r.coach_data?.coach_code || '---'}</p>
-                      <p className="text-xs font-mono mb-4">Solicita: <strong className="text-amber-500 uppercase bg-amber-500/10 px-2 py-1 rounded">{r.request_type} {r.requested_plan}</strong></p>
+                      <p className="text-xs font-mono mb-4">{copy("Solicita:", "Requests:")} <strong className="text-amber-500 uppercase bg-amber-500/10 px-2 py-1 rounded">{r.request_type} {r.requested_plan}</strong></p>
                       <div className="flex gap-2 w-full">
-                        <button onClick={() => handleResolveRequest(r.id, r.coach_id, r.requested_plan, 'REJECTED')} className="flex-1 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider">Rechazar</button>
-                        <button onClick={() => handleResolveRequest(r.id, r.coach_id, r.requested_plan, 'APPROVED')} className="flex-1 py-2 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider">Aprobar</button>
+                        <button onClick={() => handleResolveRequest(r.id, r.coach_id, r.requested_plan, 'REJECTED')} className="flex-1 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider">{copy("Rechazar", "Reject")}</button>
+                        <button onClick={() => handleResolveRequest(r.id, r.coach_id, r.requested_plan, 'APPROVED')} className="flex-1 py-2 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider">{copy("Aprobar", "Approve")}</button>
                       </div>
                     </div>
                   ))}
@@ -738,12 +739,12 @@ export default function SuperAdminDashboard() {
             {/* COACHES PENDIENTES */}
             {pendingCoaches.length > 0 && (
               <div className="bg-amber-500/10 border border-amber-500/50 p-8 rounded-3xl shadow-[0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-lg">
-                <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><UserCheck size={20}/> Licencias Pendientes de Aprobación</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><UserCheck size={20}/> {copy("Licencias Pendientes de Aprobación", "Licenses Pending Approval")}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {pendingCoaches.map((c) => (
                     <div key={c.id} className={`${activeTheme.card} bg-opacity-80 border border-amber-500/30 p-5 rounded-2xl flex justify-between items-center`}>
                       <div><h3 className="font-bold text-base">{c.full_name}</h3><p className="text-[10px] opacity-60 font-mono">{c.email}</p></div>
-                      <button onClick={() => handleApproveCoach(c)} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-[10px] tracking-wider transition-all shadow-lg">Aprobar</button>
+                      <button onClick={() => handleApproveCoach(c)} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-[10px] tracking-wider transition-all shadow-lg">{copy("Aprobar", "Approve")}</button>
                     </div>
                   ))}
                 </div>
@@ -752,12 +753,12 @@ export default function SuperAdminDashboard() {
 
             {/* COACHES ACTIVOS (ROSTER GLOBAL) */}
             <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl shadow-xl`}>
-              <h2 className="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2 mb-6"><Users size={20}/> Ecosistema de Entrenadores Activos</h2>
+              <h2 className="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2 mb-6"><Users size={20}/> {copy("Ecosistema de Entrenadores Activos", "Active Coach Ecosystem")}</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left font-mono text-xs">
                   <thead>
                     <tr className={`border-b ${activeTheme.border} opacity-50 uppercase text-[10px] font-black tracking-widest`}>
-                      <th className="pb-4 pl-2">Entrenador</th><th className="pb-4">Matriz Códigos B2C</th><th className="pb-4">Nivel B2B</th><th className="pb-4">Roster</th><th className="pb-4 text-center">Estado</th><th className="pb-4 text-right pr-2">Acciones</th>
+                      <th className="pb-4 pl-2">{copy("Entrenador", "Coach")}</th><th className="pb-4">{copy("Matriz Códigos B2C", "B2C Code Matrix")}</th><th className="pb-4">{copy("Nivel B2B", "B2B Tier")}</th><th className="pb-4">{copy("Roster", "Roster")}</th><th className="pb-4 text-center">{copy("Estado", "Status")}</th><th className="pb-4 text-right pr-2">{copy("Acciones", "Actions")}</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${activeTheme.border} divide-opacity-30`}>
@@ -779,8 +780,8 @@ export default function SuperAdminDashboard() {
                                 <input value={editCodes.evo} onChange={e => setEditCodes({...editCodes, evo: e.target.value})} className="bg-black text-xs text-white p-2 border border-neutral-700 rounded" placeholder="EVO" />
                                 <input value={editCodes.pro} onChange={e => setEditCodes({...editCodes, pro: e.target.value})} className="bg-black text-xs text-white p-2 border border-neutral-700 rounded" placeholder="PRO" />
                                 <div className="flex gap-2 mt-1">
-                                  <button onClick={() => handleSaveCustomCodes(c.user_id)} className="flex-1 bg-green-600 text-white font-black py-2 rounded">Guardar</button>
-                                  <button onClick={() => setEditingCoachId(null)} className="flex-1 bg-neutral-800 text-white font-black py-2 rounded">Cerrar</button>
+                                  <button onClick={() => handleSaveCustomCodes(c.user_id)} className="flex-1 bg-green-600 text-white font-black py-2 rounded">{copy("Guardar", "Save")}</button>
+                                  <button onClick={() => setEditingCoachId(null)} className="flex-1 bg-neutral-800 text-white font-black py-2 rounded">{copy("Cerrar", "Close")}</button>
                                 </div>
                               </div>
                             ) : (
@@ -788,12 +789,12 @@ export default function SuperAdminDashboard() {
                                 <span className="text-neutral-300">IGN: {codeIGN}</span>
                                 <span className="text-blue-300">EVO: {codeEVO}</span>
                                 <span className="text-amber-400">PRO: {codePRO}</span>
-                                <button onClick={() => { setEditingCoachId(c.user_id); setEditCodes({ ign: codeIGN, evo: codeEVO, pro: codePRO }); }} className="text-[9px] text-blue-500 mt-1 flex items-center gap-1"><Edit3 size={10}/> Editar</button>
+                                <button onClick={() => { setEditingCoachId(c.user_id); setEditCodes({ ign: codeIGN, evo: codeEVO, pro: codePRO }); }} className="text-[9px] text-blue-500 mt-1 flex items-center gap-1"><Edit3 size={10}/> {copy("Editar", "Edit")}</button>
                               </div>
                             )}
                           </td>
                           <td className="py-4"><span className={`font-bold ${activeTheme.accent}`}>{c.b2b_plan}</span></td>
-                          <td className="py-4"><span className="font-bold">Total: {c.total_athletes}</span></td>
+                          <td className="py-4"><span className="font-bold">{copy('Total:', 'Total:')} {c.total_athletes}</span></td>
                           <td className="py-4 text-center"><span className={`px-2 py-1 rounded-full ${c.account_status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>{c.account_status}</span></td>
                           <td className="py-4 text-right pr-2 space-x-2">
                             <button onClick={() => openChatWithCoach(c)} className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-blue-500/20 text-blue-500 transition-colors bg-black/30`} title="Chat Privado 1-a-1"><MessageCircle size={16}/></button>
@@ -840,8 +841,7 @@ export default function SuperAdminDashboard() {
               <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
                 <ShieldCheck className="text-amber-500" /> Mi Despacho de Coach Élite
               </h2>
-              <p className="text-xs text-neutral-400 font-mono mb-6 max-w-2xl">
-                Como Súper Admin, posees el código <strong className="text-amber-500">CEO-PRO</strong>. Los atletas que se registren con este código aparecerán aquí para que los gestiones como un Coach Élite.
+              <p className="text-xs text-neutral-400 font-mono mb-6 max-w-2xl">{copy('Como Súper Admin, posees el código', 'As Super Admin, you have the code')} <strong className="text-amber-500">CEO-PRO</strong>. Los atletas que se registren con este código aparecerán aquí para que los gestiones como un Coach Élite.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -857,8 +857,8 @@ export default function SuperAdminDashboard() {
 
             <div className="bg-[#111] border border-neutral-800 rounded-3xl p-8 shadow-xl text-center py-20">
               <Users size={48} className="text-neutral-700 mx-auto mb-4" />
-              <h3 className="text-lg font-black uppercase text-white mb-2">Tu Roster VIP está vacío</h3>
-              <p className="text-xs font-mono text-neutral-500">Comparte tu código CEO-PRO. Tus atletas directos aparecerán aquí para que audites sus dietas y rutinas.</p>
+              <h3 className="text-lg font-black uppercase text-white mb-2">{copy("Tu Roster VIP está vacío", "Your VIP roster is empty")}</h3>
+              <p className="text-xs font-mono text-neutral-500">{copy("Comparte tu código CEO-PRO. Tus atletas directos aparecerán aquí para que audites sus dietas y rutinas.", "Share your CEO-PRO code. Your direct athletes will appear here so you can review their nutrition and routines.")}</p>
             </div>
           </div>
         )}
@@ -880,23 +880,23 @@ export default function SuperAdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
                 <button onClick={() => navigate('/client/arquitecto')} className="bg-black border border-neutral-800 hover:border-blue-500/50 rounded-2xl p-6 text-left group transition-all">
                   <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors"><Utensils size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">El Arquitecto</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">Laboratorio de macros, dieta y suplementación personal.</p>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("El Arquitecto", "The Architect")}</h3>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Laboratorio de macros, dieta y suplementación personal.", "Personal macros, nutrition, and supplement lab.")}</p>
                 </button>
                 <button onClick={() => navigate('/client/entrenamiento')} className="bg-black border border-neutral-800 hover:border-blue-500/50 rounded-2xl p-6 text-left group transition-all">
                   <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors"><Dumbbell size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Trainer Pro</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">Tu rutina biomecánica adaptativa y registros de peso.</p>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Trainer Pro", "Trainer Pro")}</h3>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Tu rutina biomecánica adaptativa y registros de peso.", "Your adaptive biomechanics routine and weight logs.")}</p>
                 </button>
                 <button onClick={() => navigate('/client/disciplina')} className="bg-black border border-neutral-800 hover:border-blue-500/50 rounded-2xl p-6 text-left group transition-all">
                   <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors"><Activity size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Monitoreo de Disciplina</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">Subida de check-ins diarios, fotos y métricas de sueño.</p>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Monitoreo de Disciplina", "Discipline Monitoring")}</h3>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Subida de check-ins diarios, fotos y métricas de sueño.", "Daily check-ins, photos, and sleep metrics.")}</p>
                 </button>
                 <button onClick={() => navigate('/client/hormonal')} className="bg-black border border-neutral-800 hover:border-pink-500/50 rounded-2xl p-6 text-left group transition-all">
                   <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors"><Droplets size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Sync Hormonal</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">Acceso a la modulación de ciclo (Atletas femeninas).</p>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Sync Hormonal", "Hormonal Sync")}</h3>
+                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Acceso a la modulación de ciclo (Atletas femeninas).", "Cycle modulation access (female athletes).")}</p>
                 </button>
               </div>
             </div>
@@ -912,8 +912,8 @@ export default function SuperAdminDashboard() {
               <div className="flex items-center gap-4 mb-8 border-b border-neutral-800/50 pb-6">
                 <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}><Palette className={activeTheme.accent} size={24}/></div>
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight">Apariencia del Sistema</h2>
-                  <p className="text-[11px] font-mono opacity-60 mt-1">Personaliza el ecosistema visual de tu panel de Súper Administrador.</p>
+                  <h2 className="text-xl font-black uppercase tracking-tight">{copy("Apariencia del Sistema", "System Appearance")}</h2>
+                  <p className="text-[11px] font-mono opacity-60 mt-1">{copy("Personaliza el ecosistema visual de tu panel de Súper Administrador.", "Customize the visual ecosystem of your Super Admin panel.")}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -937,36 +937,36 @@ export default function SuperAdminDashboard() {
               <div className="flex items-center gap-4 mb-8 border-b border-neutral-800/50 pb-6">
                 <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}><Globe className={activeTheme.accent} size={24}/></div>
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight">Autoridad y Marca Global</h2>
-                  <p className="text-[11px] font-mono opacity-60 mt-1">Lo que subas aquí dominará el fondo del ecosistema de los Coaches Ignición y Evolución.</p>
+                  <h2 className="text-xl font-black uppercase tracking-tight">{copy("Autoridad y Marca Global", "Global Authority and Branding")}</h2>
+                  <p className="text-[11px] font-mono opacity-60 mt-1">{copy("Lo que subas aquí dominará el fondo del ecosistema de los Coaches Ignición y Evolución.", "Anything uploaded here will control the background across the Ignition and Evolution coach ecosystem.")}</p>
                 </div>
               </div>
 
               <form onSubmit={handleSaveGlobalSettings} className="space-y-6">
                 <div>
-                  <label className="text-[10px] font-black uppercase opacity-60 block mb-3">Logotipo Maestro (Súper Admin)</label>
+                  <label className="text-[10px] font-black uppercase opacity-60 block mb-3">{copy("Logotipo Maestro (Súper Admin)", "Master Logo (Super Admin)")}</label>
                   <div className="flex items-center gap-6">
                     <div className={`w-32 h-32 border-2 border-dashed ${activeTheme.border} rounded-2xl flex items-center justify-center bg-black/30 overflow-hidden relative group hover:border-white transition-colors`}>
-                      {globalSettings.watermark_url ? <img src={globalSettings.watermark_url} alt="Marca de Agua" className="w-full h-full object-contain p-2 opacity-50"/> : <Upload size={24} className="opacity-50"/>}
+                      {globalSettings.watermark_url ? <img src={globalSettings.watermark_url} alt={copy('Marca de Agua', 'Watermark')} className="w-full h-full object-contain p-2 opacity-50"/> : <Upload size={24} className="opacity-50"/>}
                       <input type="file" accept="image/*" onChange={(e) => setWatermarkFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                     </div>
-                    <p className="text-xs font-mono opacity-50 max-w-xs">Haz clic en el recuadro para subir una imagen PNG transparente de alta resolución.</p>
+                    <p className="text-xs font-mono opacity-50 max-w-xs">{copy("Haz clic en el recuadro para subir una imagen PNG transparente de alta resolución.", "Click the box to upload a high-resolution transparent PNG image.")}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                   <div className="bg-black/30 border border-neutral-800/50 rounded-2xl p-5">
-                    <label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>Opacidad Visual</span> <span className={activeTheme.accent}>{globalSettings.watermark_opacity}%</span></label>
+                    <label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>{copy("Opacidad Visual", "Visual Opacity")}</span> <span className={activeTheme.accent}>{globalSettings.watermark_opacity}%</span></label>
                     <input type="range" min="1" max="100" value={globalSettings.watermark_opacity} onChange={(e) => setGlobalSettings({...globalSettings, watermark_opacity: e.target.value})} className="w-full accent-white"/>
                   </div>
                   <div className="bg-black/30 border border-neutral-800/50 rounded-2xl p-5">
-                    <label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>Tamaño en Pantalla</span> <span className={activeTheme.accent}>{globalSettings.watermark_size}%</span></label>
+                    <label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>{copy("Tamaño en Pantalla", "On-screen Size")}</span> <span className={activeTheme.accent}>{globalSettings.watermark_size}%</span></label>
                     <input type="range" min="10" max="150" value={globalSettings.watermark_size} onChange={(e) => setGlobalSettings({...globalSettings, watermark_size: e.target.value})} className="w-full accent-white"/>
                   </div>
                 </div>
 
                 <div className="pt-2">
-                  <label className="text-[10px] font-black uppercase opacity-60 block mb-2">Firma Digital (Redes Sociales)</label>
+                  <label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy("Firma Digital (Redes Sociales)", "Digital Signature (Social Media)")}</label>
                   <div className="relative">
                     <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50" size={18}/>
                     <input type="text" value={globalSettings.instagram_handle} onChange={(e) => setGlobalSettings({...globalSettings, instagram_handle: e.target.value})} placeholder="@TuUsuario" className={`w-full bg-black/50 border ${activeTheme.border} rounded-2xl pl-12 pr-4 py-4 text-sm font-mono outline-none focus:border-white transition-colors`}/>
@@ -975,7 +975,7 @@ export default function SuperAdminDashboard() {
 
                 <div className="pt-6 border-t border-neutral-800/50">
                   <button type="submit" disabled={savingSettings} className="bg-white hover:bg-neutral-200 text-black font-black uppercase tracking-widest text-[11px] py-4 px-8 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">
-                    {savingSettings ? <Loader2 size={16} className="animate-spin"/> : <><CheckCircle2 size={16}/> Guardar e Inyectar en el Sistema</>}
+                    {savingSettings ? <Loader2 size={16} className="animate-spin"/> : <><CheckCircle2 size={16}/> {copy("Guardar e Inyectar en el Sistema", "Save and Inject into System")}</>}
                   </button>
                 </div>
               </form>
@@ -1013,7 +1013,7 @@ export default function SuperAdminDashboard() {
           </div>
           
           <form onSubmit={sendChatMessage} className="p-3 border-t border-neutral-800 bg-black/20 flex gap-2">
-            <input type="text" value={newChatMessage} onChange={(e) => setNewChatMessage(e.target.value)} placeholder="Escribir mensaje..." className={`flex-1 bg-black border ${activeTheme.border} rounded-xl px-3 text-xs font-mono outline-none focus:border-blue-500`}/>
+            <input type="text" value={newChatMessage} onChange={(e) => setNewChatMessage(e.target.value)} placeholder={copy('Escribir mensaje...', 'Write a message...')} className={`flex-1 bg-black border ${activeTheme.border} rounded-xl px-3 text-xs font-mono outline-none focus:border-blue-500`}/>
             <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-xl transition-colors"><Send size={16}/></button>
           </form>
         </div>
