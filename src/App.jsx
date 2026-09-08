@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useEffect,
   useMemo,
   useState,
@@ -31,6 +31,8 @@ import {
 import {
   ThemeProvider,
 } from './contexts/ThemeContext';
+
+import { LocaleProvider } from './contexts/LocaleContext';
 
 
 // ======================================================
@@ -128,7 +130,7 @@ function SecurityScreen({
           className="mt-8 text-[10px] uppercase font-bold text-neutral-600 hover:text-white transition-colors"
         >
 
-          Cerrar Sesión
+          Cerrar SesiÃ³n
 
         </button>
 
@@ -145,7 +147,7 @@ function SecurityScreen({
 
 function AccessDenied({
   role,
-  message = 'Tu cuenta no tiene autorización para acceder a este recurso.',
+  message = 'Tu cuenta no tiene autorizaciÃ³n para acceder a este recurso.',
 }) {
 
   return (
@@ -334,7 +336,7 @@ const ProtectedRoute = ({
          * COACH OPERATIONAL PROFILE
          * -----------------------------------------------
          *
-         * SUPER_ADMIN también puede tener perfil Coach.
+         * SUPER_ADMIN tambiÃ©n puede tener perfil Coach.
          */
 
         if (
@@ -524,7 +526,7 @@ const ProtectedRoute = ({
    * El plan Athlete real se obtiene exclusivamente
    * del perfil operacional.
    *
-   * SUPER_ADMIN recibe Elite por diseño cuando
+   * SUPER_ADMIN recibe Elite por diseÃ±o cuando
    * entra en Athlete Mode.
    */
 
@@ -634,7 +636,7 @@ const ProtectedRoute = ({
   // localStorage NO autoriza.
   //
   // Solo recuerda el modo visual una vez que Genesis
-  // confirma que ese modo está permitido.
+  // confirma que ese modo estÃ¡ permitido.
   // ====================================================
 
   useEffect(() => {
@@ -696,7 +698,7 @@ const ProtectedRoute = ({
 
       <SecurityScreen
         title="Error de Identidad"
-        message="Genesis no pudo validar la identidad de esta sesión."
+        message="Genesis no pudo validar la identidad de esta sesiÃ³n."
       />
     );
   }
@@ -731,8 +733,8 @@ const ProtectedRoute = ({
     return (
 
       <SecurityScreen
-        title="Cuenta en Revisión"
-        message="Tu solicitud de licencia o acceso está pendiente de revisión."
+        title="Cuenta en RevisiÃ³n"
+        message="Tu solicitud de licencia o acceso estÃ¡ pendiente de revisiÃ³n."
       />
     );
   }
@@ -746,7 +748,7 @@ const ProtectedRoute = ({
 
       <SecurityScreen
         title="Cuenta Suspendida"
-        message="El acceso a esta cuenta se encuentra suspendido. Contacta con administración."
+        message="El acceso a esta cuenta se encuentra suspendido. Contacta con administraciÃ³n."
       />
     );
   }
@@ -765,7 +767,7 @@ const ProtectedRoute = ({
     return (
 
       <SecurityScreen
-        title="Estado de Cuenta Inválido"
+        title="Estado de Cuenta InvÃ¡lido"
         message="Genesis no reconoce el estado actual de esta cuenta."
       />
     );
@@ -823,7 +825,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Genesis no encontró el perfil operacional Coach requerido para esta experiencia."
+        message="Genesis no encontrÃ³ el perfil operacional Coach requerido para esta experiencia."
       />
     );
   }
@@ -839,7 +841,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Genesis no encontró el perfil operacional Athlete requerido para esta experiencia."
+        message="Genesis no encontrÃ³ el perfil operacional Athlete requerido para esta experiencia."
       />
     );
   }
@@ -860,7 +862,7 @@ const ProtectedRoute = ({
 
       <AccessDenied
         role={role}
-        message="Esta aplicación no está incluida en tu plan o no cumple las reglas de elegibilidad."
+        message="Esta aplicaciÃ³n no estÃ¡ incluida en tu plan o no cumple las reglas de elegibilidad."
       />
     );
   }
@@ -884,7 +886,9 @@ export default function App() {
 
     <ThemeProvider>
 
-      <BrowserRouter>
+      <LocaleProvider>
+
+        <BrowserRouter>
 
         <Routes>
 
@@ -1152,7 +1156,7 @@ export default function App() {
 
 
           {/* ============================================= */}
-          {/* REGULACIÓN HORMONAL */}
+          {/* REGULACIÃ“N HORMONAL */}
           {/* ============================================= */}
 
           <Route
@@ -1181,7 +1185,7 @@ export default function App() {
           {/* COMMUNICATION NETWORK */}
           {/* ============================================= */}
           {/*
-              Chat todavía utiliza el ROLE real internamente.
+              Chat todavÃ­a utiliza el ROLE real internamente.
 
               En una fase posterior lo volveremos
               MODE-AWARE para que un Coach Elite
@@ -1224,6 +1228,8 @@ export default function App() {
         </Routes>
 
       </BrowserRouter>
+
+      </LocaleProvider>
 
     </ThemeProvider>
   );
