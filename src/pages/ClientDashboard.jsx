@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { evaluateBadges } from '../services/badgeService';
 import AthletePreferences from '../components/AthletePreferences';
+import NotificationCenter from '../components/NotificationCenter';
 import {
   Dumbbell, Utensils, Activity, MessageSquare,
   LogOut, Loader2, Clock, ShieldCheck, Droplets, Award, Flame, Settings,
@@ -153,7 +154,7 @@ export default function ClientDashboard() {
               {text.team} {(coachName || text.coach).split(' ')[0]}
             </span>
           </div>
-          <div className="flex items-center gap-2"><button type="button" onClick={() => setPreferencesOpen(true)} className="min-h-11 min-w-11 rounded-xl text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-white" aria-label={text.preferences}><Settings className="mx-auto" size={18} /></button><button type="button" onClick={handleLogout} className="min-h-11 min-w-11 rounded-xl text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-white" aria-label={text.signOut}><LogOut className="mx-auto" size={18} /></button></div>
+          <div className="flex items-center gap-2"><NotificationCenter panelClass="bg-[#111] text-white" borderClass="border-neutral-800" accentClass="text-amber-500" /><button type="button" onClick={() => setPreferencesOpen(true)} className="min-h-11 min-w-11 rounded-xl text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-white" aria-label={text.preferences}><Settings className="mx-auto" size={18} /></button><button type="button" onClick={handleLogout} className="min-h-11 min-w-11 rounded-xl text-neutral-500 transition-colors hover:bg-neutral-900 hover:text-white" aria-label={text.signOut}><LogOut className="mx-auto" size={18} /></button></div>
         </div>
       </nav>
 
