@@ -43,6 +43,7 @@ export default function SuperAdminDashboard() {
   const [pendingCoaches, setPendingCoaches] = useState([]);
   const [activeCoaches, setActiveCoaches] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [highlightedRequestId, setHighlightedRequestId] = useState(null);
   
   const [globalSettings, setGlobalSettings] = useState({ watermark_url: '', instagram_handle: '@GenesisTech', watermark_opacity: 10, watermark_size: 50 });
   const [watermarkFile, setWatermarkFile] = useState(null);
@@ -165,13 +166,35 @@ export default function SuperAdminDashboard() {
   const handleNotificationOpen = (notification) => {
     if (notification?.type !== 'ADMIN_REQUEST') return;
 
+    const requestId =
+      notification.resource_type === 'ADMIN_REQUEST' &&
+      typeof notification.resource_id === 'string'
+        ? notification.resource_id
+        : null;
+
     setActiveTab('DASHBOARD');
+    setHighlightedRequestId(requestId);
 
     window.setTimeout(() => {
       document
-        .getElementById('genesis-admin-request-queue')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        .getElementById(
+          requestId
+            ? `genesis-admin-request-${requestId}`
+            : 'genesis-admin-request-queue'
+        )
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: requestId ? 'center' : 'start',
+        });
     }, 80);
+
+    if (requestId) {
+      window.setTimeout(() => {
+        setHighlightedRequestId((current) =>
+          current === requestId ? null : current
+        );
+      }, 3600);
+    }
   };
 
   const handleApproveCoach = async (coach) => {
@@ -894,8 +917,19 @@ export default function SuperAdminDashboard() {
               <div className={`bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 p-8 genesis-panel rounded-3xl shadow-2xl backdrop-blur-lg`}>
                 <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><ShieldAlert size={20}/> {copy("Peticiones de Modificación B2B", "B2B Modification Requests")}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {requests.map((r) => (
-                    <div key={r.id} className={`${activeTheme.card} bg-opacity-80 border ${activeTheme.border} p-5 rounded-2xl`}>
+                  {requests.map((r) => {
+                    const isHighlighted = highlightedRequestId === r.id;
+
+                    return (
+                      <div
+                        id={`genesis-admin-request-${r.id}`}
+                        key={r.id}
+                        className={`${activeTheme.card} bg-opacity-80 border ${activeTheme.border} p-5 rounded-2xl transition-all duration-300 ${
+                          isHighlighted
+                            ? 'ring-2 ring-amber-400 shadow-[0_0_32px_rgba(245,158,11,0.35)]'
+                            : ''
+                        }`}
+                      >
                       <h3 className="font-bold text-base">{r.coach_data?.full_name || 'Desconocido'}</h3>
                       <p className="text-[10px] opacity-60 font-mono mb-3">ID: {r.coach_data?.coach_code || '---'}</p>
                       <p className="text-xs font-mono mb-4">{copy("Solicita:", "Requests:")} <strong className="text-amber-500 uppercase bg-amber-500/10 px-2 py-1 rounded">{r.request_type} {r.requested_plan}</strong></p>
@@ -903,8 +937,9 @@ export default function SuperAdminDashboard() {
                         <button onClick={() => handleResolveRequest(r.id, r.coach_id, r.requested_plan, 'REJECTED')} className="flex-1 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider">{copy("Rechazar", "Reject")}</button>
                         <button onClick={() => handleResolveRequest(r.id, r.coach_id, r.requested_plan, 'APPROVED')} className="flex-1 py-2 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-wider">{copy("Aprobar", "Approve")}</button>
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
