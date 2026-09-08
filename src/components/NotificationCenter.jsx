@@ -104,7 +104,7 @@ export default function NotificationCenter({
 
       const { data: ownNotifications, error: ownError } = await supabase
         .from('system_notifications')
-        .select('id, recipient_role, recipient_id, title, message, type, read, created_at')
+        .select('id, recipient_role, recipient_id, title, message, type, resource_type, resource_id, read, created_at')
         .eq('recipient_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(30);
@@ -116,7 +116,7 @@ export default function NotificationCenter({
       if (showSystemActivity) {
         const { data: observedNotifications, error: observedError } = await supabase
           .from('system_notifications')
-          .select('id, recipient_role, recipient_id, title, message, type, read, created_at')
+          .select('id, recipient_role, recipient_id, title, message, type, resource_type, resource_id, read, created_at')
           .neq('recipient_id', session.user.id)
           .order('created_at', { ascending: false })
           .limit(12);
