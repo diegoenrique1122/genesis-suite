@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import LocaleToggle from '../components/LocaleToggle';
 import { useLocale } from '../contexts/LocaleContext';
+import NotificationCenter from '../components/NotificationCenter';
 
 const ADMIN_THEMES = [
   { id: 'dark', name: 'Dark Genesis', bg: 'bg-[#0a0a0a]', card: 'bg-[#111111]', border: 'border-neutral-800', text: 'text-white', accent: 'text-amber-500' },
@@ -694,6 +695,12 @@ export default function SuperAdminDashboard() {
               <Globe size={16}/> {copy("Red Global", "Global Network")}
             </button>
             
+            <NotificationCenter
+              showSystemActivity
+              panelClass={activeTheme.card + " " + activeTheme.text}
+              borderClass={activeTheme.border}
+              accentClass={activeTheme.accent}
+            />
             <button onClick={() => setShowThemeSelector(!showThemeSelector)} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
             <LocaleToggle compact className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors p-2"><LogOut size={20} /></button>
