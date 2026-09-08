@@ -656,7 +656,7 @@ export default function SuperAdminDashboard() {
             </button>
             
             <button onClick={() => setShowThemeSelector(!showThemeSelector)} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
-            <LocaleToggle className="hidden sm:inline-flex" />
+            <LocaleToggle compact className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors p-2"><LogOut size={20} /></button>
           </div>
         </div>
