@@ -847,7 +847,7 @@ export default function SuperAdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-black border border-neutral-800 p-5 rounded-2xl flex items-center justify-between z-10 relative">
                   <div>
-                    <p className="text-[10px] font-black uppercase text-neutral-500">Mi Código Élite</p>
+                    <p className="text-[10px] font-black uppercase text-neutral-500">{copy('Mi Código Élite', 'My Elite Code')}</p>
                     <p className="text-lg font-mono text-amber-500 font-bold">CEO-PRO</p>
                   </div>
                   <button onClick={() => handleCopyCode('CEO-PRO')} className="p-3 bg-neutral-900 rounded-xl hover:text-white transition-colors">{copiedCode === 'CEO-PRO' ? <Check size={18} className="text-green-500"/> : <Copy size={18}/>}</button>
