@@ -268,14 +268,14 @@ export default function NotificationCenter({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <p className="truncate text-[11px] font-black uppercase tracking-wide">
-                            {notification.title}
+                            {activeView === 'SYSTEM'\n                              ? notificationTypeLabel(notification.type, copy)\n                              : notification.title}
                           </p>
                           <span className="shrink-0 text-[9px] font-mono opacity-50">
                             {formatNotificationDate(notification.created_at, locale)}
                           </span>
                         </div>
                         <p className="mt-1 text-[10px] leading-relaxed opacity-65">
-                          {notification.message}
+                          {activeView === 'SYSTEM'\n                            ? systemActivityCopy(notification.type, copy)\n                            : notification.message}
                         </p>
                         <p className={'mt-2 text-[9px] font-black uppercase tracking-widest ' + accentClass}>
                           {notificationTypeLabel(notification.type, copy)}
