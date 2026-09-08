@@ -73,6 +73,7 @@ export default function SuperAdminDashboard() {
   const [copiedCode, setCopiedCode] = useState(null);
   const [editingCoachId, setEditingCoachId] = useState(null);
   const [editCodes, setEditCodes] = useState({ ign: '', evo: '', pro: '' });
+  const [expandedCoachId, setExpandedCoachId] = useState(null);
 
   // --- ESTADOS CHAT FLOTANTE 1-a-1 ---
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -931,7 +932,8 @@ export default function SuperAdminDashboard() {
                         lifecycleAction?.userId === accountUserId;
 
                       return (
-                        <tr key={c.id} className="hover:bg-white/5 transition-colors">
+                        <React.Fragment key={c.id}>
+                          <tr className="hover:bg-white/5 transition-colors">
                           <td className="py-4 pl-2"><p className="font-bold uppercase text-sm">{c.full_name}</p><p className="text-[10px] opacity-50">{c.email}</p></td>
                           <td className="py-4 pr-4">
                             {editingCoachId === c.user_id ? (
@@ -957,6 +959,14 @@ export default function SuperAdminDashboard() {
                           <td className="py-4"><span className="font-bold">{copy('Total:', 'Total:')} {c.total_athletes}</span></td>
                           <td className="py-4 text-center"><span className={`px-2 py-1 rounded-full ${c.account_status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>{c.account_status}</span></td>
                           <td className="py-4 text-right pr-2 space-x-2">
+                            <button
+                              onClick={() => setExpandedCoachId((current) => current === c.id ? null : c.id)}
+                              className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-white/10 transition-colors bg-black/30`}
+                              title={copy('Ver detalle', 'View details')}
+                              aria-expanded={expandedCoachId === c.id}
+                            >
+                              <Eye size={16}/>
+                            </button>
                             <button onClick={() => openChatWithCoach(c)} className={`p-2.5 rounded-xl border ${activeTheme.border} hover:bg-blue-500/20 text-blue-500 transition-colors bg-black/30`} title="Chat Privado 1-a-1"><MessageCircle size={16}/></button>
                             <button
                               onClick={() => handleToggleCoachStatus(accountUserId, c.account_status)}
@@ -982,6 +992,39 @@ export default function SuperAdminDashboard() {
                             </button>
                           </td>
                         </tr>
+                        {expandedCoachId === c.id && (
+                          <tr className={activeTheme.border}>
+                            <td colSpan="6" className={`border-b ${activeTheme.border} bg-black/20 p-4`}>
+                              <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-50">{copy('Plan B2B', 'B2B plan')}</p>
+                                  <p className="mt-1 text-xs font-bold">{c.b2b_plan || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-50">{copy('Total atletas', 'Total athletes')}</p>
+                                  <p className="genesis-kpi-value mt-1 text-sm font-black">{c.total_athletes || 0}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-400">IGNICION</p>
+                                  <p className="genesis-kpi-value mt-1 text-sm font-black">{c.stats_ignicion || 0}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-400">EVOLUCION</p>
+                                  <p className="genesis-kpi-value mt-1 text-sm font-black text-blue-300">{c.stats_evolucion || 0}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-400">ELITE</p>
+                                  <p className="genesis-kpi-value mt-1 text-sm font-black text-amber-300">{c.stats_elite || 0}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest opacity-50">{copy('Estado', 'Status')}</p>
+                                  <p className="mt-1 text-xs font-bold">{c.account_status}</p>
+                                </div>
+                              </div>
+                              <p className="mt-4 border-t border-neutral-800/60 pt-3 text-[10px] font-mono opacity-60">{c.email}</p>
+                            </td>
+                          </tr>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
