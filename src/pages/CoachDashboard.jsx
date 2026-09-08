@@ -7,6 +7,7 @@ import {
   Settings, UserPlus, LogOut, MessageSquare, Globe, Copy, Check, X, Lock,
   Dumbbell, Utensils, Droplets, LayoutDashboard
 } from 'lucide-react';
+import LocaleToggle from '../components/LocaleToggle';
 
 const formatRosterActivityDate = (dateKey) => {
   if (!dateKey || typeof dateKey !== 'string') return 'Sin registro';
@@ -132,6 +133,7 @@ export default function CoachDashboard() {
 
             <div className="w-px h-6 bg-neutral-800 mx-2"></div>
             <button onClick={() => navigate('/coach/settings')} className="text-neutral-500 hover:text-white transition-colors flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest"><Settings size={16} /> Ajustes</button>
+            <LocaleToggle className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-neutral-500 hover:text-red-500 transition-colors"><LogOut size={16} /></button>
           </div>
         </div>
