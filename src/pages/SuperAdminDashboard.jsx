@@ -158,6 +158,22 @@ export default function SuperAdminDashboard() {
     } catch (err) { console.error("Error:", err); } finally { setLoading(false); }
   };
 
+  const handleNotificationInboxChange = () => {
+    loadSuperAdminData();
+  };
+
+  const handleNotificationOpen = (notification) => {
+    if (notification?.type !== 'ADMIN_REQUEST') return;
+
+    setActiveTab('DASHBOARD');
+
+    window.setTimeout(() => {
+      document
+        .getElementById('genesis-admin-request-queue')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   const handleApproveCoach = async (coach) => {
     try {
       const targetUserId = coach.user_id || coach.id;
@@ -679,6 +695,8 @@ export default function SuperAdminDashboard() {
               panelClass={activeTheme.card + " " + activeTheme.text}
               borderClass={activeTheme.border}
               accentClass={activeTheme.accent}
+              onInboxChange={handleNotificationInboxChange}
+              onNotificationOpen={handleNotificationOpen}
             />
             <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-hide pb-2 sm:pb-0">
             {/* LAS 4 PESTAÑAS DEL SÚPER ADMIN */}
@@ -861,7 +879,7 @@ export default function SuperAdminDashboard() {
               </div>
             </section>
 
-            <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
+            <div id="genesis-admin-request-queue" className="scroll-mt-28 flex items-center justify-between border-b border-neutral-800/60 pb-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">{copy('Cola de solicitudes', 'Request queue')}</p>
                 <p className="mt-1 text-xs opacity-60">{copy('Revisa cambios de licencia y peticiones pendientes.', 'Review license changes and pending requests.')}</p>
