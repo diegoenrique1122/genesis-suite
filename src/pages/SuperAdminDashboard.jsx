@@ -38,6 +38,7 @@ export default function SuperAdminDashboard() {
   const [showThemeSelector, setShowThemeSelector] = useState(false);
 
   const [stats, setStats] = useState({ totalCoaches: 0, totalAthletes: 0, pendingCoaches: 0, pendingRequests: 0 });
+  const [analyticsPlan, setAnalyticsPlan] = useState('ALL');
   const [pendingCoaches, setPendingCoaches] = useState([]);
   const [activeCoaches, setActiveCoaches] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -623,6 +624,32 @@ export default function SuperAdminDashboard() {
 
   if (loading) return <div className={`min-h-screen ${activeTheme.bg} flex items-center justify-center`}><Loader2 className={`animate-spin ${activeTheme.accent}`} size={50} /></div>;
 
+  const analyticsCoaches = activeCoaches.filter((coach) => (
+    analyticsPlan === 'ALL' || coach.b2b_plan === analyticsPlan
+  ));
+
+  const managedAthletes = analyticsCoaches.reduce(
+    (total, coach) => total + (coach.total_athletes || 0),
+    0
+  );
+
+  const averageAthletes = analyticsCoaches.length
+    ? Math.round(managedAthletes / analyticsCoaches.length)
+    : 0;
+
+  const planTotals = ['IGNICION', 'EVOLUCION', 'ELITE'].map((plan) => ({
+    plan,
+    value: analyticsCoaches.reduce(
+      (total, coach) => total + (coach[`stats_${plan.toLowerCase()}`] || 0),
+      0
+    ),
+  }));
+
+  const maxCoachAthletes = Math.max(
+    1,
+    ...analyticsCoaches.map((coach) => coach.total_athletes || 0)
+  );
+
   return (
     <div className={`min-h-screen ${activeTheme.bg} ${activeTheme.text} font-sans pb-24 transition-colors duration-500 relative overflow-hidden`}>
       
@@ -736,6 +763,93 @@ export default function SuperAdminDashboard() {
               <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 genesis-panel rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Pendientes", "Pending Coaches")}</p><h2 className="genesis-kpi-value text-4xl font-black font-mono text-amber-500 mt-2">{stats.pendingCoaches}</h2></div>
               <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 genesis-panel rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Peticiones Licencia", "License Requests")}</p><h2 className="genesis-kpi-value text-4xl font-black font-mono text-purple-400 mt-2">{stats.pendingRequests}</h2></div>
             </div>
+
+            <section className={`${activeTheme.card} border ${activeTheme.border} genesis-panel p-6 shadow-xl`}>
+              <div className="flex flex-col gap-4 border-b border-neutral-800/60 pb-5 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTheme.accent}`}>{copy('Analítica operativa', 'Operational analytics')}</p>
+                  <h3 className="mt-2 text-lg font-black uppercase tracking-tight">{copy('Rendimiento del ecosistema', 'Ecosystem performance')}</h3>
+                  <p className="mt-1 text-xs font-mono opacity-60">{copy('Comparación basada en datos actuales, sin métricas inventadas.', 'Comparison based on current data, with no fabricated metrics.')}</p>
+                </div>
+                <select
+                  value={analyticsPlan}
+                  onChange={(event) => setAnalyticsPlan(event.target.value)}
+                  className={`genesis-control border ${activeTheme.border} bg-black/30 px-3 text-[10px] font-black uppercase tracking-widest outline-none`}
+                  aria-label={copy('Filtrar analítica por plan', 'Filter analytics by plan')}
+                >
+                  <option value="ALL" className="text-black">{copy('Todos los planes', 'All plans')}</option>
+                  <option value="IGNICION" className="text-black">IGNICION</option>
+                  <option value="EVOLUCION" className="text-black">EVOLUCION</option>
+                  <option value="ELITE" className="text-black">ELITE</option>
+                </select>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-neutral-800/70 bg-black/20 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{copy('Coaches comparados', 'Coaches compared')}</p>
+                  <p className="genesis-kpi-value mt-2 text-3xl font-black">{analyticsCoaches.length}</p>
+                </div>
+                <div className="rounded-2xl border border-neutral-800/70 bg-black/20 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{copy('Atletas gestionados', 'Managed athletes')}</p>
+                  <p className="genesis-kpi-value mt-2 text-3xl font-black text-blue-400">{managedAthletes}</p>
+                </div>
+                <div className="rounded-2xl border border-neutral-800/70 bg-black/20 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">{copy('Promedio por coach', 'Average per coach')}</p>
+                  <p className="genesis-kpi-value mt-2 text-3xl font-black text-amber-500">{averageAthletes}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest">{copy('Atletas por coach', 'Athletes per coach')}</h4>
+                    <span className="text-[10px] font-mono opacity-50">{copy('Top 8', 'Top 8')}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {analyticsCoaches.slice(0, 8).map((coach) => (
+                      <div key={coach.id} className="space-y-1">
+                        <div className="flex items-center justify-between gap-3 text-[10px] font-mono">
+                          <span className="truncate">{coach.full_name}</span>
+                          <span className="font-black">{coach.total_athletes || 0}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-black/40">
+                          <div
+                            className="h-full rounded-full bg-blue-500 transition-all"
+                            style={{ width: `${Math.round(((coach.total_athletes || 0) / maxCoachAthletes) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {analyticsCoaches.length === 0 && (
+                      <p className="py-6 text-xs font-mono opacity-60">{copy('No hay datos para este filtro.', 'No data for this filter.')}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest">{copy('Distribución B2C', 'B2C distribution')}</h4>
+                    <span className="text-[10px] font-mono opacity-50">{copy('Atletas actuales', 'Current athletes')}</span>
+                  </div>
+                  <div className="space-y-3">
+                    {planTotals.map(({ plan, value }) => (
+                      <div key={plan} className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] font-mono">
+                          <span>{plan}</span>
+                          <span className="font-black">{value}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-black/40">
+                          <div
+                            className={`h-full rounded-full transition-all ${plan === 'ELITE' ? 'bg-amber-500' : plan === 'EVOLUCION' ? 'bg-blue-500' : 'bg-neutral-500'}`}
+                            style={{ width: `${managedAthletes ? Math.round((value / managedAthletes) * 100) : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
               <div>
