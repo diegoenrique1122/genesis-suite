@@ -117,7 +117,7 @@ export default function CoachDashboard() {
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20 selection:bg-neutral-800 relative" style={{ backgroundColor: theme?.bgColor || "#0a0a0a", color: theme?.textColor || "#ffffff" }}>
       <div className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none" style={{ background: `linear-gradient(180deg, ${brand} 0%, transparent 100%)` }}></div>
 
-      <nav className="border-b genesis-border bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-30">
+      <nav className="border-b genesis-border genesis-bg backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck size={20} style={{ color: brand }} />
