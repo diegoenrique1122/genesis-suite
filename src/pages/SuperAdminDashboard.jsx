@@ -731,10 +731,10 @@ export default function SuperAdminDashboard() {
 
             {/* KPI GLOBALES */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Activos", "Active Coaches")}</p><h2 className="text-4xl font-black font-mono mt-2">{stats.totalCoaches}</h2></div>
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Total Atletas", "Total Athletes")}</p><h2 className="text-4xl font-black font-mono text-blue-400 mt-2">{stats.totalAthletes}</h2></div>
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Pendientes", "Pending Coaches")}</p><h2 className="text-4xl font-black font-mono text-amber-500 mt-2">{stats.pendingCoaches}</h2></div>
-              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Peticiones Licencia", "License Requests")}</p><h2 className="text-4xl font-black font-mono text-purple-400 mt-2">{stats.pendingRequests}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 genesis-panel rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Activos", "Active Coaches")}</p><h2 className="genesis-kpi-value text-4xl font-black font-mono mt-2">{stats.totalCoaches}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 genesis-panel rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Total Atletas", "Total Athletes")}</p><h2 className="genesis-kpi-value text-4xl font-black font-mono text-blue-400 mt-2">{stats.totalAthletes}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 genesis-panel rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Coaches Pendientes", "Pending Coaches")}</p><h2 className="genesis-kpi-value text-4xl font-black font-mono text-amber-500 mt-2">{stats.pendingCoaches}</h2></div>
+              <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 genesis-panel rounded-3xl shadow-xl`}><p className="text-[11px] font-black uppercase tracking-widest opacity-60">{copy("Peticiones Licencia", "License Requests")}</p><h2 className="genesis-kpi-value text-4xl font-black font-mono text-purple-400 mt-2">{stats.pendingRequests}</h2></div>
             </div>
 
             <div className="flex items-center justify-between border-b border-neutral-800/60 pb-3">
@@ -749,7 +749,7 @@ export default function SuperAdminDashboard() {
 
             {/* PETICIONES DE CAMBIO DE PLAN */}
             {requests.length > 0 && (
-              <div className={`bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 p-8 rounded-3xl shadow-2xl backdrop-blur-lg`}>
+              <div className={`bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 p-8 genesis-panel rounded-3xl shadow-2xl backdrop-blur-lg`}>
                 <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><ShieldAlert size={20}/> {copy("Peticiones de Modificación B2B", "B2B Modification Requests")}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {requests.map((r) => (
@@ -779,7 +779,7 @@ export default function SuperAdminDashboard() {
 
             {/* COACHES PENDIENTES */}
             {pendingCoaches.length > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/50 p-8 rounded-3xl shadow-[0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-lg">
+              <div className="bg-amber-500/10 border border-amber-500/50 p-8 genesis-panel rounded-3xl shadow-[0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-lg">
                 <h2 className="text-sm font-black uppercase tracking-widest text-amber-500 flex items-center gap-2 mb-6"><UserCheck size={20}/> {copy("Licencias Pendientes de Aprobación", "Licenses Pending Approval")}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {pendingCoaches.map((c) => (
@@ -798,7 +798,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* COACHES ACTIVOS (ROSTER GLOBAL) */}
-            <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl shadow-xl`}>
+            <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 genesis-panel rounded-3xl shadow-xl`}>
               <h2 className="text-sm font-black uppercase tracking-widest opacity-80 flex items-center gap-2 mb-6"><Users size={20}/> {copy("Ecosistema de Entrenadores Activos", "Active Coach Ecosystem")}</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left font-mono text-xs">
@@ -882,7 +882,7 @@ export default function SuperAdminDashboard() {
         {/* ======================================================== */}
         {activeTab === 'MY_ROSTER' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-[#111] border border-amber-500/30 rounded-3xl p-8 relative overflow-hidden shadow-xl">
+            <div className="bg-[#111] border border-amber-500/30 genesis-panel rounded-3xl p-8 relative overflow-hidden shadow-xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
               <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
                 <ShieldCheck className="text-amber-500" /> Mi Despacho de Coach Élite
@@ -901,7 +901,7 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-[#111] border border-neutral-800 rounded-3xl p-8 shadow-xl text-center py-20">
+            <div className="bg-[#111] border border-neutral-800 genesis-panel rounded-3xl p-8 shadow-xl text-center py-20">
               <Users size={48} className="text-neutral-700 mx-auto mb-4" />
               <h3 className="text-lg font-black uppercase text-white mb-2">{copy("Tu Roster VIP está vacío", "Your VIP roster is empty")}</h3>
               <p className="text-xs font-mono text-neutral-500">{copy("Comparte tu código CEO-PRO. Tus atletas directos aparecerán aquí para que audites sus dietas y rutinas.", "Share your CEO-PRO code. Your direct athletes will appear here so you can review their nutrition and routines.")}</p>
@@ -914,7 +914,7 @@ export default function SuperAdminDashboard() {
         {/* ======================================================== */}
         {activeTab === 'MY_APPS' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-[#111] border border-blue-500/30 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.1)]">
+            <div className="bg-[#111] border border-blue-500/30 genesis-panel rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(37,99,235,0.1)]">
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
               <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
                 <Dumbbell className="text-blue-500" /> Mi Ecosistema de Atleta
@@ -954,7 +954,7 @@ export default function SuperAdminDashboard() {
         {/* ======================================================== */}
         {activeTab === 'SETTINGS' && (
            <div className="animate-in fade-in slide-in-from-right-4 duration-500 max-w-5xl mx-auto space-y-8">
-            <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl shadow-xl`}>
+            <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 genesis-panel rounded-3xl shadow-xl`}>
               <div className="flex items-center gap-4 mb-8 border-b border-neutral-800/50 pb-6">
                 <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}><Palette className={activeTheme.accent} size={24}/></div>
                 <div>
@@ -979,7 +979,7 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
 
-            <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl shadow-xl`}>
+            <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 genesis-panel rounded-3xl shadow-xl`}>
               <div className="flex items-center gap-4 mb-8 border-b border-neutral-800/50 pb-6">
                 <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}><Globe className={activeTheme.accent} size={24}/></div>
                 <div>
