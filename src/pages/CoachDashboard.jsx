@@ -114,10 +114,10 @@ export default function CoachDashboard() {
   const codePRO = coachProfile?.invite_code_elite || (coachProfile?.coach_code ? `PRO-${coachProfile.coach_code}` : copy('Pendiente Súper Admin', 'Pending Super Admin'));
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20 selection:bg-neutral-800 relative">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20 selection:bg-neutral-800 relative" style={{ backgroundColor: theme?.bgColor || "#0a0a0a", color: theme?.textColor || "#ffffff" }}>
       <div className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none" style={{ background: `linear-gradient(180deg, ${brand} 0%, transparent 100%)` }}></div>
 
-      <nav className="border-b border-neutral-800 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-30">
+      <nav className="border-b genesis-border bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck size={20} style={{ color: brand }} />
@@ -150,16 +150,16 @@ export default function CoachDashboard() {
         {activeTab === 'ROSTER' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
+              <div className="genesis-surface border genesis-border rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
                 <h1 className="text-2xl font-black uppercase tracking-tight mb-1">{copy('Hola,', 'Hello,')} {coachProfile?.full_name?.split(' ')[0] || 'Coach'}</h1>
                 <p className="text-xs text-neutral-400 font-mono">{copy('Tienes', 'You have')} {stats.pending} {copy('atletas requiriendo auditoría clínica hoy.', 'athletes requiring clinical review today.')}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-black border border-neutral-800 rounded-3xl p-5 text-center flex flex-col justify-center">
+                <div className="genesis-bg border genesis-border rounded-3xl p-5 text-center flex flex-col justify-center">
                   <span className="text-3xl font-black font-mono text-white">{stats.active}</span>
                   <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">{copy("Activos", "Active")}</span>
                 </div>
-                <div className="bg-black border border-neutral-800 rounded-3xl p-5 text-center flex flex-col justify-center">
+                <div className="genesis-bg border genesis-border rounded-3xl p-5 text-center flex flex-col justify-center">
                   <span className="text-3xl font-black font-mono text-amber-500">{stats.pending}</span>
                   <span className="text-[9px] uppercase font-black tracking-widest text-amber-500/70 mt-1">{copy("Pendientes", "Pending")}</span>
                 </div>
@@ -167,9 +167,9 @@ export default function CoachDashboard() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button onClick={() => navigate('/chat')} className="bg-[#111] border border-neutral-800 hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
+              <button onClick={() => navigate('/chat')} className="genesis-surface border genesis-border hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-black border border-neutral-800 group-hover:scale-110 transition-transform">{isElite ? <Globe size={20} style={{ color: brand }} /> : <MessageSquare size={20} style={{ color: brand }} />}</div>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center genesis-bg border genesis-border group-hover:scale-110 transition-transform">{isElite ? <Globe size={20} style={{ color: brand }} /> : <MessageSquare size={20} style={{ color: brand }} />}</div>
                   <div className="text-left">
                     <h2 className="text-sm font-black uppercase tracking-widest text-white">{copy("Red de Comunicaciones", "Communications")}</h2>
                     <p className="text-[10px] text-neutral-500 font-mono mt-0.5">{isElite ? copy('Muro Global, Sala Coaches y Chat 1-a-1', 'Global Wall, Coaches Room, and 1:1 Chat') : copy('Chat Directo 1-a-1 con Atletas', 'Direct 1:1 Chat with Athletes')}</p>
@@ -178,9 +178,9 @@ export default function CoachDashboard() {
                 <ArrowRight size={18} className="text-neutral-600 group-hover:text-white transition-colors" />
               </button>
 
-              <button onClick={() => setShowAcquisitionModal(true)} className="bg-[#111] border border-neutral-800 hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
+              <button onClick={() => setShowAcquisitionModal(true)} className="genesis-surface border genesis-border hover:border-neutral-600 rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-black border border-neutral-800 group-hover:scale-110 transition-transform"><UserPlus size={20} className="text-neutral-400" /></div>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center genesis-bg border genesis-border group-hover:scale-110 transition-transform"><UserPlus size={20} className="text-neutral-400" /></div>
                   <div className="text-left">
                     <h2 className="text-sm font-black uppercase tracking-widest text-white">{copy("Adquisición de Clientes", "Client Acquisition")}</h2>
                     <p className="text-[10px] text-neutral-500 font-mono mt-0.5">{copy("Gestiona tus códigos de invitación B2C", "Manage your B2C invitation codes")}</p>
@@ -190,8 +190,8 @@ export default function CoachDashboard() {
               </button>
             </div>
 
-            <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center justify-between border-b border-neutral-800 pb-4 mb-4">
+            <div className="genesis-surface border genesis-border rounded-3xl p-6 shadow-xl">
+              <div className="flex items-center justify-between border-b genesis-border pb-4 mb-4">
                 <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-2"><Activity size={16} style={{ color: brand }} /> {copy("Radar Global de Atletas", "Global Athlete Radar")}</h2>
               </div>
               {roster.length === 0 ? (
@@ -202,13 +202,13 @@ export default function CoachDashboard() {
                     <button
                       key={athlete.id}
                       onClick={() => navigate(`/coach/client/${athlete.id}`)}
-                      className="w-full bg-black border border-neutral-800 hover:border-neutral-600 rounded-2xl p-4 transition-all group text-left"
+                      className="w-full genesis-bg border genesis-border hover:border-neutral-600 rounded-2xl p-4 transition-all group text-left"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
 
                         {/* IDENTIDAD */}
                         <div className="flex items-center gap-4 lg:w-56 shrink-0">
-                          <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center font-black uppercase text-sm group-hover:bg-white group-hover:text-black transition-colors">
+                          <div className="w-10 h-10 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center font-black uppercase text-sm group-hover:bg-white group-hover:text-black transition-colors">
                             {athlete.full_name?.substring(0, 2)}
                           </div>
 
@@ -226,7 +226,7 @@ export default function CoachDashboard() {
                         {/* ACTIVIDAD CANÓNICA */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1 w-full">
 
-                          <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2">
+                          <div className="bg-neutral-950 border genesis-border rounded-xl px-3 py-2">
                             <p className="text-[8px] font-black uppercase tracking-widest text-amber-500 mb-1">
                               {copy("Auto-reporte manual", "Manual self-report")}
                             </p>
@@ -308,7 +308,7 @@ export default function CoachDashboard() {
         {/* ========================================================= */}
         {activeTab === 'MY_APPS' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="bg-[#111] border border-amber-500/30 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+            <div className="genesis-surface border border-amber-500/30 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.1)]">
               <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
               <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
                 <Dumbbell className="text-amber-500" /> Mi Ecosistema Personal
@@ -318,23 +318,23 @@ export default function CoachDashboard() {
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button onClick={() => navigate('/client/arquitecto')} className="bg-black border border-neutral-800 hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Utensils size={24}/></div>
+                <button onClick={() => navigate('/client/arquitecto')} className="genesis-bg border genesis-border hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
+                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Utensils size={24}/></div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("El Arquitecto", "The Architect")}</h3>
                   <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Laboratorio de macros, dieta y suplementación personal.", "Personal macros, nutrition, and supplement lab.")}</p>
                 </button>
-                <button onClick={() => navigate('/client/entrenamiento')} className="bg-black border border-neutral-800 hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Dumbbell size={24}/></div>
+                <button onClick={() => navigate('/client/entrenamiento')} className="genesis-bg border genesis-border hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
+                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Dumbbell size={24}/></div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-white">Trainer Pro</h3>
                   <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Tu rutina biomecánica adaptativa y registros de peso.", "Adaptive biomechanics routine and weight logs.")}</p>
                 </button>
-                <button onClick={() => navigate('/client/disciplina')} className="bg-black border border-neutral-800 hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Activity size={24}/></div>
+                <button onClick={() => navigate('/client/disciplina')} className="genesis-bg border genesis-border hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
+                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Activity size={24}/></div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Monitoreo de Disciplina", "Discipline Monitoring")}</h3>
                   <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Subida de check-ins diarios, fotos y métricas de sueño.", "Daily check-ins, photos, and sleep metrics.")}</p>
                 </button>
-                <button onClick={() => navigate('/client/hormonal')} className="bg-black border border-neutral-800 hover:border-pink-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4 group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors"><Droplets size={24}/></div>
+                <button onClick={() => navigate('/client/hormonal')} className="genesis-bg border genesis-border hover:border-pink-500/50 rounded-2xl p-6 text-left group transition-all">
+                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors"><Droplets size={24}/></div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Sync Hormonal (Opcional)", "Hormonal Sync (Optional)")}</h3>
                   <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Acceso a la modulación de ciclo (Solo atletas femeninas).", "Cycle modulation access (female athletes only).")}</p>
                 </button>
@@ -347,23 +347,23 @@ export default function CoachDashboard() {
 
       {/* MODAL CÓDIGOS (Se mantiene intacto) */}
       {showAcquisitionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 genesis-bg/80 backdrop-blur-sm animate-in fade-in">
+          <div className="genesis-surface border genesis-border rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
             <button onClick={() => setShowAcquisitionModal(false)} className="absolute top-5 right-5 text-neutral-500 hover:text-white transition-colors"><X size={20} /></button>
             <h2 className="text-lg font-black uppercase text-white mb-1 flex items-center gap-2"><UserPlus className="text-amber-500" size={20} /> {copy("Adquisición B2C", "B2C Acquisition")}</h2>
             <p className="text-[11px] text-neutral-400 font-mono mb-6 leading-relaxed">{copy("Comparte estos códigos únicos con tus clientes. Al ingresarlos en su registro, se vincularán a tu Roster.", "Share these unique codes with your clients. When entered during registration, they will be linked to your roster.")}</p>
             <div className="space-y-3">
-              <div className="flex items-center justify-between bg-black border border-neutral-800 p-4 rounded-2xl group hover:border-neutral-600 transition-colors">
+              <div className="flex items-center justify-between genesis-bg border genesis-border p-4 rounded-2xl group hover:border-neutral-600 transition-colors">
                 <div><p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-1">{copy("Plan Ignición (Básico)", "Ignition Plan (Basic)")}</p><p className="font-mono text-white font-bold text-sm">{codeIGN}</p></div>
                 <button onClick={() => handleCopy(codeIGN)} disabled={codeIGN.includes('Pendiente')} className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-neutral-400 hover:text-white transition-colors disabled:opacity-50">{copiedCode === codeIGN ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
               </div>
-              <div className="flex items-center justify-between bg-black border border-neutral-800 p-4 rounded-2xl group hover:border-blue-500/50 transition-colors relative overflow-hidden">
-                {!canSellEvo && <div className="absolute inset-0 bg-black/70 backdrop-blur-[1px] flex items-center justify-center z-10"><Lock size={16} className="text-neutral-500 mr-2"/><span className="text-[9px] uppercase font-black text-neutral-500">{copy("Plan No Autorizado", "Plan Not Authorized")}</span></div>}
+              <div className="flex items-center justify-between genesis-bg border genesis-border p-4 rounded-2xl group hover:border-blue-500/50 transition-colors relative overflow-hidden">
+                {!canSellEvo && <div className="absolute inset-0 genesis-bg/70 backdrop-blur-[1px] flex items-center justify-center z-10"><Lock size={16} className="text-neutral-500 mr-2"/><span className="text-[9px] uppercase font-black text-neutral-500">{copy("Plan No Autorizado", "Plan Not Authorized")}</span></div>}
                 <div><p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-1">{copy("Plan Evolución (Pro)", "Evolution Plan (Pro)")}</p><p className="font-mono text-white font-bold text-sm">{codeEVO}</p></div>
                 <button onClick={() => handleCopy(codeEVO)} disabled={codeEVO.includes('Pendiente')} className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-neutral-400 hover:text-blue-500 transition-colors disabled:opacity-50">{copiedCode === codeEVO ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
               </div>
-              <div className="flex items-center justify-between bg-black border border-neutral-800 p-4 rounded-2xl group hover:border-amber-500/50 transition-colors relative overflow-hidden">
-                {!canSellElite && <div className="absolute inset-0 bg-black/70 backdrop-blur-[1px] flex items-center justify-center z-10"><Lock size={16} className="text-neutral-500 mr-2"/><span className="text-[9px] uppercase font-black text-neutral-500">{copy("Plan No Autorizado", "Plan Not Authorized")}</span></div>}
+              <div className="flex items-center justify-between genesis-bg border genesis-border p-4 rounded-2xl group hover:border-amber-500/50 transition-colors relative overflow-hidden">
+                {!canSellElite && <div className="absolute inset-0 genesis-bg/70 backdrop-blur-[1px] flex items-center justify-center z-10"><Lock size={16} className="text-neutral-500 mr-2"/><span className="text-[9px] uppercase font-black text-neutral-500">{copy("Plan No Autorizado", "Plan Not Authorized")}</span></div>}
                 <div><p className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1 flex items-center gap-1"><ShieldCheck size={10}/> {copy("Plan Élite 360°", "Elite 360° Plan")}</p><p className="font-mono text-amber-400 font-bold text-sm">{codePRO}</p></div>
                 <button onClick={() => handleCopy(codePRO)} disabled={codePRO.includes('Pendiente')} className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-neutral-400 hover:text-amber-500 transition-colors disabled:opacity-50">{copiedCode === codePRO ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
               </div>
