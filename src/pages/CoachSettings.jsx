@@ -326,7 +326,7 @@ const handleImmersiveMode = async () => {
     );
 
     alert(
-      `❌ Error al iniciar {copy('Modo Inmersivo', 'Immersive Mode')}: ${err.message}`
+      `❌ Error al iniciar ${copy('Modo Inmersivo', 'Immersive Mode')}: ${err.message}`
     );
 
   } finally {
@@ -513,7 +513,7 @@ const handleImmersiveMode = async () => {
           <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
             <div className="flex justify-between items-center border-b border-neutral-800/50 pb-6">
               <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-                <Users size={20} className={activeTheme.accent} /> Pirámide de Atletas
+                <Users size={20} className={activeTheme.accent} /> {copy('Pirámide de Atletas', 'Athlete Roster')}
               </h2>
               <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${activeTheme.border} ${activeTheme.accent}`}>
                 Total: {athletes.length}
@@ -531,7 +531,7 @@ const handleImmersiveMode = async () => {
                         #{index + 1}
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">{ath.full_name || '{copy('Sin Nombre', 'Unnamed')}'}</h4>
+                        <h4 className="text-sm font-bold text-white">{ath.full_name || copy('Sin Nombre', 'Unnamed')}</h4>
                         <p className="text-[10px] text-neutral-500 font-mono">{copy('Ingreso:', 'Joined:')} {new Date(ath.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -549,7 +549,7 @@ const handleImmersiveMode = async () => {
         {activeTab === 'MULTILEVEL' && (
           <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
             <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2 mb-2">
-              <GitMerge size={20} className={activeTheme.accent} /> Red de Entrenadores Referidos
+              <GitMerge size={20} className={activeTheme.accent} /> {copy('Red de Entrenadores Referidos', 'Coach Referral Program')}
             </h2>
             
             <div className={`p-6 border ${activeTheme.border} bg-black/40 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4`}>
@@ -589,14 +589,14 @@ const handleImmersiveMode = async () => {
         {activeTab === 'COMM' && (
           <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
             <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2 mb-4">
-              <MessageSquare size={20} className={activeTheme.accent} /> Ajustes de Comunicación
+              <MessageSquare size={20} className={activeTheme.accent} /> {copy('Ajustes de Comunicación', 'Communication Settings')}
             </h2>
             
             <div className="grid grid-cols-1 gap-4">
               {[
-                { id: 'BOTH', title: '{copy('Chat Dual (Recomendado)', 'Dual Chat (Recommended)')}', desc: '{copy('Muro de Comunidad + Mensajes Privados 1-a-1 habilitados.', 'Community wall and 1:1 private messages enabled.')}' },
-                { id: 'INDIVIDUAL', title: '{copy('Solo Mensajería Privada', 'Private Messaging Only')}', desc: '{copy('Desactiva el muro comunitario. Los atletas solo hablan contigo.', 'Disable the community wall. Athletes can only message you.')}' },
-                { id: 'GROUP', title: '{copy('Solo Muro Grupal de Tribu', 'Community Wall Only')}', desc: '{copy('Desactiva los mensajes directos para centralizar dudas en el muro.', 'Disable direct messages and centralize questions in the wall.')}' },
+                { id: 'BOTH', title: copy('Chat Dual (Recomendado)', 'Dual Chat (Recommended)'), desc: copy('Muro de Comunidad + Mensajes Privados 1-a-1 habilitados.', 'Community wall and 1:1 private messages enabled.') },
+                { id: 'INDIVIDUAL', title: copy('Solo Mensajería Privada', 'Private Messaging Only'), desc: copy('Desactiva el muro comunitario. Los atletas solo hablan contigo.', 'Disable the community wall. Athletes can only message you.') },
+                { id: 'GROUP', title: copy('Solo Muro Grupal de Tribu', 'Community Wall Only'), desc: copy('Desactiva los mensajes directos para centralizar dudas en el muro.', 'Disable direct messages and centralize questions in the wall.') },
               ].map((mode) => (
                 <div 
                   key={mode.id}
@@ -630,7 +630,7 @@ const handleImmersiveMode = async () => {
                 <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Acción Solicitada', 'Requested Action')}</label><select value={requestType} onChange={(e) => setRequestType(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}><option value="UPGRADE" className="text-black">{copy('Solicitar Upgrade de Plan', 'Request Plan Upgrade')}</option><option value="DOWNGRADE" className="text-black">{copy('Solicitar Downgrade', 'Request Downgrade')}</option><option value="PAUSE" className="text-black">{copy('Solicitar Pausa de Licencia', 'Request License Pause')}</option></select></div>
                 <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Plan Objetivo', 'Target Plan')}</label><select value={requestedPlan} onChange={(e) => setRequestedPlan(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}><option value="IGNICION" className="text-black">{copy('Plan Ignición (Base)', 'Ignition Plan (Base)')}</option><option value="EVOLUCION" className="text-black">{copy('Plan Evolución (Pro)', 'Evolution Plan (Pro)')}</option><option value="ELITE" className="text-black">{copy('Plan Élite (VIP)', 'Elite Plan (VIP)')}</option></select></div>
               </div>
-              <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Nota para el Administrador', 'Note for Administrator')}</label><textarea placeholder="{copy('Explica tu caso...', 'Explain your request...')}" value={requestNote} onChange={(e) => setRequestNote(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none h-24 resize-none`}/></div>
+              <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Nota para el Administrador', 'Note for Administrator')}</label><textarea placeholder={copy('Explica tu caso...', 'Explain your request...')} value={requestNote} onChange={(e) => setRequestNote(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none h-24 resize-none`}/></div>
               <button type="submit" disabled={sendingReq} className="bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">{sendingReq ? <Loader2 size={16} className="animate-spin"/> : <><Send size={16}/> {copy('Enviar Petición Formal', 'Submit Formal Request')}</>}</button>
             </form>
           </div>
