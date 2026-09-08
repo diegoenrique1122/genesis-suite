@@ -841,7 +841,7 @@ export default function SuperAdminDashboard() {
               <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
                 <ShieldCheck className="text-amber-500" /> Mi Despacho de Coach Élite
               </h2>
-              <p className="text-xs text-neutral-400 font-mono mb-6 max-w-2xl">{copy('Como Súper Admin, posees el código', 'As Super Admin, you have the code')} <strong className="text-amber-500">CEO-PRO</strong>. Los atletas que se registren con este código aparecerán aquí para que los gestiones como un Coach Élite.
+              <p className="text-xs text-neutral-400 font-mono mb-6 max-w-2xl">{copy('Como Súper Admin, posees el código', 'As Super Admin, you have the code')} <strong className="text-amber-500">CEO-PRO</strong>. {copy("Los atletas que se registren con este código aparecerán aquí para que los gestiones como un Coach Élite.", "Athletes who register with this code will appear here so you can manage them as an Elite Coach.")}
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
