@@ -21,7 +21,7 @@ const notificationTypeLabel = (type, copy) => {
     NEW_ATHLETE: copy('Nuevo atleta', 'New athlete'),
     PROGRAM_ACTIVATED: copy('Programa activado', 'Program activated'),
     PROGRAM_EXPIRING: copy('Programa por vencer', 'Program expiring'),
-    ROUTINE_REVIEW: copy('Auditoría requerida', 'Review required'),
+    ROUTINE_REVIEW: copy('AuditorÃ­a requerida', 'Review required'),
     ADMIN_REQUEST: copy('Solicitud administrativa', 'Administrative request'),
     ACCOUNT_SECURITY: copy('Seguridad de cuenta', 'Account security'),
   };
@@ -189,7 +189,7 @@ export default function NotificationCenter({
                 {copy('Centro de notificaciones', 'Notification center')}
               </p>
               <h2 className="mt-1 text-sm font-black uppercase tracking-tight">
-                {copy('Actividad que requiere atención', 'Activity requiring attention')}
+                {copy('Actividad que requiere atenciÃ³n', 'Activity requiring attention')}
               </h2>
             </div>
             {activeView === 'INBOX' && unreadCount > 0 && (
@@ -199,7 +199,7 @@ export default function NotificationCenter({
                 className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider opacity-70 transition hover:opacity-100"
               >
                 <CheckCheck size={14} />
-                {copy('Leídas', 'Read')}
+                {copy('LeÃ­das', 'Read')}
               </button>
             )}
           </div>
@@ -232,7 +232,7 @@ export default function NotificationCenter({
           <div className="max-h-[26rem] overflow-y-auto p-2">
             {loading ? (
               <div className="px-4 py-10 text-center text-xs font-mono opacity-60">
-                {copy('Cargando alertas…', 'Loading alerts…')}
+                {copy('Cargando alertasâ€¦', 'Loading alertsâ€¦')}
               </div>
             ) : visibleNotifications.length === 0 ? (
               <div className="px-4 py-10 text-center">
@@ -268,14 +268,18 @@ export default function NotificationCenter({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <p className="truncate text-[11px] font-black uppercase tracking-wide">
-                            {activeView === 'SYSTEM'\n                              ? notificationTypeLabel(notification.type, copy)\n                              : notification.title}
+                            {activeView === 'SYSTEM'
+                              ? notificationTypeLabel(notification.type, copy)
+                              : notification.title}
                           </p>
                           <span className="shrink-0 text-[9px] font-mono opacity-50">
                             {formatNotificationDate(notification.created_at, locale)}
                           </span>
                         </div>
                         <p className="mt-1 text-[10px] leading-relaxed opacity-65">
-                          {activeView === 'SYSTEM'\n                            ? systemActivityCopy(notification.type, copy)\n                            : notification.message}
+                          {activeView === 'SYSTEM'
+                            ? systemActivityCopy(notification.type, copy)
+                            : notification.message}
                         </p>
                         <p className={'mt-2 text-[9px] font-black uppercase tracking-widest ' + accentClass}>
                           {notificationTypeLabel(notification.type, copy)}
