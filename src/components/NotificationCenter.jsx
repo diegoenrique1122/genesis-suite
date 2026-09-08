@@ -288,7 +288,7 @@ export default function NotificationCenter({
                 className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider opacity-70 transition hover:opacity-100"
               >
                 <CheckCheck size={14} />
-                {copy('LeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­das', 'Read')}
+                {copy('Le\u00eddas', 'Read')}
               </button>
             )}
           </div>
@@ -301,7 +301,7 @@ export default function NotificationCenter({
                 className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider opacity-70 transition hover:opacity-100"
               >
                 <Trash2 size={13} />
-                {copy('Limpiar leídas', 'Clear read')}
+                {copy('Limpiar le\u00eddas', 'Clear read')}
               </button>
             </div>
           )}
@@ -333,7 +333,7 @@ export default function NotificationCenter({
           <div className="max-h-[26rem] overflow-y-auto p-2">
             {loading ? (
               <div className="px-4 py-10 text-center text-xs font-mono opacity-60">
-                {copy('Cargando alertasÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦', 'Loading alertsÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦')}
+                {copy('Cargando alertas...', 'Loading alerts...')}
               </div>
             ) : visibleNotifications.length === 0 ? (
               <div className="px-4 py-10 text-center">
