@@ -673,7 +673,14 @@ export default function SuperAdminDashboard() {
             <div><h1 className="text-xl sm:text-2xl font-black uppercase tracking-widest leading-none">Genesis OS</h1><span className={`text-[10px] font-mono uppercase tracking-widest ${activeTheme.accent}`}>{copy("Súper Administrador", "Super Administrator")}</span></div>
           </div>
           
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 sm:pb-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <NotificationCenter
+              showSystemActivity
+              panelClass={activeTheme.card + " " + activeTheme.text}
+              borderClass={activeTheme.border}
+              accentClass={activeTheme.accent}
+            />
+            <div className="flex min-w-0 items-center gap-2 overflow-x-auto scrollbar-hide pb-2 sm:pb-0">
             {/* LAS 4 PESTAÑAS DEL SÚPER ADMIN */}
             <button onClick={() => setActiveTab('DASHBOARD')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all flex items-center gap-2 ${activeTab === 'DASHBOARD' ? 'bg-white text-black shadow-lg' : 'text-neutral-500 hover:text-white bg-black/30 border border-transparent hover:border-neutral-700'}`}>
               <LayoutDashboard size={14}/> {copy("SaaS Global", "Global SaaS")}
@@ -695,15 +702,10 @@ export default function SuperAdminDashboard() {
               <Globe size={16}/> {copy("Red Global", "Global Network")}
             </button>
             
-            <NotificationCenter
-              showSystemActivity
-              panelClass={activeTheme.card + " " + activeTheme.text}
-              borderClass={activeTheme.border}
-              accentClass={activeTheme.accent}
-            />
             <button onClick={() => setShowThemeSelector(!showThemeSelector)} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
             <LocaleToggle compact className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors p-2"><LogOut size={20} /></button>
+            </div>
           </div>
         </div>
       </nav>
