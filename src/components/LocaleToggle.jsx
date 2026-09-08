@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocale } from '../contexts/LocaleContext';
 
-export default function LocaleToggle({ className = '' }) {
+export default function LocaleToggle({ className = '', compact = false }) {
   const { locale, setLocale, t } = useLocale();
   const [saving, setSaving] = useState(false);
 
@@ -14,7 +14,7 @@ export default function LocaleToggle({ className = '' }) {
 
   return (
     <div
-      className={`inline-flex min-h-[56px] rounded-xl border border-neutral-700 bg-black/90 p-1.5 shadow-lg ${className}`}
+      className={`inline-flex ${compact ? 'min-h-[40px]' : 'min-h-[48px]'} rounded-xl border border-neutral-700 bg-black/90 p-1 shadow-lg ${className}`}
       role="group"
       aria-label={t('language')}
     >
@@ -26,7 +26,7 @@ export default function LocaleToggle({ className = '' }) {
           disabled={saving}
           aria-pressed={locale === option}
           aria-label={`${t('language')}: ${option.toUpperCase()}`}
-          className={`min-h-[44px] min-w-[72px] rounded-lg px-4 py-2 text-xs font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${locale === option ? 'bg-amber-500 text-black shadow-sm' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'} disabled:cursor-wait disabled:opacity-60`}
+          className={`min-h-[40px] min-w-[56px] rounded-lg px-3 py-2 text-[11px] font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${locale === option ? 'bg-amber-500 text-black shadow-sm' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'} disabled:cursor-wait disabled:opacity-60`}
         >
           {option}
         </button>
