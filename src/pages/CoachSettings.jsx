@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLocale } from '../contexts/LocaleContext';
 import { 
   ArrowLeft, User, Lock, Shield, Send, Eye, 
   CheckCircle2, Loader2, Building2, Upload, Palette, AtSign, CreditCard,
@@ -20,6 +21,7 @@ const COACH_THEMES = [
 export default function CoachSettings() {
   const navigate = useNavigate();
   const { theme, updateTheme } = useTheme();
+  const { setLocale } = useLocale();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -230,6 +232,7 @@ export default function CoachSettings() {
 
       if (error) throw error;
 
+      await setLocale(preferredLocale);
       alert('Preferencias operativas guardadas.');
     } catch (err) {
       alert('Error al guardar preferencias: ' + err.message);
