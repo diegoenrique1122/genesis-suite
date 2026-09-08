@@ -2,10 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLocale } from '../contexts/LocaleContext';
 import {
   ArrowLeft, Send, Globe, MessageSquare,
   ShieldCheck, Loader2, User, Users, Trash2, Ban, AlertTriangle
 } from 'lucide-react';
+
+const CHAT_COPY = {
+  es: { back: 'Volver', global: 'Muro global', coaches: 'Sala de coaches', direct: 'Directo 1 a 1', directory: 'Directorio', quiet: 'Canal en silencio', banned: 'Has sido bloqueado de la red de comunicaciones.', connecting: 'Conectando canal seguro...', directPlaceholder: 'Enviar mensaje directo...', publish: 'Publicar mensaje...', selectContact: 'Selecciona un contacto.', sendError: 'Error enviando mensaje: ', deleteTitle: 'Eliminar mensaje', banTitle: 'Bloquear usuario', deleteConfirm: 'Eliminar este mensaje permanentemente de la red?', deleteError: 'Error eliminando: ', banError: 'Error bloqueando: ', adminMode: 'MODO ADMIN' },
+  en: { back: 'Back', global: 'Global wall', coaches: 'Coaches room', direct: 'Direct 1 to 1', directory: 'Directory', quiet: 'Channel is quiet', banned: 'You have been blocked from the communications network.', connecting: 'Connecting secure channel...', directPlaceholder: 'Send direct message...', publish: 'Post message...', selectContact: 'Select a contact.', sendError: 'Message send error: ', deleteTitle: 'Delete message', banTitle: 'Block user', deleteConfirm: 'Permanently delete this message from the network?', deleteError: 'Delete error: ', banError: 'Block error: ', adminMode: 'ADMIN MODE' },
+};
 
 const buildGenesisChatTopic = (channelType, userId, recipientId = null) => {
   if (channelType === 'GLOBAL_WALL') return 'genesis:global';
@@ -22,6 +28,8 @@ const buildGenesisChatTopic = (channelType, userId, recipientId = null) => {
 export default function Chat() {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { locale } = useLocale();
+  const text = CHAT_COPY[locale] || CHAT_COPY.es;
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -398,7 +406,7 @@ export default function Chat() {
 
     if (activeTab === 'PRIVATE') {
       if (!selectedContactId) {
-        alert('Selecciona un contacto.');
+        alert(text.selectContact);
         return;
       }
 
@@ -420,12 +428,12 @@ export default function Chat() {
       setNewMessage('');
     } catch (err) {
       console.error('Genesis chat send error:', err);
-      alert('Error enviando mensaje: ' + err.message);
+      alert(text.sendError + err.message);
     }
   };
 
   const handleDeleteMessage = async (msgId) => {
-    if (!window.confirm('⚠️ ¿Eliminar este mensaje permanentemente de la red?')) return;
+    if (!window.confirm(text.deleteConfirm)) return;
 
     try {
       const { error } = await supabase
@@ -438,7 +446,7 @@ export default function Chat() {
       // Respuesta inmediata para el moderador; Broadcast elimina en los demás clientes.
       setMessages((curr) => curr.filter((message) => message.id !== msgId));
     } catch (err) {
-      alert('Error eliminando: ' + err.message);
+      alert(text.deleteError + err.message);
     }
   };
 
@@ -458,7 +466,7 @@ export default function Chat() {
       if (error) throw error;
       alert(`✅ ${userName} ha sido silenciado/bloqueado del chat.`);
     } catch (err) {
-      alert('Error bloqueando: ' + err.message);
+      alert(text.banError + err.message);
     }
   };
 
@@ -492,7 +500,7 @@ export default function Chat() {
             onClick={handleBackNavigation}
             className="flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest"
           >
-            <ArrowLeft size={16} /> Volver
+            <ArrowLeft size={16} /> {text.back}
           </button>
 
           <div className="flex items-center gap-2">
@@ -503,7 +511,7 @@ export default function Chat() {
             <span className="text-xs font-black uppercase tracking-widest text-neutral-200">
               Genesis Network
               {isGodMode && (
-                <span className="text-blue-500 ml-1">(GOD MODE)</span>
+                <span className="text-blue-500 ml-1">({text.adminMode})</span>
               )}
             </span>
           </div>
@@ -521,7 +529,7 @@ export default function Chat() {
                   : 'text-neutral-500 hover:text-white'
               }`}
             >
-              <Globe size={14} /> Muro Global
+              <Globe size={14} /> {text.global}
             </button>
           )}
 
@@ -534,7 +542,7 @@ export default function Chat() {
                   : 'text-neutral-500 hover:text-amber-400'
               }`}
             >
-              <Users size={14} /> Sala Coaches
+              <Users size={14} /> {text.coaches}
             </button>
           )}
 
@@ -546,7 +554,7 @@ export default function Chat() {
                 : 'text-neutral-500 hover:text-white'
             }`}
           >
-            <MessageSquare size={14} /> 1-a-1 Directo
+            <MessageSquare size={14} /> {text.direct}
           </button>
         </div>
       </div>
@@ -555,7 +563,7 @@ export default function Chat() {
         {activeTab === 'PRIVATE' && (
           <div className="w-full md:w-72 bg-[#111] border border-neutral-800 rounded-3xl p-4 shrink-0 overflow-y-auto max-h-48 md:max-h-full">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-3 pb-2 border-b border-neutral-800">
-              Directorio
+              {text.directory}
             </h3>
 
             <div className="space-y-1.5">
@@ -593,7 +601,7 @@ export default function Chat() {
               <div className="h-full flex flex-col items-center justify-center text-neutral-600 opacity-60">
                 <Globe size={44} className="mb-2" />
                 <p className="text-xs font-mono uppercase tracking-widest">
-                  Canal en silencio
+                  {text.quiet}
                 </p>
               </div>
             ) : (
@@ -628,7 +636,7 @@ export default function Chat() {
                           <button
                             onClick={() => handleDeleteMessage(msg.id)}
                             className="text-neutral-500 hover:text-red-500"
-                            title="Eliminar Mensaje"
+                            title={text.deleteTitle}
                           >
                             <Trash2 size={12} />
                           </button>
@@ -638,7 +646,7 @@ export default function Chat() {
                               handleBanUser(msg.sender_id, msg.sender_name)
                             }
                             className="text-neutral-500 hover:text-red-500"
-                            title="Bloquear Usuario"
+                            title={text.banTitle}
                           >
                             <Ban size={12} />
                           </button>
@@ -674,7 +682,7 @@ export default function Chat() {
             <div className="p-4 bg-red-900/20 border-t border-red-900/50 text-center flex items-center justify-center gap-2">
               <AlertTriangle className="text-red-500" size={16} />
               <p className="text-xs font-black uppercase tracking-widest text-red-500">
-                Has sido bloqueado de la red de comunicaciones.
+                {text.banned}
               </p>
             </div>
           ) : (
@@ -688,10 +696,10 @@ export default function Chat() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder={
                   !realtimeReady
-                    ? 'Conectando canal seguro...'
+                    ? text.connecting
                     : activeTab === 'PRIVATE'
-                      ? 'Enviar mensaje directo...'
-                      : 'Publicar mensaje...'
+                      ? text.directPlaceholder
+                      : text.publish
                 }
                 maxLength={2000}
                 className="flex-1 bg-[#161616] border border-neutral-800 rounded-2xl px-4 text-xs font-mono text-white outline-none focus:border-neutral-600 transition-colors"
