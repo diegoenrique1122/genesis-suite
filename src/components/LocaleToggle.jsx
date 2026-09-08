@@ -26,7 +26,7 @@ export default function LocaleToggle({ className = '', compact = false }) {
           disabled={saving}
           aria-pressed={locale === option}
           aria-label={`${t('language')}: ${option.toUpperCase()}`}
-          className={`min-h-[40px] min-w-[56px] rounded-lg px-3 py-2 text-[11px] font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${locale === option ? 'bg-amber-500 text-black shadow-sm' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'} disabled:cursor-wait disabled:opacity-60`}
+          className={`${compact ? 'min-h-[32px] min-w-[48px] px-2.5 py-1.5 text-[10px]' : 'min-h-[40px] min-w-[56px] px-3 py-2 text-[11px]'} rounded-lg font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${locale === option ? 'bg-amber-500 text-black shadow-sm' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'} disabled:cursor-wait disabled:opacity-60`}
         >
           {option}
         </button>
