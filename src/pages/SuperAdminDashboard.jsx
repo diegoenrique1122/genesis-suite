@@ -164,37 +164,55 @@ export default function SuperAdminDashboard() {
   };
 
   const handleNotificationOpen = (notification) => {
-    if (notification?.type !== 'ADMIN_REQUEST') return;
+    if (notification?.type === 'ADMIN_REQUEST') {
+      const requestId =
+        notification.resource_type === 'ADMIN_REQUEST' &&
+        typeof notification.resource_id === 'string'
+          ? notification.resource_id
+          : null;
 
-    const requestId =
-      notification.resource_type === 'ADMIN_REQUEST' &&
-      typeof notification.resource_id === 'string'
+      setActiveTab('DASHBOARD');
+      setHighlightedRequestId(requestId);
+
+      window.setTimeout(() => {
+        document
+          .getElementById(
+            requestId
+              ? `genesis-admin-request-${requestId}`
+              : 'genesis-admin-request-queue'
+          )
+          ?.scrollIntoView({
+            behavior: 'smooth',
+            block: requestId ? 'center' : 'start',
+          });
+      }, 80);
+
+      if (requestId) {
+        window.setTimeout(() => {
+          setHighlightedRequestId((current) =>
+            current === requestId ? null : current
+          );
+        }, 3600);
+      }
+
+      return;
+    }
+
+    const athleteId =
+      notification?.type === 'NEW_ATHLETE' &&
+      notification.resource_type === 'ATHLETE' &&
+      typeof notification.resource_id === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        notification.resource_id
+      )
         ? notification.resource_id
         : null;
 
-    setActiveTab('DASHBOARD');
-    setHighlightedRequestId(requestId);
+    if (!athleteId) return;
 
-    window.setTimeout(() => {
-      document
-        .getElementById(
-          requestId
-            ? `genesis-admin-request-${requestId}`
-            : 'genesis-admin-request-queue'
-        )
-        ?.scrollIntoView({
-          behavior: 'smooth',
-          block: requestId ? 'center' : 'start',
-        });
-    }, 80);
-
-    if (requestId) {
-      window.setTimeout(() => {
-        setHighlightedRequestId((current) =>
-          current === requestId ? null : current
-        );
-      }, 3600);
-    }
+    navigate(
+      `/coach/client/${encodeURIComponent(athleteId)}`
+    );
   };
 
   const handleApproveCoach = async (coach) => {
