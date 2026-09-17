@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Genesis OS",
+  "short_name": "Genesis",
+  "description": "Genesis OS coaching platform",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

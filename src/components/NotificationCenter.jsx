@@ -2,6 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Bell, BellRing, CheckCheck, Circle, Inbox, Radio, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useLocale } from '../contexts/LocaleContext';
+import {
+  disableGenesisPush,
+  enableGenesisPush,
+  getGenesisPushStatus,
+} from '../services/pushNotifications';
 
 const formatNotificationDate = (value, locale) => {
   if (!value) return '';
@@ -76,6 +81,16 @@ export default function NotificationCenter({
   const [systemActivity, setSystemActivity] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [activeView, setActiveView] = useState('INBOX');
+
+  const [pushStatus, setPushStatus] = useState({
+    supported: false,
+    permission: 'default',
+    subscribed: false,
+    vapidConfigured: false,
+  });
+
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState(null);
 
   const readCount = useMemo(
     () => inbox.filter((notification) => notification.read).length,
@@ -168,6 +183,203 @@ export default function NotificationCenter({
     };
   }, [currentUserId, showSystemActivity]);
 
+  const loadPushStatus = async () => {
+    try {
+      const status =
+        await getGenesisPushStatus();
+
+      setPushStatus(status);
+    } catch (error) {
+      console.error(
+        'Genesis push status error:',
+        error
+      );
+
+      setPushStatus({
+        supported: false,
+        permission: 'unsupported',
+        subscribed: false,
+        vapidConfigured: false,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setPushStatus({
+        supported: false,
+        permission: 'default',
+        subscribed: false,
+        vapidConfigured: false,
+      });
+
+      setPushMessage(null);
+
+      return;
+    }
+
+    loadPushStatus();
+  }, [currentUserId]);
+
+  const getPushFailureMessage = (code) => {
+    const messages = {
+      PUSH_UNSUPPORTED: copy(
+        'Este navegador o dispositivo no admite Web Push.',
+        'This browser or device does not support Web Push.'
+      ),
+      VAPID_PUBLIC_KEY_NOT_CONFIGURED: copy(
+        'Push todavía no está configurado para este entorno.',
+        'Push is not configured for this environment yet.'
+      ),
+      PERMISSION_DENIED: copy(
+        'Las notificaciones están bloqueadas en el navegador. Puedes habilitarlas desde los permisos del sitio.',
+        'Notifications are blocked in the browser. You can enable them from the site permissions.'
+      ),
+      PERMISSION_NOT_GRANTED: copy(
+        'No se concedió permiso para las notificaciones.',
+        'Notification permission was not granted.'
+      ),
+      ACCOUNT_NOT_ACTIVE: copy(
+        'Tu cuenta debe estar activa para registrar este dispositivo.',
+        'Your account must be active to register this device.'
+      ),
+      SUBSCRIPTION_OWNERSHIP_CONFLICT: copy(
+        'Este navegador tiene una suscripción Push vinculada a otra identidad Genesis.',
+        'This browser has a Push subscription linked to another Genesis identity.'
+      ),
+      PUSH_UNREGISTER_FAILED: copy(
+        'Genesis no pudo desregistrar este dispositivo.',
+        'Genesis could not unregister this device.'
+      ),
+      PUSH_UNREGISTER_DENIED: copy(
+        'Genesis rechazó la solicitud de desregistro Push.',
+        'Genesis rejected the Push unregister request.'
+      ),
+      BROWSER_UNSUBSCRIBE_FAILED: copy(
+        'El navegador no pudo eliminar completamente la suscripción Push.',
+        'The browser could not fully remove the Push subscription.'
+      ),
+      PUSH_REGISTRATION_FAILED: copy(
+        'Genesis no pudo registrar este dispositivo para Push.',
+        'Genesis could not register this device for Push.'
+      ),
+    };
+
+    return (
+      messages[code] ||
+      copy(
+        'No fue posible cambiar la configuración Push.',
+        'The Push setting could not be changed.'
+      )
+    );
+  };
+
+  const handlePushToggle = async () => {
+    if (
+      pushBusy ||
+      !currentUserId
+    ) {
+      return;
+    }
+
+    setPushBusy(true);
+    setPushMessage(null);
+
+    try {
+      const result =
+        pushStatus.subscribed
+          ? await disableGenesisPush()
+          : await enableGenesisPush();
+
+      if (!result?.ok) {
+        setPushMessage(
+          getPushFailureMessage(
+            result?.code
+          )
+        );
+
+        await loadPushStatus();
+
+        return;
+      }
+
+      await loadPushStatus();
+
+      setPushMessage(
+        pushStatus.subscribed
+          ? copy(
+              'Push fue desactivado para este dispositivo.',
+              'Push was disabled for this device.'
+            )
+          : copy(
+              'Este dispositivo quedó registrado para Push.',
+              'This device is registered for Push.'
+            )
+      );
+    } catch (error) {
+      console.error(
+        'Genesis push toggle error:',
+        error
+      );
+
+      setPushMessage(
+        copy(
+          'Ocurrió un error al actualizar Push.',
+          'An error occurred while updating Push.'
+        )
+      );
+
+      await loadPushStatus();
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const pushStatusText = (() => {
+    if (!pushStatus.supported) {
+      return copy(
+        'Push no disponible en este navegador.',
+        'Push is unavailable in this browser.'
+      );
+    }
+
+    if (!pushStatus.vapidConfigured) {
+      return copy(
+        'Push no está configurado para este entorno.',
+        'Push is not configured for this environment.'
+      );
+    }
+
+    if (pushStatus.permission === 'denied') {
+      return copy(
+        'Bloqueado por los permisos del navegador.',
+        'Blocked by browser permissions.'
+      );
+    }
+
+    if (pushStatus.subscribed) {
+      return copy(
+        'Este dispositivo está registrado.',
+        'This device is registered.'
+      );
+    }
+
+    return copy(
+      'Push está disponible para este dispositivo.',
+      'Push is available for this device.'
+    );
+  })();
+
+  const pushActionDisabled =
+    pushBusy ||
+    !currentUserId ||
+    !pushStatus.supported ||
+    !pushStatus.vapidConfigured ||
+    (
+      pushStatus.permission === 'denied' &&
+      !pushStatus.subscribed
+    );
+
   const openCenter = () => {
     setIsOpen((current) => !current);
 
@@ -223,7 +435,7 @@ export default function NotificationCenter({
 
     const confirmed = window.confirm(
       copy(
-        'Eliminar todas las alertas leídas de tu bandeja?',
+        'Eliminar todas las alertas leÃ­das de tu bandeja?',
         'Remove all read alerts from your inbox?'
       )
     );
@@ -295,6 +507,49 @@ export default function NotificationCenter({
               </button>
             )}
           </div>
+
+          {activeView === 'INBOX' && (
+            <div className={'border-b px-4 py-3 ' + borderClass}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em]">
+                    {copy('Push del dispositivo', 'Device Push')}
+                  </p>
+
+                  <p className="mt-1 text-[9px] font-mono leading-relaxed opacity-60">
+                    {pushStatusText}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePushToggle}
+                  disabled={pushActionDisabled}
+                  className={
+                    'shrink-0 rounded-lg border px-3 py-2 text-[9px] font-black uppercase tracking-wider transition ' +
+                    borderClass +
+                    (
+                      pushActionDisabled
+                        ? ' cursor-not-allowed opacity-35'
+                        : ' hover:bg-black/10'
+                    )
+                  }
+                >
+                  {pushBusy
+                    ? copy('Procesando...', 'Working...')
+                    : pushStatus.subscribed
+                      ? copy('Desactivar', 'Disable')
+                      : copy('Activar', 'Enable')}
+                </button>
+              </div>
+
+              {pushMessage && (
+                <p className={'mt-2 text-[9px] font-mono leading-relaxed ' + accentClass}>
+                  {pushMessage}
+                </p>
+              )}
+            </div>
+          )}
 
           {activeView === 'INBOX' && readCount > 0 && (
             <div className={'border-b px-4 py-2 text-right ' + borderClass}>
