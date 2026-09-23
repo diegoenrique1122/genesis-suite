@@ -435,7 +435,7 @@ export default function NotificationCenter({
 
     const confirmed = window.confirm(
       copy(
-        'Eliminar todas las alertas leÃ­das de tu bandeja?',
+        'Eliminar todas las alertas leídas de tu bandeja?',
         'Remove all read alerts from your inbox?'
       )
     );
