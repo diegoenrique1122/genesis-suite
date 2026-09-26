@@ -2,36 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-body { 
-  background-color: #0a0a0a; 
-  color: white; 
-}
-
-/* LA PRUEBA ROJA */
-
-
-/* Genesis OS visual system: shared typography and layout tokens. */
 :root {
+  color-scheme: dark;
   --genesis-font-body: "Inter", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --genesis-font-display: "Inter", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --genesis-font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --genesis-bg: #0a0a0a;
+  --genesis-surface: #111111;
+  --genesis-surface-raised: #171717;
+  --genesis-border: #262626;
+  --genesis-text: #ffffff;
+  --genesis-muted: #a3a3a3;
+  --genesis-subtle: #737373;
+  --genesis-accent: var(--primary-color, #f59e0b);
+  --genesis-success: #34d399;
+  --genesis-warning: #fbbf24;
+  --genesis-danger: #fb7185;
+  --genesis-info: #60a5fa;
   --genesis-text-xs: 0.6875rem;
   --genesis-text-sm: 0.8125rem;
   --genesis-text-md: 0.9375rem;
   --genesis-title-sm: 1.125rem;
   --genesis-title-md: 1.5rem;
-  --genesis-title-lg: 2rem;
-  --genesis-space-card: 1.5rem;
-  --genesis-radius-panel: 1.5rem;
-  --genesis-radius-control: 0.75rem;
-  --genesis-shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.18);
+  --genesis-title-lg: clamp(1.75rem, 4vw, 2.5rem);
+  --genesis-space-page: clamp(1rem, 3vw, 2rem);
+  --genesis-space-section: clamp(1.25rem, 3vw, 2rem);
+  --genesis-space-card: clamp(1rem, 2.5vw, 1.5rem);
+  --genesis-radius-panel: 1.25rem;
+  --genesis-radius-control: 0.875rem;
+  --genesis-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 40px rgba(0, 0, 0, 0.18);
+  --genesis-shadow-float: 0 24px 70px rgba(0, 0, 0, 0.32);
+  --genesis-content-width: 1180px;
+  --genesis-reading-width: 760px;
+  --genesis-transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--genesis-bg);
   font-family: var(--genesis-font-body);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--genesis-bg);
+  color: var(--genesis-text);
+}
+
+#root {
+  min-height: 100vh;
 }
 
 body,
@@ -40,6 +69,35 @@ input,
 select,
 textarea {
   font-family: var(--genesis-font-body);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+img,
+svg {
+  display: block;
+}
+
+::selection {
+  background: rgba(245, 158, 11, 0.28);
+  background: color-mix(in srgb, var(--genesis-accent) 28%, transparent);
+  color: var(--genesis-text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--genesis-accent);
+  outline-offset: 3px;
 }
 
 .font-sans {
@@ -51,12 +109,23 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.genesis-theme-root {
+  min-height: 100vh;
+  background-color: var(--genesis-bg);
+  color: var(--genesis-text);
+  isolation: isolate;
+}
+
 .genesis-theme-root h1,
 .genesis-theme-root h2,
 .genesis-theme-root h3,
 .genesis-theme-root h4 {
   font-family: var(--genesis-font-display);
   text-wrap: balance;
+}
+
+.genesis-theme-root p {
+  text-wrap: pretty;
 }
 
 .genesis-theme-root button,
@@ -72,12 +141,452 @@ textarea {
 }
 
 .genesis-control {
-  border-radius: var(--genesis-radius-control);
   min-height: 2.75rem;
+  border-radius: var(--genesis-radius-control);
 }
 
 .genesis-kpi-value {
   font-family: var(--genesis-font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+}
+
+.genesis-app-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: clip;
+  background: var(--genesis-bg);
+  color: var(--genesis-text);
+}
+
+.genesis-app-shell__ambient {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: min(32rem, 55vh);
+  pointer-events: none;
+  opacity: 0.16;
+}
+
+.genesis-app-shell__topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--genesis-border);
+  background: rgba(10, 10, 10, 0.88);
+  background: color-mix(in srgb, var(--genesis-bg) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.genesis-app-shell__topbar-inner,
+.genesis-app-shell__main {
+  width: min(100%, var(--genesis-content-width));
+  margin-inline: auto;
+  padding-inline: var(--genesis-space-page);
+}
+
+.genesis-app-shell__topbar-inner {
+  display: flex;
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.genesis-app-shell__brand,
+.genesis-app-shell__actions,
+.genesis-app-shell__title-row,
+.genesis-app-shell__nav {
+  display: flex;
+  align-items: center;
+}
+
+.genesis-app-shell__brand {
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.genesis-app-shell__brand-mark {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--genesis-border);
+  border-radius: 0.75rem;
+  background: var(--genesis-surface);
+  color: var(--genesis-accent);
+}
+
+.genesis-app-shell__brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.genesis-app-shell__brand-copy {
+  min-width: 0;
+}
+
+.genesis-app-shell__brand-name,
+.genesis-app-shell__brand-context {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genesis-app-shell__brand-name {
+  color: var(--genesis-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.genesis-app-shell__brand-context {
+  margin-top: 0.15rem;
+  color: var(--genesis-subtle);
+  font-size: 0.6875rem;
+}
+
+.genesis-app-shell__actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.genesis-app-shell__main {
+  padding-block: clamp(1.5rem, 4vw, 3rem) 5rem;
+}
+
+.genesis-app-shell__intro {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: var(--genesis-space-section);
+}
+
+.genesis-app-shell__eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--genesis-accent);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.genesis-app-shell__title-row {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.genesis-app-shell__title {
+  margin: 0;
+  color: var(--genesis-text);
+  font-size: var(--genesis-title-lg);
+  font-weight: 780;
   letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.genesis-app-shell__description {
+  max-width: var(--genesis-reading-width);
+  margin: 0.75rem 0 0;
+  color: var(--genesis-muted);
+  font-size: var(--genesis-text-md);
+  line-height: 1.65;
+}
+
+.genesis-app-shell__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--genesis-border);
+  border-radius: 999px;
+  background: var(--genesis-surface);
+  color: var(--genesis-muted);
+  font-family: var(--genesis-font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.genesis-app-shell__nav {
+  max-width: 100%;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.3rem;
+  border: 1px solid var(--genesis-border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+  scrollbar-width: none;
+}
+
+.genesis-app-shell__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.genesis-app-shell__nav-item {
+  display: inline-flex;
+  min-height: 2.45rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--genesis-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: background var(--genesis-transition), border-color var(--genesis-transition), color var(--genesis-transition), transform var(--genesis-transition);
+}
+
+.genesis-app-shell__nav-item:hover:not(:disabled) {
+  border-color: var(--genesis-border);
+  background: var(--genesis-surface);
+  color: var(--genesis-text);
+}
+
+.genesis-app-shell__nav-item[aria-current="page"] {
+  border-color: var(--genesis-border);
+  background: var(--genesis-surface-raised);
+  color: var(--genesis-text);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.genesis-app-shell__nav-item:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.genesis-app-shell__nav-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.genesis-stack {
+  display: grid;
+  gap: var(--genesis-space-section);
+}
+
+.genesis-surface-panel {
+  border: 1px solid var(--genesis-border);
+  border-radius: var(--genesis-radius-panel);
+  background: var(--genesis-surface);
+  box-shadow: var(--genesis-shadow-panel);
+}
+
+.genesis-surface-panel[data-tone="quiet"] {
+  background: rgba(255, 255, 255, 0.018);
+  box-shadow: none;
+}
+
+.genesis-surface-panel[data-tone="raised"] {
+  background: var(--genesis-surface-raised);
+  box-shadow: var(--genesis-shadow-float);
+}
+
+.genesis-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.genesis-section-heading__copy {
+  min-width: 0;
+}
+
+.genesis-section-heading__title {
+  margin: 0;
+  color: var(--genesis-text);
+  font-size: var(--genesis-title-sm);
+  font-weight: 760;
+  letter-spacing: -0.025em;
+}
+
+.genesis-section-heading__description {
+  max-width: 46rem;
+  margin: 0.4rem 0 0;
+  color: var(--genesis-muted);
+  font-size: var(--genesis-text-sm);
+  line-height: 1.55;
+}
+
+.genesis-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.genesis-metric {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--genesis-border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.genesis-metric__icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--genesis-accent);
+}
+
+.genesis-metric__copy {
+  min-width: 0;
+}
+
+.genesis-metric__label,
+.genesis-metric__helper,
+.genesis-metric__value {
+  margin: 0;
+}
+
+.genesis-metric__label {
+  color: var(--genesis-subtle);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.genesis-metric__value {
+  margin-top: 0.2rem;
+  color: var(--genesis-text);
+  font-family: var(--genesis-font-mono);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+}
+
+.genesis-metric__helper {
+  margin-top: 0.25rem;
+  overflow: hidden;
+  color: var(--genesis-muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genesis-progress-ring {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.genesis-progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.genesis-progress-ring__track,
+.genesis-progress-ring__value {
+  fill: none;
+  stroke-width: 8;
+}
+
+.genesis-progress-ring__track {
+  stroke: var(--genesis-border);
+}
+
+.genesis-progress-ring__value {
+  stroke: var(--genesis-accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.genesis-progress-ring__label {
+  position: absolute;
+  color: var(--genesis-text);
+  font-family: var(--genesis-font-mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.genesis-empty-state {
+  display: grid;
+  min-height: 12rem;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.genesis-empty-state__icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  place-items: center;
+  border: 1px solid var(--genesis-border);
+  border-radius: 1rem;
+  background: var(--genesis-surface-raised);
+  color: var(--genesis-muted);
+}
+
+.genesis-empty-state__title {
+  margin: 0;
+  color: var(--genesis-text);
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.genesis-empty-state__description {
+  max-width: 28rem;
+  margin: 0.45rem auto 0;
+  color: var(--genesis-muted);
+  font-size: var(--genesis-text-sm);
+  line-height: 1.55;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --genesis-radius-panel: 1rem;
+  }
+
+  .genesis-app-shell__topbar-inner {
+    min-height: 3.75rem;
+  }
+
+  .genesis-app-shell__brand-context {
+    display: none;
+  }
+
+  .genesis-app-shell__main {
+    padding-bottom: 3rem;
+  }
+
+  .genesis-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .genesis-section-heading {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
