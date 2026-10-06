@@ -10,6 +10,11 @@ import {
 import LocaleToggle from '../components/LocaleToggle';
 import { useLocale } from '../contexts/LocaleContext';
 import NotificationCenter from '../components/NotificationCenter';
+import GenesisAppShell from '../components/layout/GenesisAppShell';
+import {
+  GenesisMetric,
+  GenesisSurface,
+} from '../components/ui/GenesisUi';
 
 const formatRosterActivityDate = (dateKey, emptyLabel = 'Sin registro') => {
   if (!dateKey || typeof dateKey !== 'string') return emptyLabel;
@@ -129,69 +134,113 @@ const fetchDashboardData = useCallback(async () => {
   const codeEVO = coachProfile?.invite_code_evolucion || (coachProfile?.coach_code ? `EVO-${coachProfile.coach_code}` : copy('Pendiente Súper Admin', 'Pending Super Admin'));
   const codePRO = coachProfile?.invite_code_elite || (coachProfile?.coach_code ? `PRO-${coachProfile.coach_code}` : copy('Pendiente Súper Admin', 'Pending Super Admin'));
 
+  const coachFirstName =
+    (coachProfile?.full_name || 'Coach').split(' ')[0];
+
+  const navigation = [
+    {
+      id: 'ROSTER',
+      label: copy('Mi Tribu', 'My Roster'),
+      icon: Users,
+      active: activeTab === 'ROSTER',
+      onSelect: () => setActiveTab('ROSTER'),
+    },
+    {
+      id: 'MY_APPS',
+      label: copy('Mis Apps', 'My Apps'),
+      icon: Dumbbell,
+      active: activeTab === 'MY_APPS',
+      onSelect: () => setActiveTab('MY_APPS'),
+    },
+  ];
+
+  const actions = (
+    <>
+      <button
+        type="button"
+        onClick={() => navigate('/coach/settings')}
+        className="genesis-control grid min-h-11 min-w-11 place-items-center text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
+        aria-label={copy('Ajustes', 'Settings')}
+      >
+        <Settings size={18} />
+      </button>
+
+      <NotificationCenter
+        panelClass="bg-[#111] text-white"
+        borderClass="border-neutral-800"
+        accentClass="text-blue-400"
+      />
+
+      <LocaleToggle compact className="hidden sm:inline-flex" />
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="genesis-control grid min-h-11 min-w-11 place-items-center text-neutral-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
+        aria-label={copy('Cerrar sesión', 'Sign out')}
+      >
+        <LogOut size={18} />
+      </button>
+    </>
+  );
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-20 selection:bg-neutral-800 relative" style={{ backgroundColor: theme?.bgColor || "#0a0a0a", color: theme?.textColor || "#ffffff" }}>
-      <div className="absolute top-0 left-0 w-full h-96 opacity-10 pointer-events-none" style={{ background: `linear-gradient(180deg, ${brand} 0%, transparent 100%)` }}></div>
-
-      <nav className="border-b genesis-border genesis-bg backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={20} style={{ color: brand }} />
-            <span className="text-sm font-black uppercase tracking-widest text-white">{copy('Centro de Control', 'Command Center')}</span>
-            <span className="text-[9px] bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded font-mono ml-2">{coachProfile?.b2b_plan}</span>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            
-            {/* PESTAÑAS DE NAVEGACIÓN COACH */}
-            <button onClick={() => setActiveTab('ROSTER')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'ROSTER' ? 'bg-white text-black' : 'text-neutral-500 hover:text-white'}`}>
-              {copy("Mi Tribu", "My Roster")}
-            </button>
-            <button onClick={() => setActiveTab('MY_APPS')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'MY_APPS' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-neutral-500 hover:text-amber-500 border border-transparent hover:border-amber-500/30'}`}>
-              <Dumbbell size={14}/> {copy("Mis Apps", "My Apps")}
-            </button>
-
-            <div className="w-px h-6 bg-neutral-800 mx-2"></div>
-            <button onClick={() => navigate('/coach/settings')} className="text-neutral-500 hover:text-white transition-colors flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest"><Settings size={16} /> {copy("Ajustes", "Settings")}</button>
-            <NotificationCenter
-              panelClass="bg-[#111] text-white"
-              borderClass="border-neutral-800"
-              accentClass="text-blue-400"
-            />
-            <LocaleToggle compact className="hidden sm:inline-flex" />
-            <button onClick={handleLogout} className="text-neutral-500 hover:text-red-500 transition-colors"><LogOut size={16} /></button>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6 relative z-10">
-        
-        {/* ========================================================= */}
+    <GenesisAppShell
+      brandName="Genesis OS"
+      contextLabel={copy('Centro de Control', 'Command Center')}
+      eyebrow={copy('Portal Coach', 'Coach Portal')}
+      title={`${copy('Hola', 'Hello')}, ${coachFirstName}`}
+      description={copy(
+        'Gestiona atletas, auditorías, comunicación y herramientas desde un solo espacio.',
+        'Manage athletes, reviews, communication, and tools from one workspace.'
+      )}
+      badge={coachProfile?.b2b_plan || copy('Sin plan', 'No plan')}
+      navigation={navigation}
+      actions={actions}
+    >
+{/* ========================================================= */}
         {/* PESTAÑA 1: MI TRIBU (COMMAND CENTER ORIGINAL) */}
         {/* ========================================================= */}
         {activeTab === 'ROSTER' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-              <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 md:col-span-2 flex flex-col justify-center">
-                <h1 className="text-2xl font-black uppercase tracking-tight mb-1">{copy('Hola,', 'Hello,')} {coachProfile?.full_name?.split(' ')[0] || 'Coach'}</h1>
-                <p className="text-xs text-neutral-400 font-mono">
-                  {copy('Prioridad operativa: ', 'Operational priority: ')}
-                  <span className="font-bold text-amber-400">{stats.pending}</span> {copy('auditorías y ', 'reviews and ')}
-                  <span className="font-bold text-neutral-200">{stats.waiting}</span> {copy('atletas esperando activación.', 'athletes waiting for activation.')}
+            <div className="grid gap-4 md:grid-cols-5">
+              <GenesisSurface className="p-6 md:col-span-2">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-neutral-500">
+                  {copy('Prioridad operativa', 'Operational priority')}
                 </p>
-              </div>
-              <div className="grid grid-cols-3 gap-4 md:col-span-3">
-                <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
-                  <span className="genesis-kpi-value text-3xl font-black font-mono text-white">{stats.total}</span>
-                  <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">{copy("Roster", "Roster")}</span>
-                </div>
-                <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
-                  <span className="genesis-kpi-value text-3xl font-black font-mono text-white">{stats.active}</span>
-                  <span className="text-[9px] uppercase font-black tracking-widest text-neutral-500 mt-1">{copy("Activos", "Active")}</span>
-                </div>
-                <div className="genesis-bg border genesis-border genesis-panel rounded-3xl p-5 text-center flex flex-col justify-center">
-                  <span className="genesis-kpi-value text-3xl font-black font-mono text-amber-500">{stats.pending}</span>
-                  <span className="text-[9px] uppercase font-black tracking-widest text-amber-500/70 mt-1">{copy("Auditorías", "Reviews")}</span>
-                </div>
+                <h2 className="mt-2 text-xl font-black tracking-tight text-white">
+                  {stats.pending}{' '}
+                  {copy('auditorías pendientes', 'pending reviews')}
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+                  {stats.waiting}{' '}
+                  {copy(
+                    'atletas esperan activación.',
+                    'athletes are waiting for activation.'
+                  )}
+                </p>
+              </GenesisSurface>
+
+              <div className="grid grid-cols-3 gap-3 md:col-span-3">
+                <GenesisMetric
+                  label={copy('Roster', 'Roster')}
+                  value={stats.total}
+                  icon={Users}
+                  accent={brand}
+                />
+
+                <GenesisMetric
+                  label={copy('Activos', 'Active')}
+                  value={stats.active}
+                  icon={ShieldCheck}
+                  accent={brand}
+                />
+
+                <GenesisMetric
+                  label={copy('Auditorías', 'Reviews')}
+                  value={stats.pending}
+                  icon={Activity}
+                  accent="#f59e0b"
+                />
               </div>
             </div>
 
@@ -372,8 +421,6 @@ const fetchDashboardData = useCallback(async () => {
           </div>
         )}
 
-      </main>
-
       {/* MODAL CÓDIGOS (Se mantiene intacto) */}
       {showAcquisitionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 genesis-bg/80 backdrop-blur-sm animate-in fade-in">
@@ -400,6 +447,6 @@ const fetchDashboardData = useCallback(async () => {
           </div>
         </div>
       )}
-    </div>
+    </GenesisAppShell>
   );
 }
