@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
   Users, Activity, Loader2, ArrowRight, ShieldCheck, 
   Settings, UserPlus, LogOut, MessageSquare, Globe, Copy, Check, X, Lock,
-  Dumbbell, Utensils, Droplets, LayoutDashboard
+  Dumbbell, Utensils, Droplets
 } from 'lucide-react';
 import LocaleToggle from '../components/LocaleToggle';
 import { useLocale } from '../contexts/LocaleContext';
@@ -37,10 +37,7 @@ export default function CoachDashboard() {
 
   const [showAcquisitionModal, setShowAcquisitionModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
-
-  useEffect(() => { fetchDashboardData(); }, []);
-
-  const fetchDashboardData = async () => {
+const fetchDashboardData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return navigate('/');
@@ -96,7 +93,20 @@ export default function CoachDashboard() {
         ).length,
       });
     } catch (err) { console.error("Error:", err); } finally { setLoading(false); }
-  };
+    }, [navigate]);
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        void fetchDashboardData();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchDashboardData]);
 
   const handleCopy = (code) => {
     if (!code || code === 'N/A') return;
