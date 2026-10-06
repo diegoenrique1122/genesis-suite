@@ -12,7 +12,9 @@ import { useLocale } from '../contexts/LocaleContext';
 import NotificationCenter from '../components/NotificationCenter';
 import GenesisAppShell from '../components/layout/GenesisAppShell';
 import {
+  GenesisEmptyState,
   GenesisMetric,
+  GenesisSectionHeading,
   GenesisSurface,
 } from '../components/ui/GenesisUi';
 
@@ -244,39 +246,121 @@ const fetchDashboardData = useCallback(async () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button onClick={() => navigate('/chat')} className="genesis-surface border genesis-border hover:border-neutral-600 genesis-panel rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <GenesisSurface
+                as="button"
+                type="button"
+                onClick={() => navigate('/chat')}
+                className="group flex w-full items-center justify-between gap-4 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-neutral-600"
+                style={{ '--genesis-accent': brand }}
+              >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center genesis-bg border genesis-border group-hover:scale-110 transition-transform">{isElite ? <Globe size={20} style={{ color: brand }} /> : <MessageSquare size={20} style={{ color: brand }} />}</div>
-                  <div className="text-left">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-white">{copy("Red de Comunicaciones", "Communications")}</h2>
-                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5">{isElite ? copy('Muro Global, Sala Coaches y Chat 1-a-1', 'Global Wall, Coaches Room, and 1:1 Chat') : copy('Chat Directo 1-a-1 con Atletas', 'Direct 1:1 Chat with Athletes')}</p>
+                  <div
+                    className="genesis-metric__icon"
+                    aria-hidden="true"
+                  >
+                    {isElite ? (
+                      <Globe size={20} />
+                    ) : (
+                      <MessageSquare size={20} />
+                    )}
                   </div>
-                </div>
-                <ArrowRight size={18} className="text-neutral-600 group-hover:text-white transition-colors" />
-              </button>
 
-              <button onClick={() => setShowAcquisitionModal(true)} className="genesis-surface border genesis-border hover:border-neutral-600 genesis-panel rounded-3xl p-5 flex items-center justify-between group transition-all shadow-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center genesis-bg border genesis-border group-hover:scale-110 transition-transform"><UserPlus size={20} className="text-neutral-400" /></div>
-                  <div className="text-left">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-white">{copy("Adquisición de Clientes", "Client Acquisition")}</h2>
-                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5">{copy("Gestiona tus códigos de invitación B2C", "Manage your B2C invitation codes")}</p>
+                  <div>
+                    <h2 className="text-sm font-bold text-white">
+                      {copy(
+                        'Red de Comunicaciones',
+                        'Communications'
+                      )}
+                    </h2>
+
+                    <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                      {isElite
+                        ? copy(
+                            'Muro Global, Sala Coaches y Chat 1-a-1',
+                            'Global Wall, Coaches Room, and 1:1 Chat'
+                          )
+                        : copy(
+                            'Chat Directo 1-a-1 con Atletas',
+                            'Direct 1:1 Chat with Athletes'
+                          )}
+                    </p>
                   </div>
                 </div>
-                <ArrowRight size={18} className="text-neutral-600 group-hover:text-white transition-colors" />
-              </button>
+
+                <ArrowRight
+                  size={18}
+                  className="shrink-0 text-neutral-600 transition-colors group-hover:text-white"
+                  aria-hidden="true"
+                />
+              </GenesisSurface>
+
+              <GenesisSurface
+                as="button"
+                type="button"
+                onClick={() => setShowAcquisitionModal(true)}
+                className="group flex w-full items-center justify-between gap-4 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-neutral-600"
+                style={{ '--genesis-accent': brand }}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className="genesis-metric__icon"
+                    aria-hidden="true"
+                  >
+                    <UserPlus size={20} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-sm font-bold text-white">
+                      {copy(
+                        'Adquisición de Clientes',
+                        'Client Acquisition'
+                      )}
+                    </h2>
+
+                    <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                      {copy(
+                        'Gestiona tus códigos de invitación B2C',
+                        'Manage your B2C invitation codes'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <ArrowRight
+                  size={18}
+                  className="shrink-0 text-neutral-600 transition-colors group-hover:text-white"
+                  aria-hidden="true"
+                />
+              </GenesisSurface>
             </div>
+            <GenesisSurface className="p-6">
+              <GenesisSectionHeading
+                title={copy(
+                  'Radar Global de Atletas',
+                  'Global Athlete Radar'
+                )}
+                description={copy(
+                  'Supervisa actividad, cumplimiento y estado operativo de tu roster.',
+                  'Monitor activity, compliance, and operational status across your roster.'
+                )}
+              />
 
-            <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center justify-between border-b genesis-border pb-4 mb-4">
-                <h2 className="text-xs font-black uppercase tracking-widest text-neutral-400 flex items-center gap-2"><Activity size={16} style={{ color: brand }} /> {copy("Radar Global de Atletas", "Global Athlete Radar")}</h2>
-              </div>
-              {roster.length === 0 ? (
-                <div className="text-center py-12"><Users size={40} className="text-neutral-700 mx-auto mb-3" /><p className="text-xs font-mono text-neutral-500">{copy("Aún no tienes atletas asignados.", "You have no athletes assigned yet.")}</p></div>
-              ) : (
-                <div className="space-y-3">
-                  {roster.map((athlete) => (
+              <div className="mt-5">
+                {roster.length === 0 ? (
+                  <GenesisEmptyState
+                    icon={Users}
+                    title={copy(
+                      'Aún no tienes atletas asignados.',
+                      'You have no athletes assigned yet.'
+                    )}
+                    description={copy(
+                      'Cuando un atleta se vincule contigo aparecerá aquí con su actividad y estado.',
+                      'When an athlete is linked to you, their activity and status will appear here.'
+                    )}
+                  />
+                ) : (
+                  <div className="space-y-3">                  {roster.map((athlete) => (
                     <button
                       key={athlete.id}
                       onClick={() => navigate(`/coach/client/${athlete.id}`)}
@@ -377,10 +461,10 @@ const fetchDashboardData = useCallback(async () => {
                   ))}
                 </div>
               )}
-            </div>
+              </div>
+            </GenesisSurface>
           </div>
         )}
-
         {/* ========================================================= */}
         {/* PESTAÑA 2: MIS APPS (USO PERSONAL DEL COACH) */}
         {/* ========================================================= */}
