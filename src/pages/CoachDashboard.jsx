@@ -470,41 +470,174 @@ const fetchDashboardData = useCallback(async () => {
         {/* ========================================================= */}
         {activeTab === 'MY_APPS' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="genesis-surface border border-amber-500/30 genesis-panel rounded-3xl p-8 relative overflow-hidden shadow-[0_0_30px_rgba(245,158,11,0.1)]">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-              <h2 className="text-2xl font-black uppercase tracking-tight text-white mb-2 flex items-center gap-2">
-                <Dumbbell className="text-amber-500" /> Mi Ecosistema Personal
-              </h2>
-              <p className="text-xs text-neutral-400 font-mono mb-8 max-w-2xl">
-                {copy('Como Entrenador Élite, tienes acceso total e inmersivo a todas las aplicaciones B2C de Genesis OS para llevar tu propio progreso al más alto nivel.', 'As an Elite Coach, you have full immersive access to all Genesis OS B2C applications to take your own progress to the next level.')}
-              </p>
+            <GenesisSurface
+              className="relative overflow-hidden p-6 sm:p-8"
+              style={{ '--genesis-accent': brand }}
+            >
+              <div
+                className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl"
+                aria-hidden="true"
+              />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button onClick={() => navigate('/client/arquitecto')} className="genesis-bg border genesis-border hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Utensils size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("El Arquitecto", "The Architect")}</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Laboratorio de macros, dieta y suplementación personal.", "Personal macros, nutrition, and supplement lab.")}</p>
-                </button>
-                <button onClick={() => navigate('/client/entrenamiento')} className="genesis-bg border genesis-border hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Dumbbell size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Trainer Pro</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Tu rutina biomecánica adaptativa y registros de peso.", "Adaptive biomechanics routine and weight logs.")}</p>
-                </button>
-                <button onClick={() => navigate('/client/disciplina')} className="genesis-bg border genesis-border hover:border-amber-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors"><Activity size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Monitoreo de Disciplina", "Discipline Monitoring")}</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Subida de check-ins diarios, fotos y métricas de sueño.", "Daily check-ins, photos, and sleep metrics.")}</p>
-                </button>
-                <button onClick={() => navigate('/client/hormonal')} className="genesis-bg border genesis-border hover:border-pink-500/50 rounded-2xl p-6 text-left group transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-neutral-900 border genesis-border flex items-center justify-center mb-4 group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors"><Droplets size={24}/></div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">{copy("Sync Hormonal (Opcional)", "Hormonal Sync (Optional)")}</h3>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-2">{copy("Acceso a la modulación de ciclo (Solo atletas femeninas).", "Cycle modulation access (female athletes only).")}</p>
-                </button>
+              <div className="relative">
+                <GenesisSectionHeading
+                  title={copy(
+                    'Mi Ecosistema Personal',
+                    'My Personal Ecosystem'
+                  )}
+                  description={copy(
+                    'Como Entrenador Élite, tienes acceso total e inmersivo a todas las aplicaciones B2C de Genesis OS para llevar tu propio progreso al más alto nivel.',
+                    'As an Elite Coach, you have full immersive access to all Genesis OS B2C applications to take your own progress to the next level.'
+                  )}
+                />
+
+                <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <GenesisSurface
+                    as="button"
+                    type="button"
+                    onClick={() => navigate('/client/arquitecto')}
+                    className="group flex w-full items-start gap-4 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/50"
+                    style={{ '--genesis-accent': brand }}
+                  >
+                    <div
+                      className="genesis-metric__icon shrink-0"
+                      aria-hidden="true"
+                    >
+                      <Utensils size={20} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-bold text-white">
+                        {copy('El Arquitecto', 'The Architect')}
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                        {copy(
+                          'Laboratorio de macros, dieta y suplementación personal.',
+                          'Personal macros, nutrition, and supplement lab.'
+                        )}
+                      </p>
+                    </div>
+
+                    <ArrowRight
+                      size={17}
+                      className="mt-1 shrink-0 text-neutral-600 transition-colors group-hover:text-white"
+                      aria-hidden="true"
+                    />
+                  </GenesisSurface>
+
+                  <GenesisSurface
+                    as="button"
+                    type="button"
+                    onClick={() => navigate('/client/entrenamiento')}
+                    className="group flex w-full items-start gap-4 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/50"
+                    style={{ '--genesis-accent': brand }}
+                  >
+                    <div
+                      className="genesis-metric__icon shrink-0"
+                      aria-hidden="true"
+                    >
+                      <Dumbbell size={20} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-bold text-white">
+                        Trainer Pro
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                        {copy(
+                          'Tu rutina biomecánica adaptativa y registros de peso.',
+                          'Adaptive biomechanics routine and weight logs.'
+                        )}
+                      </p>
+                    </div>
+
+                    <ArrowRight
+                      size={17}
+                      className="mt-1 shrink-0 text-neutral-600 transition-colors group-hover:text-white"
+                      aria-hidden="true"
+                    />
+                  </GenesisSurface>
+
+                  <GenesisSurface
+                    as="button"
+                    type="button"
+                    onClick={() => navigate('/client/disciplina')}
+                    className="group flex w-full items-start gap-4 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/50"
+                    style={{ '--genesis-accent': brand }}
+                  >
+                    <div
+                      className="genesis-metric__icon shrink-0"
+                      aria-hidden="true"
+                    >
+                      <Activity size={20} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-bold text-white">
+                        {copy(
+                          'Monitoreo de Disciplina',
+                          'Discipline Monitoring'
+                        )}
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                        {copy(
+                          'Subida de check-ins diarios, fotos y métricas de sueño.',
+                          'Daily check-ins, photos, and sleep metrics.'
+                        )}
+                      </p>
+                    </div>
+
+                    <ArrowRight
+                      size={17}
+                      className="mt-1 shrink-0 text-neutral-600 transition-colors group-hover:text-white"
+                      aria-hidden="true"
+                    />
+                  </GenesisSurface>
+
+                  <GenesisSurface
+                    as="button"
+                    type="button"
+                    onClick={() => navigate('/client/hormonal')}
+                    className="group flex w-full items-start gap-4 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-pink-500/50"
+                    style={{ '--genesis-accent': brand }}
+                  >
+                    <div
+                      className="genesis-metric__icon shrink-0"
+                      aria-hidden="true"
+                    >
+                      <Droplets size={20} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-bold text-white">
+                        {copy(
+                          'Sync Hormonal (Opcional)',
+                          'Hormonal Sync (Optional)'
+                        )}
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                        {copy(
+                          'Acceso a la modulación de ciclo (Solo atletas femeninas).',
+                          'Cycle modulation access (female athletes only).'
+                        )}
+                      </p>
+                    </div>
+
+                    <ArrowRight
+                      size={17}
+                      className="mt-1 shrink-0 text-neutral-600 transition-colors group-hover:text-white"
+                      aria-hidden="true"
+                    />
+                  </GenesisSurface>
+                </div>
               </div>
-            </div>
+            </GenesisSurface>
           </div>
         )}
-
       {/* MODAL CÓDIGOS (Se mantiene intacto) */}
       {showAcquisitionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 genesis-bg/80 backdrop-blur-sm animate-in fade-in">
