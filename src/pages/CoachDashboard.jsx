@@ -640,28 +640,211 @@ const fetchDashboardData = useCallback(async () => {
         )}
       {/* MODAL CÓDIGOS (Se mantiene intacto) */}
       {showAcquisitionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 genesis-bg/80 backdrop-blur-sm animate-in fade-in">
-          <div className="genesis-surface border genesis-border genesis-panel rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
-            <button onClick={() => setShowAcquisitionModal(false)} className="absolute top-5 right-5 text-neutral-500 hover:text-white transition-colors"><X size={20} /></button>
-            <h2 className="text-lg font-black uppercase text-white mb-1 flex items-center gap-2"><UserPlus className="text-amber-500" size={20} /> {copy("Adquisición B2C", "B2C Acquisition")}</h2>
-            <p className="text-[11px] text-neutral-400 font-mono mb-6 leading-relaxed">{copy("Comparte estos códigos únicos con tus clientes. Al ingresarlos en su registro, se vincularán a tu Roster.", "Share these unique codes with your clients. When entered during registration, they will be linked to your roster.")}</p>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between genesis-bg border genesis-border p-4 rounded-2xl group hover:border-neutral-600 transition-colors">
-                <div><p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-1">{copy("Plan Ignición (Básico)", "Ignition Plan (Basic)")}</p><p className="font-mono text-white font-bold text-sm">{codeIGN}</p></div>
-                <button onClick={() => handleCopy(codeIGN)} disabled={codeIGN.includes('Pendiente')} className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-neutral-400 hover:text-white transition-colors disabled:opacity-50">{copiedCode === codeIGN ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in"
+          role="presentation"
+        >
+          <GenesisSurface
+            className="relative w-full max-w-md overflow-hidden p-6 shadow-2xl"
+            style={{ '--genesis-accent': brand }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coach-acquisition-title"
+          >
+            <button
+              type="button"
+              onClick={() => setShowAcquisitionModal(false)}
+              className="absolute right-5 top-5 z-20 flex h-9 w-9 items-center justify-center rounded-xl border genesis-border bg-neutral-950/80 text-neutral-500 transition-colors hover:text-white"
+              aria-label={copy(
+                'Cerrar adquisición de clientes',
+                'Close client acquisition'
+              )}
+            >
+              <X size={18} />
+            </button>
+
+            <div
+              className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl"
+              aria-hidden="true"
+            />
+
+            <div className="relative">
+              <div className="mb-6 pr-12">
+                <div className="mb-3 flex items-center gap-3">
+                  <div
+                    className="genesis-metric__icon"
+                    aria-hidden="true"
+                  >
+                    <UserPlus size={20} />
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">
+                      Genesis B2C
+                    </p>
+
+                    <h2
+                      id="coach-acquisition-title"
+                      className="mt-1 text-lg font-bold text-white"
+                    >
+                      {copy(
+                        'Adquisición B2C',
+                        'B2C Acquisition'
+                      )}
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="text-xs leading-relaxed text-neutral-400">
+                  {copy(
+                    'Comparte estos códigos únicos contus clientes. Al ingresarlos en su registro, se vincularán a tu Roster.',
+                    'Share these unique codes with your clients. When entered during registration, they will be linked to your roster.'
+                  )}
+                </p>
               </div>
-              <div className="flex items-center justify-between genesis-bg border genesis-border p-4 rounded-2xl group hover:border-blue-500/50 transition-colors relative overflow-hidden">
-                {!canSellEvo && <div className="absolute inset-0 genesis-bg/70 backdrop-blur-[1px] flex items-center justify-center z-10"><Lock size={16} className="text-neutral-500 mr-2"/><span className="text-[9px] uppercase font-black text-neutral-500">{copy("Plan No Autorizado", "Plan Not Authorized")}</span></div>}
-                <div><p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-1">{copy("Plan Evolución (Pro)", "Evolution Plan (Pro)")}</p><p className="font-mono text-white font-bold text-sm">{codeEVO}</p></div>
-                <button onClick={() => handleCopy(codeEVO)} disabled={codeEVO.includes('Pendiente')} className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-neutral-400 hover:text-blue-500 transition-colors disabled:opacity-50">{copiedCode === codeEVO ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
-              </div>
-              <div className="flex items-center justify-between genesis-bg border genesis-border p-4 rounded-2xl group hover:border-amber-500/50 transition-colors relative overflow-hidden">
-                {!canSellElite && <div className="absolute inset-0 genesis-bg/70 backdrop-blur-[1px] flex items-center justify-center z-10"><Lock size={16} className="text-neutral-500 mr-2"/><span className="text-[9px] uppercase font-black text-neutral-500">{copy("Plan No Autorizado", "Plan Not Authorized")}</span></div>}
-                <div><p className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-1 flex items-center gap-1"><ShieldCheck size={10}/> {copy("Plan Élite 360°", "Elite 360° Plan")}</p><p className="font-mono text-amber-400 font-bold text-sm">{codePRO}</p></div>
-                <button onClick={() => handleCopy(codePRO)} disabled={codePRO.includes('Pendiente')} className="w-10 h-10 bg-neutral-900 rounded-xl flex items-center justify-center text-neutral-400 hover:text-amber-500 transition-colors disabled:opacity-50">{copiedCode === codePRO ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border genesis-border bg-neutral-950/70 p-4 transition-colors hover:border-neutral-600">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500">
+                      {copy(
+                        'Plan Ignición (Básico)',
+                        'Ignition Plan (Basic)'
+                      )}
+                    </p>
+
+                    <p className="mt-1 truncate font-mono text-sm font-bold text-white">
+                      {codeIGN}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(codeIGN)}
+                    disabled={codeIGN.includes('Pendiente')}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border genesis-border bg-neutral-900 text-neutral-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={copy(
+                      'Copiar código Ignición',
+                      'Copy Ignition code'
+                    )}
+                  >
+                    {copiedCode === codeIGN ? (
+                      <Check
+                        size={16}
+                        className="text-green-500"
+                      />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
+                </div>
+
+                <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl border genesis-border bg-neutral-950/70 p-4 transition-colors hover:border-blue-500/50">
+                  {!canSellEvo && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-950/80 backdrop-blur-[1px]">
+                      <Lock
+                        size={16}
+                        className="mr-2 text-neutral-500"
+                      />
+
+                      <span className="text-[9px] font-black uppercase tracking-widest text-neutral-500">
+                        {copy(
+                          'Plan No Autorizado',
+                          'Plan Not Authorized'
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">
+                      {copy(
+                        'Plan Evolución (Pro)',
+                        'Evolution Plan (Pro)'
+                      )}
+                    </p>
+
+                    <p className="mt-1 truncate font-mono text-sm font-bold text-white">
+                      {codeEVO}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(codeEVO)}
+                    disabled={codeEVO.includes('Pendiente')}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border genesis-border bg-neutral-900 text-neutral-400 transition-colors hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={copy(
+                      'Copiar código Evolución',
+                      'Copy Evolution code'
+                    )}
+                  >
+                    {copiedCode === codeEVO ? (
+                      <Check
+                        size={16}
+                        className="text-green-500"
+                      />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
+                </div>
+
+                <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl border genesis-border bg-neutral-950/70 p-4 transition-colors hover:border-amber-500/50">
+                  {!canSellElite && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-950/80 backdrop-blur-[1px]">
+                      <Lock
+                        size={16}
+                        className="mr-2 text-neutral-500"
+                      />
+
+                      <span className="text-[9px] font-black uppercase tracking-widest text-neutral-500">
+                        {copy(
+                          'Plan No Autorizado',
+                          'Plan Not Authorized'
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-500">
+                      <ShieldCheck size={10} />
+
+                      {copy(
+                        'Plan Élite 360°',
+                        'Elite 360° Plan'
+                      )}
+                    </p>
+
+                    <p className="mt-1 truncate font-mono text-sm font-bold text-amber-400">
+                      {codePRO}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(codePRO)}
+                    disabled={codePRO.includes('Pendiente')}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border genesis-border bg-neutral-900 text-neutral-400 transition-colors hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={copy(
+                      'Copiar código Élite',
+                      'Copy Elite code'
+                    )}
+                  >
+                    {copiedCode === codePRO ? (
+                      <Check
+                        size={16}
+                        className="text-green-500"
+                      />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </GenesisSurface>
         </div>
       )}
     </GenesisAppShell>
