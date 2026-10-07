@@ -1,11 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
-import { 
-  ArrowLeft, Dumbbell, Building2, Home, CheckCircle2, 
-  Loader2, Calendar, ShieldCheck, Clock, PlayCircle, 
-  BrainCircuit, AlertCircle, Send, MessageSquareQuote
+import {
+  ArrowLeft,
+  Dumbbell,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  Clock,
+  AlertCircle,
+  Send,
+  MessageSquareQuote
 } from 'lucide-react';
 
 export default function AppTrainerPro() {
@@ -21,32 +27,60 @@ export default function AppTrainerPro() {
   const [routineStatus, setRoutineStatus] = useState('NEW');
 
   useEffect(() => {
-    fetchAthleteData();
-  }, []);
+    let isActive = true;
 
-  const fetchAthleteData = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return navigate('/');
+    const loadAthleteData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
 
-      const { data, error } = await supabase
-        .from('athletes_profile')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
+        if (!session) {
+          navigate('/');
+          return;
+        }
 
-      if (error) throw error;
-      
-      setAthlete(data);
-      if (data.training_location?.toLowerCase().includes('casa')) setEnvironment('HOME');
-      if (data.routine_status) setRoutineStatus(data.routine_status);
+        const { data, error } = await supabase
+          .from('athletes_profile')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
 
-    } catch (error) {
-      console.error("Error cargando Trainer Pro:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (error) throw error;
+        if (!isActive) return;
+
+        setAthlete(data);
+
+        if (
+          data.training_location
+            ?.toLowerCase()
+            .includes('casa')
+        ) {
+          setEnvironment('HOME');
+        }
+
+        if (data.routine_status) {
+          setRoutineStatus(data.routine_status);
+        }
+
+      } catch (error) {
+        if (isActive) {
+          console.error(
+            'Error cargando Trainer Pro:',
+            error
+          );
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadAthleteData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [navigate]);
 
   const isElite = athlete?.b2c_plan?.toUpperCase() === 'ELITE';
 
