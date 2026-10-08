@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import {
+  completeTrainingSession
+} from '../services/trainingExecutionService';
+import {
   ArrowLeft,
   Dumbbell,
   CheckCircle2,
@@ -20,6 +23,7 @@ export default function AppTrainerPro() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [completingTraining, setCompletingTraining] = useState(false);
   const [athlete, setAthlete] = useState(null);
   
   const [environment, setEnvironment] = useState('GYM');
@@ -144,6 +148,47 @@ export default function AppTrainerPro() {
     }
   };
 
+  const handleCompleteDay = async () => {
+    const routineDay = activeDay;
+
+    try {
+      setCompletingTraining(true);
+
+      const timeZone =
+        Intl.DateTimeFormat()
+          .resolvedOptions()
+          .timeZone;
+
+      const result =
+        await completeTrainingSession({
+          routineDay,
+          timeZone
+        });
+
+      if (result.already_completed) {
+        alert(
+          `✅ El Día ${routineDay} ya estaba registrado en tu historial.`
+        );
+        return;
+      }
+
+      alert(
+        `✅ Día ${routineDay} completado y guardado en tu historial.`
+      );
+    } catch (error) {
+      console.error(
+        'Genesis Trainer Pro completion:',
+        error
+      );
+
+      alert(
+        `❌ ${error?.message || 'No fue posible registrar el entrenamiento.'}`
+      );
+    } finally {
+      setCompletingTraining(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="animate-spin" color={theme.brandColor} size={40} /></div>;
 
   return (
@@ -256,8 +301,8 @@ export default function AppTrainerPro() {
           <button 
             className="w-full mt-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all hover:brightness-110 shadow-[0_0_20px_rgba(0,0,0,0.3)] disabled:opacity-50 text-white"
             style={{ backgroundColor: theme.brandColor }}
-            disabled={routineStatus !== 'APPROVED'}
-            onClick={() => alert('Entrenamiento completado y guardado en tu historial.')}
+            disabled={routineStatus !== 'APPROVED' || completingTraining}
+            onClick={handleCompleteDay}
           >
             {routineStatus === 'APPROVED' ? (
                <><CheckCircle2 size={16} /> Completar Día {activeDay}</>
