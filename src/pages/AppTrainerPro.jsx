@@ -6,6 +6,9 @@ import {
   completeTrainingSession
 } from '../services/trainingExecutionService';
 import {
+  generateWeeklyRoutine
+} from '../utils/TrainerProEngine';
+import {
   ArrowLeft,
   Dumbbell,
   CheckCircle2,
@@ -88,41 +91,10 @@ export default function AppTrainerPro() {
 
   const isElite = athlete?.b2c_plan?.toUpperCase() === 'ELITE';
 
-  // Motor de Arquitectura Biomecánica Base
-  const generateWeeklyRoutine = () => {
-    const isHome = environment === 'HOME';
-    const DB = {
-      Pecho: { gym: ['Press de Banca', 'Press Inclinado', 'Aperturas', 'Crossover'], home: ['Push-ups Clásicas', 'Push-ups Declinadas', 'Aperturas Bandas', 'Push-ups Diamante'] },
-      Hombros: { gym: ['Press Militar', 'Elevaciones Laterales', 'Face Pull'], home: ['Pike Push-ups', 'Elevaciones Laterales', 'Band Pull-aparts'] },
-      Espalda: { gym: ['Jalón al Pecho', 'Remo c/ Barra', 'Pullover', 'Remo Mancuerna'], home: ['Dominadas', 'Remo Banda', 'Superman', 'Remo Mochila'] },
-      Bíceps: { gym: ['Curl c/ Barra Z', 'Curl Martillo', 'Curl Scott'], home: ['Curl Isométrico Toalla', 'Curl Alternado Peso', 'Curl Banda'] },
-      Cuádriceps: { gym: ['Sentadilla Libre', 'Prensa', 'Sentadilla Hack', 'Extensiones'], home: ['Sentadilla Búlgara', 'Sentadilla Goblet', 'Pistol Squats', 'Sissy Squat'] },
-      Pantorrillas: { gym: ['Elevación Pie', 'Elevación Sentado', 'Elevación Unilateral'], home: ['Elevación Escalón', 'Elevación Isométrica', 'Saltos'] },
-      Isquiosurales: { gym: ['Peso Muerto Rumano', 'Curl Acostado', 'Curl Sentado', 'Buenos Días'], home: ['Curl Deslizante', 'Peso Muerto a 1 Pierna', 'Puente de Glúteo', 'Nordic Curl'] },
-      Glúteos: { gym: ['Hip Thrust Pesado', 'Abducción Máquina', 'Patada Polea'], home: ['Hip Thrust a 1 Pierna', 'Abducción Banda', 'Frog Pumps'] }
-    };
-
-    const buildExercise = (name, muscle, isLarge) => ({
-      name, muscle, type: isLarge ? 'Grupo Grande' : 'Grupo Pequeño', sets: isLarge ? 4 : 3, reps: isLarge ? '8-10' : '12-15', rir: isElite ? '1' : '2', restSets: isLarge ? '120s' : '90s',
-      technique: 'Tensión Mecánica', execution: 'Ejecución controlada.'
-    });
-
-    const buildDay = (dayNum, title, largeM, smallM) => ({
-      day: dayNum, title, focus: `${largeM} + ${smallM}`,
-      exercises: [...DB[largeM][isHome?'home':'gym'].map(n => buildExercise(n, largeM, true)), ...DB[smallM][isHome?'home':'gym'].map(n => buildExercise(n, smallM, false))]
-    });
-
-    return [
-      buildDay(1, 'Empuje Frontal (Push A)', 'Pecho', 'Hombros'), buildDay(2, 'Tracción Dorsal (Pull A)', 'Espalda', 'Bíceps'),
-      buildDay(3, 'Cadena Anterior (Legs A)', 'Cuádriceps', 'Pantorrillas'), buildDay(4, 'Empuje Superior (Push B)', 'Hombros', 'Pecho'),
-      buildDay(5, 'Cadena Posterior (Legs B)', 'Isquiosurales', 'Glúteos'), buildDay(6, 'Tracción + Core (Pull B)', 'Espalda', 'Bíceps')
-    ];
-  };
-
   // 🔑 CRÍTICO: Si el status NO es NEW, leemos de la Base de Datos.
   const displayRoutine = (routineStatus !== 'NEW' && athlete?.training_plan) 
     ? athlete.training_plan 
-    : generateWeeklyRoutine();
+    : generateWeeklyRoutine({ environment, isElite });
 
   const currentDayRoutine = displayRoutine.find(d => d.day === activeDay) || displayRoutine[0];
 
