@@ -32,6 +32,8 @@ export default function AppTrainerPro() {
   const [environment, setEnvironment] = useState('GYM');
   const [activeDay, setActiveDay] = useState(1);
   const [routineStatus, setRoutineStatus] = useState('NEW');
+  const [weightUnit, setWeightUnit] = useState('LB');
+  const [executionData, setExecutionData] = useState({});
 
   useEffect(() => {
     let isActive = true;
@@ -98,6 +100,184 @@ export default function AppTrainerPro() {
 
   const currentDayRoutine = displayRoutine.find(d => d.day === activeDay) || displayRoutine[0];
 
+  const executionKey = (
+    routineDay,
+    exerciseIndex,
+    setNumber
+  ) =>
+    `${routineDay}:${exerciseIndex}:${setNumber}`;
+
+  const handleExecutionFieldChange = ({
+    routineDay,
+    exerciseIndex,
+    setNumber,
+    field,
+    value
+  }) => {
+    const key =
+      executionKey(
+        routineDay,
+        exerciseIndex,
+        setNumber
+      );
+
+    setExecutionData((current) => ({
+      ...current,
+
+      [key]: {
+        ...(current[key] || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const buildPerformanceData = ({
+    routineDay,
+    routine
+  }) => {
+    const exercises = [];
+
+    routine.exercises.forEach(
+      (exercise, exerciseIndex) => {
+        const completedSets = [];
+
+        const prescribedSets =
+          Number.parseInt(
+            exercise.sets,
+            10
+          );
+
+        for (
+          let setNumber = 1;
+          setNumber <= prescribedSets;
+          setNumber += 1
+        ) {
+          const key =
+            executionKey(
+              routineDay,
+              exerciseIndex,
+              setNumber
+            );
+
+          const setData =
+            executionData[key] || {};
+
+          const rawWeight =
+            setData.weight?.trim?.() || '';
+
+          const rawReps =
+            setData.reps?.trim?.() || '';
+
+          const rawRir =
+            setData.rir?.trim?.() || '';
+
+          const hasAnyValue =
+            rawWeight !== '' ||
+            rawReps !== '' ||
+            rawRir !== '';
+
+          if (!hasAnyValue) {
+            continue;
+          }
+
+          if (rawReps === '') {
+            throw new Error(
+              `Completa las repeticiones de ${exercise.name}, serie ${setNumber}.`
+            );
+          }
+
+          const reps =
+            Number(rawReps);
+
+          const weight =
+            rawWeight === ''
+              ? null
+              : Number(rawWeight);
+
+          const rir =
+            rawRir === ''
+              ? null
+              : Number(rawRir);
+
+          if (
+            !Number.isInteger(reps) ||
+            reps < 0 ||
+            reps > 1000
+          ) {
+            throw new Error(
+              `Las repeticiones de ${exercise.name}, serie ${setNumber}, no son válidas.`
+            );
+          }
+
+          if (
+            weight !== null &&
+            (
+              !Number.isFinite(weight) ||
+              weight < 0 ||
+              weight > 5000
+            )
+          ) {
+            throw new Error(
+              `El peso de ${exercise.name}, serie ${setNumber}, no es válido.`
+            );
+          }
+
+          if (
+            rir !== null &&
+            (
+              !Number.isFinite(rir) ||
+              rir < 0 ||
+              rir > 10
+            )
+          ) {
+            throw new Error(
+              `El RIR de ${exercise.name}, serie ${setNumber}, debe estar entre 0 y 10.`
+            );
+          }
+
+          const completedSet = {
+            set_number: setNumber,
+            reps
+          };
+
+          if (weight !== null) {
+            completedSet.weight =
+              weight;
+          }
+
+          if (rir !== null) {
+            completedSet.rir =
+              rir;
+          }
+
+          completedSets.push(
+            completedSet
+          );
+        }
+
+        if (completedSets.length > 0) {
+          exercises.push({
+            exercise_index:
+              exerciseIndex,
+
+            sets:
+              completedSets
+          });
+        }
+      }
+    );
+
+    if (exercises.length === 0) {
+      return {};
+    }
+
+    return {
+      schema_version: 1,
+      weight_unit: weightUnit,
+      exercises
+    };
+  };
+
   const handleSendToCoach = async () => {
     try {
       setSaving(true);
@@ -131,10 +311,17 @@ export default function AppTrainerPro() {
           .resolvedOptions()
           .timeZone;
 
+      const performanceData =
+        buildPerformanceData({
+          routineDay,
+          routine: currentDayRoutine
+        });
+
       const result =
         await completeTrainingSession({
           routineDay,
-          timeZone
+          timeZone,
+          performanceData
         });
 
       if (result.already_completed) {
@@ -245,8 +432,37 @@ export default function AppTrainerPro() {
         {/* RUTINA DEL DIA */}
         <div className={`space-y-4 animate-in fade-in ${routineStatus === 'NEW' ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="border-b border-neutral-800 pb-3">
-            <h3 className="text-lg font-black uppercase text-white">{currentDayRoutine.title}</h3>
-            <p className="text-[10px] text-neutral-500 font-mono mt-1">{currentDayRoutine.exercises.length} Ejercicios Asignados</p>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black uppercase text-white">{currentDayRoutine.title}</h3>
+                <p className="text-[10px] text-neutral-500 font-mono mt-1">{currentDayRoutine.exercises.length} Ejercicios Asignados</p>
+              </div>
+
+              {routineStatus === 'APPROVED' && (
+                <div className="shrink-0">
+                  <span className="text-[7px] font-black uppercase tracking-widest text-neutral-600 block mb-1 text-center">
+                    Peso
+                  </span>
+
+                  <div className="flex rounded-xl overflow-hidden border border-neutral-800 bg-black">
+                    {['LB', 'KG'].map((unit) => (
+                      <button
+                        key={unit}
+                        type="button"
+                        onClick={() => setWeightUnit(unit)}
+                        className={`px-3 py-2 text-[9px] font-black transition-colors ${
+                          weightUnit === unit
+                            ? 'text-white bg-neutral-800'
+                            : 'text-neutral-600'
+                        }`}
+                      >
+                        {unit}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -266,6 +482,128 @@ export default function AppTrainerPro() {
                   <div className="bg-black rounded-xl p-2 text-center border border-neutral-800/50"><span className="text-neutral-500 font-black uppercase text-[7px] block mb-1">RIR</span><span className="text-white font-bold">{exe.rir}</span></div>
                   <div className="bg-black rounded-xl p-2 text-center border border-neutral-800/50"><span className="text-neutral-500 font-black uppercase text-[7px] block mb-1">Desc.</span><span className="text-white font-bold">{exe.restSets}</span></div>
                 </div>
+
+                {routineStatus === 'APPROVED' && (
+                  <div className="border-t border-neutral-800 pt-4 space-y-2">
+                    <div className="grid grid-cols-[36px_1fr_1fr_1fr] gap-2 px-1">
+                      <span className="text-[7px] font-black uppercase text-neutral-600 text-center">
+                        Set
+                      </span>
+
+                      <span className="text-[7px] font-black uppercase text-neutral-600 text-center">
+                        Peso {weightUnit}
+                      </span>
+
+                      <span className="text-[7px] font-black uppercase text-neutral-600 text-center">
+                        Reps
+                      </span>
+
+                      <span className="text-[7px] font-black uppercase text-neutral-600 text-center">
+                        RIR
+                      </span>
+                    </div>
+
+                    {Array.from(
+                      {
+                        length:
+                          Number.parseInt(
+                            exe.sets,
+                            10
+                          )
+                      },
+                      (_, setIndex) => {
+                        const setNumber =
+                          setIndex + 1;
+
+                        const key =
+                          executionKey(
+                            activeDay,
+                            index,
+                            setNumber
+                          );
+
+                        const setData =
+                          executionData[key] || {};
+
+                        return (
+                          <div
+                            key={setNumber}
+                            className="grid grid-cols-[36px_1fr_1fr_1fr] gap-2 items-center"
+                          >
+                            <div className="h-10 rounded-xl bg-black border border-neutral-800 flex items-center justify-center">
+                              <span className="text-[10px] font-black text-neutral-500">
+                                {setNumber}
+                              </span>
+                            </div>
+
+                            <input
+                              type="number"
+                              min="0"
+                              max="5000"
+                              step="0.5"
+                              inputMode="decimal"
+                              aria-label={`${exe.name} serie ${setNumber} peso`}
+                              value={setData.weight || ''}
+                              onChange={(event) =>
+                                handleExecutionFieldChange({
+                                  routineDay: activeDay,
+                                  exerciseIndex: index,
+                                  setNumber,
+                                  field: 'weight',
+                                  value: event.target.value
+                                })
+                              }
+                              placeholder="—"
+                              className="w-full h-10 min-w-0 rounded-xl bg-black border border-neutral-800 px-2 text-center text-[11px] font-bold font-mono text-white outline-none focus:border-neutral-600"
+                            />
+
+                            <input
+                              type="number"
+                              min="0"
+                              max="1000"
+                              step="1"
+                              inputMode="numeric"
+                              aria-label={`${exe.name} serie ${setNumber} repeticiones`}
+                              value={setData.reps || ''}
+                              onChange={(event) =>
+                                handleExecutionFieldChange({
+                                  routineDay: activeDay,
+                                  exerciseIndex: index,
+                                  setNumber,
+                                  field: 'reps',
+                                  value: event.target.value
+                                })
+                              }
+                              placeholder="—"
+                              className="w-full h-10 min-w-0 rounded-xl bg-black border border-neutral-800 px-2 text-center text-[11px] font-bold font-mono text-white outline-none focus:border-neutral-600"
+                            />
+
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              step="0.5"
+                              inputMode="decimal"
+                              aria-label={`${exe.name} serie ${setNumber} RIR`}
+                              value={setData.rir || ''}
+                              onChange={(event) =>
+                                handleExecutionFieldChange({
+                                  routineDay: activeDay,
+                                  exerciseIndex: index,
+                                  setNumber,
+                                  field: 'rir',
+                                  value: event.target.value
+                                })
+                              }
+                              placeholder="—"
+                              className="w-full h-10 min-w-0 rounded-xl bg-black border border-neutral-800 px-2 text-center text-[11px] font-bold font-mono text-white outline-none focus:border-neutral-600"
+                            />
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
