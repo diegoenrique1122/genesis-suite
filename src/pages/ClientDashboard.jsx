@@ -239,6 +239,9 @@ export default function ClientDashboard() {
         : null;
 
       setProgramEndsAt(programData?.ends_at || null);
+      setIsActive(false);
+      setProgramExpired(false);
+      setCurrentWeek(0);
 
       if (programStart && programEnd) {
         const totalWeeks = Math.max(
@@ -273,17 +276,7 @@ export default function ClientDashboard() {
         return;
       }
 
-      if (athleteData.program_start_date) {
-        const startDate = new Date(athleteData.program_start_date);
-        const elapsedDays = Math.max(
-          0,
-          Math.floor((now.getTime() - startDate.getTime()) / 86400000)
-        );
 
-        setIsActive(true);
-        setProgramExpired(false);
-        setCurrentWeek(Math.max(1, Math.floor(elapsedDays / 7) + 1));
-      }
     } catch (error) {
       console.error('Genesis athlete dashboard:', error);
     } finally {

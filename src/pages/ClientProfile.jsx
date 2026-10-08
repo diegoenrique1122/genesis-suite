@@ -290,8 +290,8 @@ export default function ClientProfile() {
       setEditProtein(initialTotals.protein); setEditCarbs(initialTotals.carbs); setEditFats(initialTotals.fats); setEditCalories(initialTotals.calories);
 
       // CÁLCULO DEL DÍA ACTUAL
-      if (profileData.program_start_date) {
-        const start = new Date(profileData.program_start_date); start.setHours(0,0,0,0);
+      if (programData?.starts_at) {
+        const start = new Date(programData.starts_at); start.setHours(0,0,0,0);
         const diffDays = Math.floor((new Date().setHours(0,0,0,0) - start) / (1000 * 60 * 60 * 24));
         if (diffDays >= 0) { setCalculatedCurrentDay((diffDays % 6) + 1); setActiveDayCoach((diffDays % 6) + 1); }
       }
@@ -446,7 +446,6 @@ export default function ClientProfile() {
       setAthlete({
         ...athlete,
         b2c_plan: data.package_tier,
-        program_start_date: data.starts_at,
         selected_app_single:
           data.service_focus === 'NUTRITION'
             ? 'NUTRITION'
@@ -687,7 +686,7 @@ export default function ClientProfile() {
                 </div>
               </div>
 
-              {!athlete.program_start_date && (
+              {!program && (
                 <div className="bg-[#111] border border-green-900/50 p-6 rounded-3xl relative overflow-hidden">
                   <h2 className="text-xs font-black uppercase text-green-400 mb-4 flex items-center gap-2">
                     <Calendar size={16} /> Configurar programa
@@ -754,7 +753,7 @@ export default function ClientProfile() {
                   </button>
                 </div>
               )}
-              {coachIsElite && !athlete.program_start_date && (
+              {coachIsElite && !program && (
                 <div className="bg-[#111] border border-neutral-800 p-6 rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" style={{ backgroundColor: theme?.brandColor || '#f59e0b' }}></div>
                   <h2 className="text-xs font-black uppercase text-neutral-400 mb-4 flex items-center gap-2 relative z-10"><Target size={16} style={{ color: theme?.brandColor || '#f59e0b' }}/> Gestión de Suscripción VIP</h2>

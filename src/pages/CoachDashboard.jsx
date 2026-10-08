@@ -58,7 +58,7 @@ const fetchDashboardData = useCallback(async () => {
       ] = await Promise.all([
         supabase
           .from('athletes_profile')
-          .select('id, user_id, full_name, b2c_plan, routine_status, program_start_date')
+          .select('id, user_id, full_name, b2c_plan, routine_status')
           .eq('coach_id', coachData.id)
           .order('created_at', { ascending: false }),
 
@@ -67,6 +67,45 @@ const fetchDashboardData = useCallback(async () => {
 
       if (athletesError) throw athletesError;
       if (activityError) throw activityError;
+
+      const athleteIds =
+        (athletesData || []).map((athlete) => athlete.id);
+
+      let programsData = [];
+
+      if (athleteIds.length > 0) {
+        const {
+          data: loadedPrograms,
+          error: programsError,
+        } = await supabase
+          .from('athlete_programs')
+          .select(
+            'athlete_id, status, starts_at, ends_at, created_at'
+          )
+          .eq('coach_id', coachData.id)
+          .in('athlete_id', athleteIds)
+          .in('status', [
+            'SCHEDULED',
+            'ACTIVE',
+            'PAUSED',
+          ])
+          .order('created_at', { ascending: false });
+
+        if (programsError) throw programsError;
+
+        programsData = loadedPrograms || [];
+      }
+
+      const programByAthleteId = new Map();
+
+      programsData.forEach((program) => {
+        if (!programByAthleteId.has(program.athlete_id)) {
+          programByAthleteId.set(
+            program.athlete_id,
+            program
+          );
+        }
+      });
 
       const activityByAthleteId = new Map(
         (activityData || []).map((row) => [
@@ -81,22 +120,28 @@ const fetchDashboardData = useCallback(async () => {
         .map((athlete) => ({
           ...athlete,
           activity: activityByAthleteId.get(athlete.id) || null,
+          program: programByAthleteId.get(athlete.id) || null,
         }));
 
       setRoster(realClients);
+
+      const hasActivatedProgram = (athlete) =>
+        ['SCHEDULED', 'ACTIVE', 'PAUSED'].includes(
+          athlete.program?.status
+        );
 
       setStats({
         total: realClients.length,
         pending: realClients.filter(
           (athlete) =>
-            athlete.program_start_date !== null &&
+            hasActivatedProgram(athlete) &&
             athlete.routine_status === 'PENDING_AUDIT'
         ).length,
         active: realClients.filter(
-          (athlete) => athlete.program_start_date !== null
+          (athlete) => athlete.program?.status === 'ACTIVE'
         ).length,
         waiting: realClients.filter(
-          (athlete) => athlete.program_start_date === null
+          (athlete) => !athlete.program
         ).length,
       });
     } catch (err) { console.error("Error:", err); } finally { setLoading(false); }
@@ -434,9 +479,19 @@ const fetchDashboardData = useCallback(async () => {
                         {/* ESTADO OPERACIONAL */}
                         <div className="flex items-center gap-3 lg:w-44 lg:justify-end shrink-0">
 
-                          {!athlete.program_start_date ? (
+                          {!athlete.program ? (
                             <span className="text-[9px] bg-neutral-800 text-neutral-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
                               {copy("En Sala de Espera", "Waiting Room")}
+                            </span>
+
+                          ) : athlete.program.status === 'SCHEDULED' ? (
+                            <span className="text-[9px] bg-blue-500/10 border border-blue-500/30 text-blue-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                              {copy("Programado", "Scheduled")}
+                            </span>
+
+                          ) : athlete.program.status === 'PAUSED' ? (
+                            <span className="text-[9px] bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                              {copy("Pausado", "Paused")}
                             </span>
 
                           ) : athlete.routine_status === 'PENDING_AUDIT' ? (
