@@ -9,6 +9,10 @@ import {
   generateWeeklyRoutine
 } from '../utils/TrainerProEngine';
 import {
+  buildWorkoutPerformanceData,
+  executionKey
+} from '../utils/workoutPerformanceData';
+import {
   ArrowLeft,
   Dumbbell,
   CheckCircle2,
@@ -100,13 +104,6 @@ export default function AppTrainerPro() {
 
   const currentDayRoutine = displayRoutine.find(d => d.day === activeDay) || displayRoutine[0];
 
-  const executionKey = (
-    routineDay,
-    exerciseIndex,
-    setNumber
-  ) =>
-    `${routineDay}:${exerciseIndex}:${setNumber}`;
-
   const handleExecutionFieldChange = ({
     routineDay,
     exerciseIndex,
@@ -130,154 +127,6 @@ export default function AppTrainerPro() {
       }
     }));
   };
-
-  const buildPerformanceData = ({
-    routineDay,
-    routine
-  }) => {
-    const exercises = [];
-
-    routine.exercises.forEach(
-      (exercise, exerciseIndex) => {
-        const completedSets = [];
-
-        const prescribedSets =
-          Number.parseInt(
-            exercise.sets,
-            10
-          );
-
-        for (
-          let setNumber = 1;
-          setNumber <= prescribedSets;
-          setNumber += 1
-        ) {
-          const key =
-            executionKey(
-              routineDay,
-              exerciseIndex,
-              setNumber
-            );
-
-          const setData =
-            executionData[key] || {};
-
-          const rawWeight =
-            setData.weight?.trim?.() || '';
-
-          const rawReps =
-            setData.reps?.trim?.() || '';
-
-          const rawRir =
-            setData.rir?.trim?.() || '';
-
-          const hasAnyValue =
-            rawWeight !== '' ||
-            rawReps !== '' ||
-            rawRir !== '';
-
-          if (!hasAnyValue) {
-            continue;
-          }
-
-          if (rawReps === '') {
-            throw new Error(
-              `Completa las repeticiones de ${exercise.name}, serie ${setNumber}.`
-            );
-          }
-
-          const reps =
-            Number(rawReps);
-
-          const weight =
-            rawWeight === ''
-              ? null
-              : Number(rawWeight);
-
-          const rir =
-            rawRir === ''
-              ? null
-              : Number(rawRir);
-
-          if (
-            !Number.isInteger(reps) ||
-            reps < 0 ||
-            reps > 1000
-          ) {
-            throw new Error(
-              `Las repeticiones de ${exercise.name}, serie ${setNumber}, no son válidas.`
-            );
-          }
-
-          if (
-            weight !== null &&
-            (
-              !Number.isFinite(weight) ||
-              weight < 0 ||
-              weight > 5000
-            )
-          ) {
-            throw new Error(
-              `El peso de ${exercise.name}, serie ${setNumber}, no es válido.`
-            );
-          }
-
-          if (
-            rir !== null &&
-            (
-              !Number.isFinite(rir) ||
-              rir < 0 ||
-              rir > 10
-            )
-          ) {
-            throw new Error(
-              `El RIR de ${exercise.name}, serie ${setNumber}, debe estar entre 0 y 10.`
-            );
-          }
-
-          const completedSet = {
-            set_number: setNumber,
-            reps
-          };
-
-          if (weight !== null) {
-            completedSet.weight =
-              weight;
-          }
-
-          if (rir !== null) {
-            completedSet.rir =
-              rir;
-          }
-
-          completedSets.push(
-            completedSet
-          );
-        }
-
-        if (completedSets.length > 0) {
-          exercises.push({
-            exercise_index:
-              exerciseIndex,
-
-            sets:
-              completedSets
-          });
-        }
-      }
-    );
-
-    if (exercises.length === 0) {
-      return {};
-    }
-
-    return {
-      schema_version: 1,
-      weight_unit: weightUnit,
-      exercises
-    };
-  };
-
   const handleSendToCoach = async () => {
     try {
       setSaving(true);
@@ -312,9 +161,11 @@ export default function AppTrainerPro() {
           .timeZone;
 
       const performanceData =
-        buildPerformanceData({
+        buildWorkoutPerformanceData({
           routineDay,
-          routine: currentDayRoutine
+          routine: currentDayRoutine,
+          executionData,
+          weightUnit
         });
 
       const result =
