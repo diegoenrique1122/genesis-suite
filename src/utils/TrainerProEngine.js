@@ -413,3 +413,204 @@ export const getFunctionalEquivalent = (
       'Mantener ejercicio original o usar peso corporal.'
   };
 };
+const HISTORY_WEIGHT_UNITS = Object.freeze([
+  'KG',
+  'LB'
+]);
+
+const toFiniteNumber = value => {
+  if (
+    typeof value !== 'number' &&
+    (
+      typeof value !== 'string' ||
+      value.trim() === ''
+    )
+  ) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : null;
+};
+
+const normalizeHistoryWeightUnit = weightUnit => {
+  if (typeof weightUnit !== 'string') {
+    return null;
+  }
+
+  const normalized = weightUnit
+    .trim()
+    .toUpperCase();
+
+  return HISTORY_WEIGHT_UNITS.includes(normalized)
+    ? normalized
+    : null;
+};
+
+const compareHistorySessions = (left, right) => {
+  const leftTime = Date.parse(left?.completed_at || '');
+  const rightTime = Date.parse(right?.completed_at || '');
+
+  const safeLeftTime = Number.isFinite(leftTime)
+    ? leftTime
+    : 0;
+
+  const safeRightTime = Number.isFinite(rightTime)
+    ? rightTime
+    : 0;
+
+  if (safeRightTime !== safeLeftTime) {
+    return safeRightTime - safeLeftTime;
+  }
+
+  return String(right?.id || '')
+    .localeCompare(String(left?.id || ''));
+};
+
+const findLatestLoggedSet = ({
+  targetExercise,
+  routineDay,
+  session,
+  weightUnit
+}) => {
+  if (
+    !session ||
+    session.routine_day !== routineDay ||
+    !Array.isArray(session?.workout_snapshot?.exercises) ||
+    !Array.isArray(session?.performance_data?.exercises) ||
+    normalizeHistoryWeightUnit(
+      session?.performance_data?.weight_unit
+    ) !== weightUnit
+  ) {
+    return null;
+  }
+
+  for (const loggedExercise of session.performance_data.exercises) {
+    const exerciseIndex = toFiniteNumber(loggedExercise?.exercise_index);
+
+    const snapshotExercise =
+      session.workout_snapshot.exercises[exerciseIndex];
+
+    if (
+      !snapshotExercise ||
+      normalizeExerciseName(
+        loggedExercise?.exercise_name
+      ) !== targetExercise ||
+      normalizeExerciseName(
+        snapshotExercise?.name
+      ) !== targetExercise ||
+      !Array.isArray(loggedExercise?.sets)
+    ) {
+      continue;
+    }
+
+    const validSets = loggedExercise.sets
+      .map(set => ({
+        setNumber: toFiniteNumber(set?.set_number),
+        weight: toFiniteNumber(set?.weight),
+        reps: toFiniteNumber(set?.reps),
+        rir: toFiniteNumber(set?.rir)
+      }))
+      .filter(set =>
+        Number.isInteger(set.setNumber) &&
+        set.setNumber >= 1 &&
+        set.weight !== null &&
+        set.weight > 0 &&
+        set.reps !== null &&
+        set.reps >= 0 &&
+        set.rir !== null &&
+        set.rir >= 0
+      )
+      .sort((left, right) =>
+        right.setNumber - left.setNumber
+      );
+
+    if (validSets.length > 0) {
+      return validSets[0];
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Builds read-only progressive-overload recommendations from
+ * compatible historical performance records.
+ *
+ * The returned recommendations never change an approved routine.
+ * A coach or future presentation layer decides whether to apply them.
+ */
+export const buildHistoricalProgressionRecommendations = ({
+  routineDay,
+  exercises,
+  history,
+  weightUnit
+}) => {
+  const normalizedWeightUnit =
+    normalizeHistoryWeightUnit(weightUnit);
+
+  if (
+    !Number.isInteger(routineDay) ||
+    routineDay < 1 ||
+    !Array.isArray(exercises) ||
+    !Array.isArray(history) ||
+    !normalizedWeightUnit
+  ) {
+    return [];
+  }
+
+  const sortedHistory = [...history]
+    .sort(compareHistorySessions);
+
+  return exercises.flatMap(exercise => {
+    const targetExercise =
+      normalizeExerciseName(exercise?.name);
+
+    const targetRIR =
+      toFiniteNumber(exercise?.rir);
+
+    if (!targetExercise || targetRIR === null) {
+      return [];
+    }
+
+    for (const session of sortedHistory) {
+      const loggedSet = findLatestLoggedSet({
+        targetExercise,
+        routineDay,
+        session,
+        weightUnit: normalizedWeightUnit
+      });
+
+      if (!loggedSet) {
+        continue;
+      }
+
+      const recommendation =
+        calculateProgressiveOverload(
+          targetExercise,
+          loggedSet.weight,
+          loggedSet.reps,
+          loggedSet.rir,
+          targetRIR
+        );
+
+      return [{
+        ...recommendation,
+        routineDay,
+        weightUnit: normalizedWeightUnit,
+        sourceSessionId: session.id,
+        sourceCompletedAt: session.completed_at,
+        sourceSetNumber: loggedSet.setNumber,
+        actualWeight: loggedSet.weight,
+        actualReps: loggedSet.reps,
+        actualRIR: loggedSet.rir,
+        targetRIR
+      }];
+    }
+
+    return [];
+  });
+};

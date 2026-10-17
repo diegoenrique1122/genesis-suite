@@ -6,6 +6,10 @@ import {
   completeTrainingSession
 } from '../services/trainingExecutionService';
 import {
+  listTrainingHistory
+} from '../services/trainingHistoryService';
+import {
+  buildHistoricalProgressionRecommendations,
   generateWeeklyRoutine
 } from '../utils/TrainerProEngine';
 import {
@@ -38,6 +42,10 @@ export default function AppTrainerPro() {
   const [routineStatus, setRoutineStatus] = useState('NEW');
   const [weightUnit, setWeightUnit] = useState('LB');
   const [executionData, setExecutionData] = useState({});
+  const [trainingHistory, setTrainingHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  const [historyRevision, setHistoryRevision] = useState(0);
 
   useEffect(() => {
     let isActive = true;
@@ -95,6 +103,56 @@ export default function AppTrainerPro() {
     };
   }, [navigate]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const athleteId = athlete?.id;
+
+    if (
+      !athleteId ||
+      routineStatus !== 'APPROVED'
+    ) {
+      return undefined;
+    }
+
+    const loadTrainingHistory = async () => {
+      try {
+        setHistoryLoading(true);
+
+        const history =
+          await listTrainingHistory({
+            athleteId,
+            coachId: athlete?.coach_id
+          });
+
+        if (isActive) {
+          setTrainingHistory(history);
+          setHistoryError(false);
+        }
+      } catch (error) {
+        if (isActive) {
+          setTrainingHistory([]);
+          setHistoryError(true);
+        }
+
+        console.error(
+          'Genesis Trainer Pro history:',
+          error
+        );
+      } finally {
+        if (isActive) {
+          setHistoryLoading(false);
+        }
+      }
+    };
+
+    void loadTrainingHistory();
+
+    return () => {
+      isActive = false;
+    };
+  }, [athlete?.id, athlete?.coach_id, routineStatus, historyRevision]);
+
   const isElite = athlete?.b2c_plan?.toUpperCase() === 'ELITE';
 
   // 🔑 CRÍTICO: Si el status NO es NEW, leemos de la Base de Datos.
@@ -103,6 +161,17 @@ export default function AppTrainerPro() {
     : generateWeeklyRoutine({ environment, isElite });
 
   const currentDayRoutine = displayRoutine.find(d => d.day === activeDay) || displayRoutine[0];
+
+  const historicalRecommendations =
+    routineStatus === 'APPROVED' &&
+    currentDayRoutine
+      ? buildHistoricalProgressionRecommendations({
+          routineDay: activeDay,
+          exercises: currentDayRoutine.exercises,
+          history: trainingHistory,
+          weightUnit
+        })
+      : [];
 
   const handleExecutionFieldChange = ({
     routineDay,
@@ -174,6 +243,8 @@ export default function AppTrainerPro() {
           timeZone,
           performanceData
         });
+
+      setHistoryRevision(current => current + 1);
 
       if (result.already_completed) {
         alert(
@@ -315,6 +386,58 @@ export default function AppTrainerPro() {
               )}
             </div>
           </div>
+
+          {routineStatus === 'APPROVED' && (
+            <section className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+              <div className="flex items-center gap-2">
+                <Dumbbell
+                  size={16}
+                  className="text-cyan-400"
+                />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-300">
+                  Referencia de progreso
+                </h3>
+              </div>
+
+              {historyLoading ? (
+                <p className="mt-2 text-[10px] font-mono text-cyan-200/70">
+                  Analizando tus sesiones compatibles...
+                </p>
+              ) : historyError ? (
+                <p className="mt-2 text-[10px] font-mono text-amber-300">
+                  No pudimos consultar tu historial. Intenta abrir esta pantalla nuevamente.
+                </p>
+              ) : historicalRecommendations.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {historicalRecommendations.map(
+                    recommendation => (
+                      <div
+                        key={`${recommendation.exercise}-${recommendation.sourceSessionId}`}
+                        className="rounded-xl border border-cyan-500/10 bg-black/30 p-3"
+                      >
+                        <p className="text-[10px] font-bold text-white">
+                          {recommendation.exercise}: {recommendation.message}
+                        </p>
+                        <p className="mt-1 text-[9px] font-mono text-neutral-500">
+                          Última serie: {recommendation.actualWeight} {recommendation.weightUnit}
+                          {' × '}
+                          {recommendation.actualReps} reps · RIR {recommendation.actualRIR}
+                        </p>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-[10px] font-mono text-neutral-500">
+                  Aún no hay historial compatible para este día y unidad de peso.
+                </p>
+              )}
+
+              <p className="mt-3 text-[9px] font-mono text-cyan-200/60">
+                Referencia informativa: tu rutina aprobada no se modifica automáticamente.
+              </p>
+            </section>
+          )}
 
           <div className="space-y-4">
             {currentDayRoutine.exercises.map((exe, index) => (
