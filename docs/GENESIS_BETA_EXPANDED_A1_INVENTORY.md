@@ -109,3 +109,45 @@ The earlier 22-session estimate does not cover this expanded scope.
 Re-estimate after the schema and implementation-contract audit.
 No destructive migration, account reset or legacy-data deletion is authorized
 by this inventory.
+
+## A1.2 - Remote schema audit
+
+Audit date: 2026-10-24
+Project: kfcprkjhlcimdfcxputm
+Project status confirmed: ACTIVE_HEALTHY
+
+- Repository and remote migration ledgers contain 52 matching versions/names.
+- This comparison does not establish checksum or complete schema equivalence.
+- Inspected operational tables have RLS enabled and authenticated policies.
+- Structural inspection does not replace authenticated isolation tests.
+- No schema or application-data writes were performed during this audit.
+
+### Preservation baseline
+
+Aggregate counts at audit time:
+- Athlete profiles, including operational profiles: 12.
+- Profiles with custom_macros: 6, all stored as JSON objects.
+- Profiles with hormonal_data: 1.
+- Profiles with training_plan: 2.
+- Profiles with nutrition_plan: 0.
+- Athlete programs: 0.
+- Training sessions: 0.
+- Daily logs: 2.
+- Daily metrics: 0.
+
+The prior authenticated session fixtures belonged to the local Docker lab.
+Do not copy test fixtures into the remote environment.
+Activate the real beta athlete's program through the canonical authorized flow.
+
+### Implementation decisions
+
+- Introduce nutrition as an additive, independent domain.
+- Keep nutrition approval separate from routine_status.
+- Link new nutrition plans to the correct athlete and nutrition-capable program.
+- Use versioned plans with meals, targets, effective dates and coach approval.
+- Preserve existing JSON and legacy access during the controlled transition.
+- Never infer actual consumed macros from meal-compliance checkboxes.
+- Women's Performance must reference approved source-plan versions.
+- No automatic legacy approval, consent fabrication or destructive cleanup.
+
+Next implementation: A2.1 - additive nutrition domain foundation.
