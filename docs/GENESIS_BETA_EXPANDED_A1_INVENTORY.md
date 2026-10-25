@@ -156,7 +156,7 @@ Next implementation: A2.1 - additive nutrition domain foundation.
 
 Validation date: 2026-10-24 (America/New_York).
 Migration: 20261024234025_genesis_nutrition_domain_a21.sql.
-Status: locally validated with rollback; remote installation pending.
+Status: installed remotely and structurally audited; authoring/review RPCs pending.
 
 - 61 isolated checks passed on PostgreSQL 17.5 / PGlite 0.3.14.
 - R1 integration test passed on the existing local Supabase PostgreSQL 17.6.
@@ -177,3 +177,28 @@ Existing pre-beta security gates remain:
 - Final negative tests of the intentional program-activation privileged RPC: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
 - Review service-only no-policy tables without granting unnecessary browser access.
 - Existing program FK-index and RLS-initplan findings remain separate maintenance work.
+
+## A2.1 - Remote installation closed
+
+Migration 20261024234025 was installed in project kfcprkjhlcimdfcxputm.
+Post-installation dry-run reports no pending migrations.
+
+Remote audit confirmed:
+- Migration ledger contains 53 entries and the expected nutrition migration.
+- All four nutrition tables exist with RLS enabled.
+- All four policies authorize SELECT for authenticated users only.
+- Browser roles have no direct write privileges.
+- Anonymous users cannot execute the private nutrition functions.
+- Private functions retain an empty search_path.
+- The new nutrition tables contain zero rows.
+- All seven pre-installation legacy row digests match exactly.
+- Security advisors report no new nutrition-related security findings.
+- Previously recorded pre-beta security gates remain pending.
+
+A2.1 foundation is closed.
+Application screens still use their existing data path.
+No legacy import or user-plan activation was performed.
+
+Next: A2.2 - authorized nutrition authoring, submission and coach review.
+Then connect El Arquitecto to the versioned domain before integrating
+Women's Performance agendas.
