@@ -151,3 +151,29 @@ Activate the real beta athlete's program through the canonical authorized flow.
 - No automatic legacy approval, consent fabrication or destructive cleanup.
 
 Next implementation: A2.1 - additive nutrition domain foundation.
+
+## A2.1 - Nutrition foundation validation
+
+Validation date: 2026-10-24 (America/New_York).
+Migration: 20261024234025_genesis_nutrition_domain_a21.sql.
+Status: locally validated with rollback; remote installation pending.
+
+- 61 isolated checks passed on PostgreSQL 17.5 / PGlite 0.3.14.
+- R1 integration test passed on the existing local Supabase PostgreSQL 17.6.
+- Local fixture: 3 users, 2 athlete profiles, 1 program and 1 training session.
+- Owner and second-athlete isolation passed across the nutrition hierarchy.
+- Ignicion approved-only reads and Evolucion/Elite draft reads passed.
+- Browser writes, anonymous access and cross-plan activation were rejected.
+- Approved versions and meal content remained immutable.
+- SQL roles/claims were tested; this is not a REST login test.
+- ROLLBACK removed all new nutrition objects.
+- Legacy row digests, including the original coach plan, remained unchanged.
+- Reproducible local fixture test: tools/local-lab/genesis_a21_nutrition_transaction_test.sql.
+- The test template requires insertion of the reviewed migration at its marker.
+- Authoring/review RPCs and the application cutover are still pending.
+
+Existing pre-beta security gates remain:
+- Leaked-password protection: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+- Final negative tests of the intentional program-activation privileged RPC: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- Review service-only no-policy tables without granting unnecessary browser access.
+- Existing program FK-index and RLS-initplan findings remain separate maintenance work.
