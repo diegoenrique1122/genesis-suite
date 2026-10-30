@@ -202,3 +202,25 @@ No legacy import or user-plan activation was performed.
 Next: A2.2 - authorized nutrition authoring, submission and coach review.
 Then connect El Arquitecto to the versioned domain before integrating
 Women's Performance agendas.
+
+## A2.2B - Nutrition authoring locally validated
+
+Validation date: 2026-10-30.
+Source baseline: 95e554d1b9fa6ee9a6e2890e4e19a612e0b02105.
+Migration: 20261030211351_genesis_nutrition_authoring_a22.sql.
+Status: local integration passed; remote installation pending.
+
+- 73 PASS checks on embedded PostgreSQL 17.5 / PGlite 0.3.14.
+- The same 73 checks passed in the existing local Supabase Docker lab.
+- Coach Evolucion/Elite and Super Admin authoring/review paths passed.
+- Athlete, Ignicion, anonymous and suspended-actor writes were rejected.
+- Assignment, program lifecycle and stale-revision checks passed.
+- Invalid saves rolled back atomically; submitted/reviewed content stayed immutable.
+- Review records the authenticated reviewer, server time and mandatory note.
+- Approval does not select or activate a version.
+- Complete schema rollback and all seven legacy data digests passed.
+- Test: tools/local-lab/genesis_a22_nutrition_authoring_transaction_test.sql.
+- Test template requires both the A2.1 and A2.2 migration insertion markers.
+- REST login and simultaneous multi-connection concurrency tests remain pending.
+- Athlete proposals, activation and application cutover remain pending.
+- Existing pre-beta security gates remain pending.
