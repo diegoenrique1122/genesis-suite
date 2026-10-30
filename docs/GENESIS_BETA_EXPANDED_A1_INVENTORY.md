@@ -208,7 +208,7 @@ Women's Performance agendas.
 Validation date: 2026-10-30.
 Source baseline: 95e554d1b9fa6ee9a6e2890e4e19a612e0b02105.
 Migration: 20261030211351_genesis_nutrition_authoring_a22.sql.
-Status: local integration passed; remote installation pending.
+Status: installed remotely and structurally audited; application integration pending.
 
 - 73 PASS checks on embedded PostgreSQL 17.5 / PGlite 0.3.14.
 - The same 73 checks passed in the existing local Supabase Docker lab.
@@ -224,3 +224,32 @@ Status: local integration passed; remote installation pending.
 - REST login and simultaneous multi-connection concurrency tests remain pending.
 - Athlete proposals, activation and application cutover remain pending.
 - Existing pre-beta security gates remain pending.
+
+## A2.2D - Remote authoring installation audited
+
+Audit date: 2026-10-30.
+Project: kfcprkjhlcimdfcxputm.
+Migration: 20261030211351_genesis_nutrition_authoring_a22.sql.
+Source commit: 28fc3d307a83460e9a60010afb95361be4ebaddd.
+
+Remote structural audit confirmed:
+- Migration ledger contains 54 entries; the latest is the expected A2.2 migration.
+- Three public SECURITY INVOKER RPCs and one private SECURITY DEFINER implementation exist.
+- All four new functions have empty search_path and deny anonymous execution.
+- Authenticated execution is granted; authorization is enforced inside the private implementation.
+- draft_revision is integer, NOT NULL, with default 1.
+- All four nutrition tables retain RLS and authenticated SELECT policies.
+- Browser roles retain no direct table-write privileges.
+- Counts and all eleven table digests match the pre-installation baseline exactly.
+- All four nutrition tables remain empty.
+- Security advisors contain no new nutrition-related findings.
+- Post-installation CLI dry-run reports no pending migrations.
+
+The authoring/review database installation is closed.
+Functional validation remains the 73 checks passed in the local Supabase lab.
+Remote structural checks do not replace REST login or concurrent-session tests.
+No plan was activated, no legacy JSON was imported, and no application screen was switched.
+
+Next: authorized version selection and effective-plan reads, followed by
+Arquitecto integration and authenticated end-to-end validation.
+Athlete proposals and existing pre-beta security gates remain pending.
