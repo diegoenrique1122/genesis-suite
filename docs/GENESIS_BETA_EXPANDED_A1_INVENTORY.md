@@ -259,7 +259,7 @@ Athlete proposals and existing pre-beta security gates remain pending.
 Validation date: 2026-10-30.
 Source baseline: dbb48e1a00a1cd1d618bfb0dfd10d3a1942f5913.
 Migration: 20261031000001_genesis_nutrition_selection_a23.sql.
-Status: embedded and local Supabase integration passed; remote installation pending.
+Status: installed remotely and structurally audited; application integration pending.
 
 - 152 PASS checks on embedded PostgreSQL 17.5 / PGlite 0.3.14.
 - The full transactional suite passed in the existing local Supabase Docker lab.
@@ -275,4 +275,32 @@ Status: embedded and local Supabase integration passed; remote installation pend
 
 Next: A2.3B - guarded remote dry-run and installation review.
 Then connect El Arquitecto to the authorized effective-plan read contract.
+Athlete proposals, legacy import and existing pre-beta security gates remain pending.
+
+## A2.3B - Remote selection and effective-read installation audited
+
+Audit date: 2026-10-31.
+Project: kfcprkjhlcimdfcxputm.
+Migration: 20261031000001_genesis_nutrition_selection_a23.sql.
+Source commit: bd4f9175b64b2c611811239e79a44f8bb258d56d.
+
+Remote structural audit confirmed:
+- Migration ledger contains 55 entries; latest is 20261031000001.
+- Post-installation CLI dry-run reports no pending migrations.
+- selection_revision is integer NOT NULL DEFAULT 0; selected_by and selected_at are present.
+- Both public RPC wrappers are SECURITY INVOKER with empty search_path.
+- Private selection/read functions use SECURITY DEFINER with empty search_path and enforce actor authorization.
+- Anonymous execution is denied; authenticated direct table UPDATE is denied.
+- All four nutrition tables retain RLS and authenticated SELECT policies.
+- All four nutrition tables remain empty.
+- Counts and all eleven table digests exactly match the pre-installation baseline.
+- Security advisors show the same pre-existing findings and no new A2.3 findings.
+
+A2.3 selection and effective-read database installation is closed.
+Local integration passed 152 embedded checks and the full local Supabase transaction suite.
+Remote structural checks do not replace REST login or multi-session concurrency tests.
+No plan was selected remotely and no application screen was switched.
+
+Next: connect El Arquitecto to the authorized effective-plan read contract,
+then run authenticated end-to-end and concurrency validation.
 Athlete proposals, legacy import and existing pre-beta security gates remain pending.
