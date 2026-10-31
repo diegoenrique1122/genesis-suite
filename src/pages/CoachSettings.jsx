@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLocale } from '../contexts/LocaleContext';
+import GenesisTabs from '../components/ui/GenesisTabs';
+import { loadCoachSettings, coachRegistrationLink } from '../services/coachSettingsService';
 import { 
-  ArrowLeft, User, Lock, Shield, Send, Eye, 
+  ArrowLeft, User, Lock, Send, Eye, 
   CheckCircle2, Loader2, Building2, Upload, Palette, AtSign, CreditCard,
-  Users, GitMerge, MessageSquare, Layers, Copy
+  Users, GitMerge, MessageSquare, Layers, Copy, AlertTriangle, RotateCcw
 } from 'lucide-react';
 
 const COACH_THEMES = [
@@ -20,7 +22,7 @@ const COACH_THEMES = [
 
 export default function CoachSettings() {
   const navigate = useNavigate();
-  const { theme, refreshTheme } = useTheme();
+  const { refreshTheme } = useTheme();
   const { locale, setLocale } = useLocale();
   
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ export default function CoachSettings() {
   const [athletes, setAthletes] = useState([]);
   const [referredCoaches, setReferredCoaches] = useState([]);
   
-  const [activeTab, setActiveTab] = useState('BRANDING'); 
+  const [activeTab, setActiveTab] = useState('PREFERENCES'); 
   const [activeTheme, setActiveTheme] = useState(COACH_THEMES[0]);
 
   // Estados Formulario
@@ -44,8 +46,7 @@ export default function CoachSettings() {
   const [watermarkSize, setWatermarkSize] = useState(50);
   const [instagramHandle, setInstagramHandle] = useState('');
   const [logoFile, setLogoFile] = useState(null);
-  const [commMode, setCommMode] = useState('BOTH');
-  const [preferredLocale, setPreferredLocale] = useState('es');
+  const [preferredLocale, setPreferredLocale] = useState(locale || 'es');
   const [coachAdminUnitSystem, setCoachAdminUnitSystem] = useState('METRIC');
   const [preferencesSaving, setPreferencesSaving] = useState(false);
 
@@ -54,78 +55,53 @@ export default function CoachSettings() {
   const [requestedPlan, setRequestedPlan] = useState('ELITE');
   const [requestNote, setRequestNote] = useState('');
   const [sendingReq, setSendingReq] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [notice, setNotice] = useState(null);
+  const [copying, setCopying] = useState(false);
+  const uiLocale = preferredLocale || locale;
+  const copy = (es, en) => (uiLocale === 'en' ? en : es);
+  const busy = saving || preferencesSaving || sendingReq;
+
 
   useEffect(() => {
-    fetchCoachData();
-  }, []);
-
-  const fetchCoachData = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return navigate('/');
-
-      // 1. Datos del Coach
-      const { data, error } = await supabase.from('coaches_profile').select('*').eq('user_id', session.user.id).single();
-      if (error) throw error;
-      
-      setCoach(data);
-      setFullName(data.full_name || '');
-      setThemeId(data.theme_id || 'dark');
-      setWatermarkOpacity(data.watermark_opacity || 15);
-      setWatermarkSize(data.watermark_size || 50);
-      setInstagramHandle(data.instagram_handle || '');
-      setCommMode(data.communication_mode || 'BOTH');
-
-      const t = COACH_THEMES.find(th => th.id === (data.theme_id || 'dark')) || COACH_THEMES[0];
-      setActiveTheme(t);
-
-      // 2. Settings Globales
-      const { data: globals } = await supabase.from('super_admin_settings').select('*').eq('id', 1).maybeSingle();
-      if (globals) setGlobalSettings(globals);
-
-      const { data: preferences, error: preferencesError } = await supabase
-        .from('user_preferences')
-        .select('preferred_locale, preferred_unit_system, coach_admin_unit_system')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      if (preferencesError) throw preferencesError;
-
-      if (preferences) {
-        setPreferredLocale(preferences.preferred_locale || 'es');
-        setCoachAdminUnitSystem(
-          preferences.coach_admin_unit_system ||
-          preferences.preferred_unit_system ||
-          'METRIC'
-        );
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session) { navigate('/'); return; }
+        const result = await loadCoachSettings(supabase, session.user.id);
+        if (cancelled) return;
+        const { coach: data, preferences } = result;
+        setCoach(data);
+        setFullName(data.full_name || '');
+        setThemeId(data.theme_id || 'dark');
+        setWatermarkOpacity(data.watermark_opacity ?? 15);
+        setWatermarkSize(data.watermark_size ?? 50);
+        setInstagramHandle(data.instagram_handle || '');
+        setActiveTheme(COACH_THEMES.find(th => th.id === data.theme_id) || COACH_THEMES[0]);
+        setGlobalSettings(result.globalSettings);
+        setPreferredLocale(preferences?.preferred_locale || 'es');
+        setCoachAdminUnitSystem(preferences?.coach_admin_unit_system || preferences?.preferred_unit_system || 'METRIC');
+        setAthletes(result.athletes);
+        setReferredCoaches(result.referredCoaches);
+      } catch (error) {
+        if (!cancelled) setLoadError(error.message || 'No fue posible cargar los ajustes.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // 3. Cargar Atletas (Roster)
-      const { data: athletesList } = await supabase
-        .from('athletes_profile')
-        .select('id, full_name, b2c_plan, created_at')
-        .eq('coach_id', data.id)
-        .order('created_at', { ascending: true });
-      setAthletes(athletesList || []);
-
-      // 4. Cargar Referidos (Multinivel)
-      const { data: referredList } = await supabase
-        .from('coaches_profile')
-        .select('id, full_name, b2b_plan, active_clients_count, created_at')
-        .eq('referred_by_coach_id', data.id)
-        .order('created_at', { ascending: true });
-      setReferredCoaches(referredList || []);
-
-    } catch (err) {
-      console.error("Error cargando ajustes:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [navigate, loadAttempt]);
 
   const handleSaveBrand = async (e) => {
     e.preventDefault();
-    if (coach?.b2b_plan !== 'ELITE') return alert("❌ Necesitas el Plan Élite para personalizar tu propia marca.");
+    if (busy || coach?.b2b_plan !== 'ELITE') return;
+    setNotice(null);
 
     try {
       setSaving(true);
@@ -188,46 +164,42 @@ export default function CoachSettings() {
 
         logoUrl = data.publicUrl;
       }
-      const { error } = await supabase.from('coaches_profile').update({
+      const { data: savedBrand, error } = await supabase.from('coaches_profile').update({
         full_name: fullName, 
         theme_id: themeId, 
         brand_logo_url: logoUrl, 
-        watermark_opacity: watermarkOpacity, 
-        watermark_size: watermarkSize, 
-        instagram_handle: instagramHandle,
-        communication_mode: commMode
-      }).eq('id', coach.id);
+        watermark_opacity: Number(watermarkOpacity), 
+        watermark_size: Number(watermarkSize), 
+        instagram_handle: instagramHandle
+      }).eq('id', coach.id).eq('user_id', coach.user_id)
+        .select('id, full_name, theme_id, brand_logo_url, watermark_opacity, watermark_size, instagram_handle').single();
 
       if (error) throw error;
       
+      if (savedBrand?.id !== coach.id) throw new Error(copy('No se confirmó el guardado de la marca.', 'Brand settings were not confirmed.'));
       const t = COACH_THEMES.find(th => th.id === themeId) || COACH_THEMES[0];
       setActiveTheme(t);
-      setCoach({
-        ...coach,
-        theme_id: themeId,
-        brand_logo_url: logoUrl,
-        watermark_opacity: watermarkOpacity,
-        watermark_size: watermarkSize,
-        instagram_handle: instagramHandle,
-        communication_mode: commMode,
-      });
-      await refreshTheme();
-      
-      alert("✅ Identidad Élite guardada. Tu app y la de tus atletas han sido actualizadas.");
-    } catch (err) { alert("❌ Error al guardar: " + err.message); } finally { setSaving(false); }
+      setCoach((current) => ({ ...current, ...savedBrand }));
+      setLogoFile(null);
+      setNotice({ type: 'success', message: copy('Identidad visual guardada.', 'Visual identity saved.') });
+      try { await refreshTheme(); } catch {
+        setNotice({ type: 'success', message: copy('Identidad guardada. Recarga el portal para actualizar la apariencia.', 'Brand saved. Reload the portal to refresh the appearance.') });
+      }
+    } catch (error) {
+      setNotice({ type: 'error', message: copy('No se guardaron los ajustes: ', 'Settings were not saved: ') + error.message });
+    } finally { setSaving(false); }
   };
 
   const handleSaveOperationalPreferences = async (event) => {
     event.preventDefault();
 
-    if (!coach?.user_id) {
-      return alert('No se pudo identificar la cuenta del coach.');
-    }
+    if (busy || !coach?.user_id) return;
+    setNotice(null);
 
     try {
       setPreferencesSaving(true);
 
-      const { error } = await supabase
+      const { data: savedPreferences, error } = await supabase
         .from('user_preferences')
         .upsert(
           {
@@ -237,49 +209,34 @@ export default function CoachSettings() {
             coach_admin_unit_system: coachAdminUnitSystem,
           },
           { onConflict: 'user_id' }
-        );
+        ).select('user_id, preferred_locale, coach_admin_unit_system').single();
 
       if (error) throw error;
 
+      if (savedPreferences?.user_id !== coach.user_id) throw new Error(copy('No se confirmó el guardado.', 'Save was not confirmed.'));
       await setLocale(preferredLocale);
-      alert('Preferencias operativas guardadas.');
+      setNotice({ type: 'success', message: copy('Preferencias guardadas.', 'Preferences saved.') });
     } catch (err) {
-      alert('Error al guardar preferencias: ' + err.message);
+      setNotice({ type: 'error', message: copy('Error al guardar preferencias: ', 'Could not save preferences: ') + err.message });
     } finally {
       setPreferencesSaving(false);
     }
   };
 
 
-  const handleSaveCommunication = async (mode) => {
-    setCommMode(mode);
-
-    if (!coach?.id) return;
-
-    const { error } = await supabase
-      .from('coaches_profile')
-      .update({ communication_mode: mode })
-      .eq('id', coach.id);
-
-    if (error) {
-      alert('Error al guardar el modo de comunicación: ' + error.message);
-      return;
-    }
-
-    setCoach((current) => current ? { ...current, communication_mode: mode } : current);
-  };
-
   const handleSendAdminRequest = async (e) => {
     e.preventDefault();
+    if (busy || !coach?.id) return;
+    setNotice(null);
     try {
       setSendingReq(true);
       const { error } = await supabase.from('admin_requests').insert({
         coach_id: coach.id, request_type: requestType, requested_plan: requestedPlan, note: requestNote, status: 'PENDING'
       });
       if (error) throw error;
-      alert("📩 Solicitud enviada al Súper Admin. Revisa tu estado pronto.");
+      setNotice({ type: 'success', message: copy('Solicitud enviada al Súper Admin. Pendiente de revisión.', 'Request sent to Super Admin. Awaiting review.') });
       setRequestNote('');
-    } catch (err) { alert("❌ Error enviando solicitud."); } finally { setSendingReq(false); }
+    } catch (error) { setNotice({ type: 'error', message: copy('No se envió la solicitud: ', 'Request was not sent: ') + error.message }); } finally { setSendingReq(false); }
   };
 
 const handleImmersiveMode = async () => {
@@ -334,20 +291,44 @@ const handleImmersiveMode = async () => {
   }
 };
 
-  const copyReferralLink = () => {
-    const code = coach?.coach_code || coach?.id?.substring(0, 8);
-    const link = `${window.location.origin}/register/coach?ref=${code}`;
-    navigator.clipboard.writeText(link);
-    alert("📋 ¡Enlace de referido B2B copiado al portapapeles!");
+  const copyRegistrationLink = async () => {
+    if (copying) return;
+    setCopying(true);
+    setNotice(null);
+    try {
+      await navigator.clipboard.writeText(coachRegistrationLink(window.location.origin));
+      setNotice({ type: 'success', message: copy('Enlace de registro copiado.', 'Registration link copied.') });
+    } catch {
+      setNotice({ type: 'error', message: copy('No se pudo copiar. Selecciona el enlace y cópialo manualmente.', 'Copy failed. Select the link and copy it manually.') });
+    } finally { setCopying(false); }
   };
 
-  if (loading) return <div className={`min-h-screen ${activeTheme.bg} flex items-center justify-center`}><Loader2 className={`animate-spin ${activeTheme.accent}`} size={40}/></div>;
+  if (loading) return <div className={`min-h-screen ${activeTheme.bg} flex items-center justify-center`} role="status" aria-label={copy('Cargando ajustes', 'Loading settings')}><Loader2 className={`animate-spin ${activeTheme.accent}`} size={40}/></div>;
+  if (loadError) return (
+    <main className={`min-h-screen ${activeTheme.bg} ${activeTheme.text} p-6 flex items-center justify-center`}>
+      <div className={`max-w-lg w-full rounded-3xl border ${activeTheme.border} ${activeTheme.card} p-8 space-y-4`}>
+        <AlertTriangle size={28} className="text-amber-500" />
+        <h1 className="text-xl font-bold">{copy('No se pudieron cargar los ajustes', 'Settings could not be loaded')}</h1>
+        <p role="alert" className="text-sm opacity-70">{loadError}</p>
+        <div className="flex gap-4">
+          <button type="button" onClick={() => setLoadAttempt((n) => n + 1)} className="rounded-xl border border-current/30 p-3 text-sm flex items-center gap-2"><RotateCcw size={16}/>{copy('Reintentar', 'Retry')}</button>
+          <button type="button" onClick={() => navigate('/coach')} className="p-3 text-sm">{copy('Volver al panel', 'Back to dashboard')}</button>
+        </div>
+      </div>
+    </main>
+  );
   const isElite = coach?.b2b_plan === 'ELITE';
-  const uiLocale = preferredLocale || locale;
-  const copy = (es, en) => (uiLocale === 'en' ? en : es);
+  const tabs = [
+    { id: 'PREFERENCES', label: copy('Preferencias', 'Preferences'), description: copy('Idioma y unidades', 'Language and units'), icon: User },
+    { id: 'BRANDING', label: copy('Identidad visual', 'Visual identity'), description: copy('Marca y apariencia · Élite', 'Brand and appearance · Elite'), icon: Palette },
+    { id: 'ROSTER', label: copy('Mis atletas', 'My athletes'), description: copy('Atletas vinculados', 'Linked athletes'), icon: Users },
+    { id: 'COMM', label: copy('Comunicaciones', 'Communications'), description: copy('Chat privado y comunidad', 'Private chat and community'), icon: MessageSquare },
+    { id: 'MULTILEVEL', label: copy('Invitaciones', 'Invitations'), description: copy('Registro y red existente', 'Registration and existing network'), icon: GitMerge },
+    { id: 'LICENSE', label: copy('Mi licencia', 'My license'), description: copy('Solicitudes al administrador', 'Administrator requests'), icon: CreditCard },
+  ];
 
   return (
-    <div className={`min-h-screen ${activeTheme.bg} ${activeTheme.text} font-sans pb-24 relative overflow-hidden transition-colors duration-500`}>
+    <div style={{ colorScheme: activeTheme.id === 'light' ? 'light' : 'dark' }} className={`min-h-screen ${activeTheme.bg} ${activeTheme.text} font-sans pb-24 relative overflow-hidden transition-colors duration-500`}>
       
       {/* 🔮 RENDERIZADOR DE MARCA DE AGUA INTACTO */}
       {isElite && coach?.brand_logo_url ? (
@@ -370,9 +351,9 @@ const handleImmersiveMode = async () => {
       <nav className={`${activeTheme.card} ${activeTheme.border} border-b sticky top-0 z-40 shadow-lg backdrop-blur-md bg-opacity-80`}>
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/coach')} className="text-neutral-500 hover:text-white transition-colors"><ArrowLeft size={20} /></button>
+            <button aria-label={copy('Volver al panel', 'Back to dashboard')} onClick={() => navigate('/coach')} className="text-neutral-500 hover:text-white transition-colors"><ArrowLeft size={20} /></button>
             <h1 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-              <Building2 size={16} className={activeTheme.accent}/> {copy('Ajustes de Licencia', 'License Settings')}
+              <Building2 size={16} className={activeTheme.accent}/> {copy('Configuración del coach', 'Coach settings')}
             </h1>
           </div>
           {isElite && (
@@ -385,30 +366,25 @@ const handleImmersiveMode = async () => {
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8 relative z-10">
         
-        {/* TABS EXPANDIDOS */}
-        <div className="flex gap-2 border-b border-neutral-800 pb-4 overflow-x-auto scrollbar-hide">
-          {[
-            { id: 'BRANDING', label: copy('Identidad Visual', 'Visual Identity') },
-            { id: 'PREFERENCES', label: copy('Preferencias', 'Preferences') },
-            { id: 'ROSTER', label: copy('Mi Roster', 'My Roster') },
-            { id: 'MULTILEVEL', label: copy('Referidos', 'Referrals') },
-            { id: 'COMM', label: copy('Comunicaciones', 'Communications') },
-            { id: 'LICENSE', label: copy('Centro de Solicitudes', 'Request Center') }
-          ].map(tab => (
-            <button 
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)} 
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab.id ? `${activeTheme.card} border ${activeTheme.border} ${activeTheme.accent} shadow-lg` : 'text-neutral-500 hover:text-white'}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+        <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <p className={`text-[11px] font-bold uppercase tracking-[0.2em] ${activeTheme.accent}`}>Genesis OS · {copy('Configuración', 'Settings')}</p>
+            <h2 className="text-3xl font-bold tracking-tight mt-2">{copy('Tu espacio de trabajo', 'Your workspace')}</h2>
+            <p className="text-sm opacity-60 mt-2">{copy('Administra tu experiencia, comunicación e identidad en un solo lugar.', 'Manage your experience, communication and identity in one place.')}</p>
+          </div>
+          <span className={`rounded-full border ${activeTheme.border} px-4 py-2 text-xs font-bold self-start`}>Plan {coach.b2b_plan}</span>
+        </header>
+        {notice ? (
+          <div role={notice.type === 'error' ? 'alert' : 'status'} className={`rounded-2xl border p-4 text-sm flex items-start gap-3 ${notice.type === 'error' ? 'border-red-500/40 bg-red-500/10' : 'border-green-500/40 bg-green-500/10'}`}>
+            {notice.type === 'error' ? <AlertTriangle size={18} className="shrink-0"/> : <CheckCircle2 size={18} className="shrink-0"/>}
+            <p>{notice.message}</p>
+          </div>
+        ) : null}
+        <GenesisTabs label={copy('Secciones de configuración', 'Settings sections')} tabs={tabs} activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setNotice(null); }}>
         {activeTab === 'PREFERENCES' && (
-          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
+          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl`}>
             <div className="flex items-center gap-4 border-b border-neutral-800/50 pb-6">
-              <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}>
+              <div className={`w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center border ${activeTheme.border}`}>
                 <User className={activeTheme.accent} size={24} />
               </div>
               <div>
@@ -419,14 +395,16 @@ const handleImmersiveMode = async () => {
               </div>
             </div>
 
-            <form onSubmit={handleSaveOperationalPreferences} className="space-y-6">
+            <form onSubmit={handleSaveOperationalPreferences} >
+              <fieldset disabled={busy} className="space-y-6 min-w-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Idioma preferido', 'Preferred language')}</label>
                   <select
+                    aria-label={copy('Idioma preferido', 'Preferred language')}
                     value={preferredLocale}
                     onChange={(event) => setPreferredLocale(event.target.value)}
-                    className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}
+                    className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}
                   >
                     <option value="es" className="text-black">{copy('Español', 'Spanish')}</option>
                     <option value="en" className="text-black">English</option>
@@ -436,9 +414,10 @@ const handleImmersiveMode = async () => {
                 <div>
                   <label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Unidades administrativas', 'Administrative units')}</label>
                   <select
+                    aria-label={copy('Unidades administrativas', 'Administrative units')}
                     value={coachAdminUnitSystem}
                     onChange={(event) => setCoachAdminUnitSystem(event.target.value)}
-                    className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}
+                    className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}
                   >
                     <option value="METRIC" className="text-black">{copy('Métrico (kg / cm)', 'Metric (kg / cm)')}</option>
                     <option value="IMPERIAL" className="text-black">{copy('Americano (lb / ft)', 'Imperial (lb / ft)')}</option>
@@ -448,37 +427,40 @@ const handleImmersiveMode = async () => {
 
               <button
                 type="submit"
-                disabled={preferencesSaving}
+                disabled={busy}
                 className="bg-white hover:bg-neutral-200 text-black font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {preferencesSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                Guardar Preferencias
+                {copy('Guardar preferencias', 'Save preferences')}
               </button>
+            </fieldset>
             </form>
           </div>
         )}
 
         {/* 1. PESTAÑA: MARCA BLANCA (TU CÓDIGO INTACTO) */}
-        {activeTab === 'BRANDING' && (
-          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 relative overflow-hidden ${!isElite ? 'grayscale opacity-70' : ''} shadow-xl`}>
-            {!isElite && (
-              <div className="absolute inset-0 bg-black/60 z-20 flex flex-col items-center justify-center backdrop-blur-[2px]">
-                <Lock size={32} className="text-neutral-400 mb-3" />
-                <h3 className="font-black uppercase tracking-widest text-sm text-white">{copy('Funcionalidad Élite Requerida', 'Elite Feature Required')}</h3>
-                <p className="text-[10px] text-neutral-400 font-mono mt-1 text-center max-w-xs">{copy('Sube de plan para quitar la marca de Genesis OS, elegir tus propios colores y establecer tu marca de agua.', 'Upgrade your plan to remove Genesis OS branding, choose your own colors, and set your watermark.')}</p>
-              </div>
-            )}
+        {activeTab === 'BRANDING' && !isElite && (
+          <div className={`${activeTheme.card} border ${activeTheme.border} p-6 sm:p-8 rounded-3xl text-center space-y-4`}>
+            <Lock size={32} className="mx-auto opacity-60"/>
+            <h2 className="text-xl font-bold">{copy('Identidad visual Élite', 'Elite visual identity')}</h2>
+            <p className="text-sm opacity-65 max-w-md mx-auto">{copy('El plan Élite incluye tu logo, colores y marca de agua para el panel y la experiencia de tus atletas.', 'The Elite plan includes your logo, colors and watermark for your dashboard and your athletes’ experience.')}</p>
+            <button type="button" onClick={() => setActiveTab('LICENSE')} className="px-5 py-3 rounded-xl bg-white text-black text-sm font-bold">{copy('Ver mi licencia', 'View my license')}</button>
+          </div>
+        )}
+        {activeTab === 'BRANDING' && isElite && (
+          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 sm:p-8 rounded-3xl space-y-6 relative overflow-hidden shadow-xl`}>
             <div className="flex items-center gap-4 border-b border-neutral-800/50 pb-6">
-              <div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}><Palette className={activeTheme.accent} size={24}/></div>
+              <div className={`w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center border ${activeTheme.border}`}><Palette className={activeTheme.accent} size={24}/></div>
               <div><h2 className="text-xl font-black uppercase tracking-tight">{copy('Personalización de Marca', 'Brand Customization')}</h2><p className="text-[11px] font-mono opacity-60 mt-1">{copy('Estos ajustes se reflejarán en tu panel y en la app de todos tus atletas.', 'These settings apply to your dashboard and all of your athletes’ apps.')}</p></div>
             </div>
             
-            <form onSubmit={handleSaveBrand} className="space-y-6">
+            <form onSubmit={handleSaveBrand}>
+              <fieldset disabled={busy || !isElite} className="space-y-6 min-w-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Nombre Comercial', 'Business Name')}</label><input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-3 text-xs font-mono outline-none focus:border-white transition-colors`}/></div>
+                <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Nombre Comercial', 'Business Name')}</label><input aria-label={copy('Nombre comercial', 'Business name')} type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-3 text-xs font-mono outline-none focus:border-white transition-colors`}/></div>
                 <div>
                   <label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Tema y Paleta de Colores', 'Theme and Color Palette')}</label>
-                  <select value={themeId} onChange={(e) => setThemeId(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-3 text-xs font-mono font-bold uppercase outline-none focus:border-white transition-colors`}>
+                  <select aria-label={copy('Tema de marca', 'Brand theme')} value={themeId} onChange={(e) => setThemeId(e.target.value)} className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-3 text-xs font-mono font-bold uppercase outline-none focus:border-white transition-colors`}>
                     {COACH_THEMES.map(t => <option key={t.id} value={t.id} className="text-black">{t.name}</option>)}
                   </select>
                 </div>
@@ -486,31 +468,32 @@ const handleImmersiveMode = async () => {
               <div>
                 <label className="text-[10px] font-black uppercase opacity-60 block mb-3">{copy('Logo Empresarial (Marca de Agua)', 'Business Logo (Watermark)')}</label>
                 <div className="flex items-center gap-6">
-                  <div className={`w-32 h-32 border-2 border-dashed ${activeTheme.border} rounded-2xl flex items-center justify-center bg-black/30 overflow-hidden relative group hover:border-white transition-colors`}>
+                  <div className={`w-32 h-32 border-2 border-dashed ${activeTheme.border} rounded-2xl flex items-center justify-center bg-black/5 overflow-hidden relative group hover:border-white transition-colors`}>
                     {coach?.brand_logo_url ? <img src={coach?.brand_logo_url} alt="Logo" className="w-full h-full object-contain p-2 opacity-50"/> : <Upload size={24} className="opacity-50"/>}
-                    <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                    <input aria-label={copy('Logo empresarial', 'Business logo')} type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setLogoFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                   </div>
-                  <p className="text-xs font-mono opacity-50 max-w-xs">{copy('Sube una imagen PNG con transparencia para inyectarla en el fondo del ecosistema.', 'Upload a transparent PNG to place your brand across the ecosystem.')}</p>
+                  <p className="text-xs font-mono opacity-70 max-w-xs">{copy('Sube una imagen PNG con transparencia para inyectarla en el fondo del ecosistema.', 'Upload a transparent PNG to place your brand across the ecosystem.')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-black/30 border border-neutral-800 rounded-2xl p-5"><label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>{copy('Opacidad', 'Opacity')}</span> <span className={activeTheme.accent}>{watermarkOpacity}%</span></label><input type="range" min="1" max="100" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(e.target.value)} className="w-full accent-white"/></div>
-                <div className="bg-black/30 border border-neutral-800 rounded-2xl p-5"><label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>{copy('Tamaño', 'Size')}</span> <span className={activeTheme.accent}>{watermarkSize}%</span></label><input type="range" min="10" max="150" value={watermarkSize} onChange={(e) => setWatermarkSize(e.target.value)} className="w-full accent-white"/></div>
+                <div className="bg-black/5 border border-neutral-800 rounded-2xl p-5"><label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>{copy('Opacidad', 'Opacity')}</span> <span className={activeTheme.accent}>{watermarkOpacity}%</span></label><input aria-label={copy('Opacidad de marca', 'Brand opacity')} type="range" min="1" max="100" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(e.target.value)} className="w-full accent-current"/></div>
+                <div className="bg-black/5 border border-neutral-800 rounded-2xl p-5"><label className="text-[10px] font-black uppercase opacity-60 flex justify-between mb-3"><span>{copy('Tamaño', 'Size')}</span> <span className={activeTheme.accent}>{watermarkSize}%</span></label><input aria-label={copy('Tamaño de marca', 'Brand size')} type="range" min="10" max="150" value={watermarkSize} onChange={(e) => setWatermarkSize(e.target.value)} className="w-full accent-current"/></div>
               </div>
-              <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Firma Digital (Usuario de Instagram)', 'Digital Signature (Instagram handle)')}</label><div className="relative"><AtSign className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50" size={18}/><input type="text" value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@TuUsuario" className={`w-full bg-black/50 border ${activeTheme.border} rounded-2xl pl-12 pr-4 py-4 text-sm font-mono outline-none focus:border-white transition-colors`}/></div></div>
+              <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Firma Digital (Usuario de Instagram)', 'Digital Signature (Instagram handle)')}</label><div className="relative"><AtSign className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50" size={18}/><input aria-label={copy('Usuario de Instagram', 'Instagram handle')} type="text" value={instagramHandle} onChange={(e) => setInstagramHandle(e.target.value)} placeholder="@TuUsuario" className={`w-full bg-black/5 border ${activeTheme.border} rounded-2xl pl-12 pr-4 py-4 text-sm font-mono outline-none focus:border-white transition-colors`}/></div></div>
               
               <div className="pt-4 border-t border-neutral-800/50">
-                <button type="submit" disabled={saving || !isElite} className="bg-white hover:bg-neutral-200 text-black font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">
-                  {saving ? <Loader2 size={16} className="animate-spin"/> : <><CheckCircle2 size={16}/> {copy('Guardar e Inyectar Identidad', 'Save and Apply Branding')}</>}
+                <button type="submit" disabled={busy || !isElite} className="bg-white hover:bg-neutral-200 text-black font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">
+                  {saving ? <Loader2 size={16} className="animate-spin"/> : <><CheckCircle2 size={16}/> {copy('Guardar identidad visual', 'Save visual identity')}</>}
                 </button>
               </div>
+            </fieldset>
             </form>
           </div>
         )}
 
         {/* 2. PESTAÑA: ORGANIZACIÓN ROSTER (NUEVO) */}
         {activeTab === 'ROSTER' && (
-          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
+          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl`}>
             <div className="flex justify-between items-center border-b border-neutral-800/50 pb-6">
               <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
                 <Users size={20} className={activeTheme.accent} /> {copy('Pirámide de Atletas', 'Athlete Roster')}
@@ -525,17 +508,17 @@ const handleImmersiveMode = async () => {
                 <p className="text-xs text-neutral-500 font-mono text-center py-8">{copy('No tienes atletas vinculados todavía.', 'You do not have linked athletes yet.')}</p>
               ) : (
                 athletes.map((ath, index) => (
-                  <div key={ath.id} className={`p-4 rounded-2xl bg-black/40 border ${activeTheme.border} flex items-center justify-between`}>
+                  <div key={ath.id} className={`p-4 rounded-2xl bg-black/5 border ${activeTheme.border} flex items-center justify-between`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs border ${activeTheme.border} ${activeTheme.accent}`}>
                         #{index + 1}
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">{ath.full_name || copy('Sin Nombre', 'Unnamed')}</h4>
+                        <h4 className="text-sm font-bold">{ath.full_name || copy('Sin Nombre', 'Unnamed')}</h4>
                         <p className="text-[10px] text-neutral-500 font-mono">{copy('Ingreso:', 'Joined:')} {new Date(ath.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <span className="text-[9px] font-black uppercase px-3 py-1 rounded-full bg-neutral-900 border border-neutral-700">
+                    <span className="text-[9px] font-black uppercase px-3 py-1 rounded-full bg-black/5 border border-neutral-500/40">
                       {copy('Plan', 'Plan')} {ath.b2c_plan}
                     </span>
                   </div>
@@ -547,31 +530,32 @@ const handleImmersiveMode = async () => {
 
         {/* 3. PESTAÑA: RED MULTINIVEL (NUEVO) */}
         {activeTab === 'MULTILEVEL' && (
-          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
+          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl`}>
             <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2 mb-2">
-              <GitMerge size={20} className={activeTheme.accent} /> {copy('Red de Entrenadores Referidos', 'Coach Referral Program')}
+              <GitMerge size={20} className={activeTheme.accent} /> {copy('Invitaciones y red de entrenadores', 'Invitations and coach network')}
             </h2>
             
-            <div className={`p-6 border ${activeTheme.border} bg-black/40 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4`}>
+            <div className={`p-6 border ${activeTheme.border} bg-black/5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-4`}>
               <div>
-                <h3 className={`text-sm font-bold uppercase ${activeTheme.accent}`}>{copy('Tu Enlace B2B', 'Your Referral Link')}</h3>
-                <p className="text-xs text-neutral-400 font-mono mt-1">{copy('Comparte la plataforma con otros coaches. Los incentivos se activarán únicamente bajo un programa comercial aprobado.', 'Share the platform with other coaches. Incentives will activate only under an approved commercial program.')}</p>
+                <h3 className={`text-sm font-bold uppercase ${activeTheme.accent}`}>{copy('Invitar a otro coach', 'Invite another coach')}</h3>
+                <p className="text-xs text-neutral-400 font-mono mt-1">{copy('Comparte el registro de Genesis. Este enlace no asigna referidos ni genera comisiones automáticamente.', 'Share Genesis registration. This link does not automatically assign referrals or generate commissions.')}</p>
               </div>
-              <button onClick={copyReferralLink} className={`px-4 py-3 rounded-xl font-bold text-[10px] uppercase flex items-center gap-2 border ${activeTheme.border} hover:bg-white/10 transition-colors`}>
-                <Copy size={14} /> {copy('Copiar Enlace', 'Copy Link')}
+              <button onClick={copyRegistrationLink} disabled={copying} className={`px-4 py-3 rounded-xl font-bold text-[10px] uppercase flex items-center gap-2 border ${activeTheme.border} hover:bg-white/10 transition-colors`}>
+                {copying ? <Loader2 size={14} className="animate-spin"/> : <Copy size={14} />} {copy('Copiar enlace', 'Copy link')}
               </button>
             </div>
 
+            <input aria-label={copy('Enlace de registro para coaches', 'Coach registration link')} readOnly value={coachRegistrationLink(window.location.origin)} onFocus={(event) => event.target.select()} className={`w-full rounded-xl border ${activeTheme.border} bg-transparent p-3 text-xs font-mono`} />
             <div className="space-y-3 mt-6">
               {referredCoaches.length === 0 ? (
                 <p className="text-xs text-neutral-500 font-mono text-center py-8">{copy('Aún no hay coaches referidos.', 'No referred coaches yet.')}</p>
               ) : (
                 referredCoaches.map((refCoach) => (
-                  <div key={refCoach.id} className={`p-4 rounded-2xl bg-black/40 border ${activeTheme.border} flex items-center justify-between`}>
+                  <div key={refCoach.id} className={`p-4 rounded-2xl bg-black/5 border ${activeTheme.border} flex items-center justify-between`}>
                     <div className="flex items-center gap-3">
                       <Layers className={activeTheme.accent} size={18} />
                       <div>
-                        <h4 className="text-sm font-bold text-white">{refCoach.full_name}</h4>
+                        <h4 className="text-sm font-bold">{refCoach.full_name}</h4>
                         <p className="text-[10px] text-neutral-500 font-mono">{copy('Atletas Activos:', 'Active Athletes:')} {refCoach.active_clients_count || 0}</p>
                       </div>
                     </div>
@@ -585,58 +569,54 @@ const handleImmersiveMode = async () => {
           </div>
         )}
 
-        {/* 4. PESTAÑA: COMUNICACIONES (NUEVO) */}
         {activeTab === 'COMM' && (
-          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
-            <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2 mb-4">
-              <MessageSquare size={20} className={activeTheme.accent} /> {copy('Ajustes de Comunicación', 'Communication Settings')}
-            </h2>
-            
-            <div className="grid grid-cols-1 gap-4">
-              {[
-                { id: 'BOTH', title: copy('Chat Dual (Recomendado)', 'Dual Chat (Recommended)'), desc: copy('Muro de Comunidad + Mensajes Privados 1-a-1 habilitados.', 'Community wall and 1:1 private messages enabled.') },
-                { id: 'INDIVIDUAL', title: copy('Solo Mensajería Privada', 'Private Messaging Only'), desc: copy('Desactiva el muro comunitario. Los atletas solo hablan contigo.', 'Disable the community wall. Athletes can only message you.') },
-                { id: 'GROUP', title: copy('Solo Muro Grupal de Tribu', 'Community Wall Only'), desc: copy('Desactiva los mensajes directos para centralizar dudas en el muro.', 'Disable direct messages and centralize questions in the wall.') },
-              ].map((mode) => (
-                <div 
-                  key={mode.id}
-                  onClick={() => handleSaveCommunication(mode.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
-                    commMode === mode.id ? `border-white bg-white/5` : `border-neutral-800 bg-black/30 hover:border-neutral-600`
-                  }`}
-                >
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{mode.title}</h4>
-                    <p className="text-[10px] text-neutral-500 font-mono mt-1">{mode.desc}</p>
-                  </div>
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${commMode === mode.id ? 'border-white bg-white' : 'border-neutral-700'}`}>
-                    {commMode === mode.id && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
-                  </div>
-                </div>
-              ))}
+          <div className={`${activeTheme.card} border ${activeTheme.border} p-6 sm:p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl`}>
+            <div className="flex items-center gap-4">
+              <div className={`rounded-2xl p-3 border ${activeTheme.border}`}><MessageSquare size={24} className={activeTheme.accent}/></div>
+              <div>
+                <h2 className="text-xl font-bold">{copy('Tu centro de mensajes', 'Your message center')}</h2>
+                <p className="text-sm opacity-65 mt-1">{copy('Comunícate con los atletas vinculados a tu cuenta.', 'Stay in touch with the athletes linked to your account.')}</p>
+              </div>
             </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className={`rounded-2xl border ${activeTheme.border} p-5`}>
+                <MessageSquare size={20} className={activeTheme.accent}/>
+                <h3 className="font-bold mt-3">{copy('Mensajería privada', 'Private messaging')}</h3>
+                <p className="text-sm opacity-65 mt-2">{copy('Conversaciones directas con tus atletas desde el directorio.', 'Direct conversations with your athletes from the directory.')}</p>
+              </div>
+              <div className={`rounded-2xl border ${activeTheme.border} p-5`}>
+                <Users size={20} className={activeTheme.accent}/>
+                <h3 className="font-bold mt-3">{copy('Canales de comunidad', 'Community channels')}</h3>
+                <p className="text-sm opacity-65 mt-2">{isElite ? copy('Tu plan Élite incluye el muro global y la sala de coaches.', 'Your Elite plan includes the global wall and coaches room.') : copy('El muro global y la sala de coaches están incluidos en el plan Élite.', 'The global wall and coaches room are included in the Elite plan.')}</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => navigate('/chat')} className="inline-flex items-center gap-2 bg-white text-black rounded-xl px-5 py-3 text-sm font-bold"><MessageSquare size={16}/>{copy('Abrir mensajería', 'Open messages')}</button>
           </div>
         )}
 
         {/* 5. PESTAÑA: GESTIÓN DE LICENCIA (TU CÓDIGO INTACTO) */}
         {activeTab === 'LICENSE' && (
-          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-8 rounded-3xl space-y-6 shadow-xl`}>
+          <div className={`${activeTheme.card} bg-opacity-70 backdrop-blur-xl border ${activeTheme.border} p-6 sm:p-8 rounded-3xl space-y-6 shadow-xl`}>
             <div className="flex items-center justify-between border-b border-neutral-800/50 pb-6">
-              <div className="flex items-center gap-4"><div className={`w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center border ${activeTheme.border}`}><CreditCard className={activeTheme.accent} size={24}/></div><div><h2 className="text-xl font-black uppercase tracking-tight">{copy('Licencia & Facturación', 'License & Billing')}</h2><p className="text-[11px] font-mono opacity-60 mt-1">{copy('Solicita modificaciones de tu plan B2B.', 'Request changes to your B2B plan.')}</p></div></div>
-              <span className={`text-[10px] bg-black/50 border ${activeTheme.border} px-4 py-2 rounded-full ${activeTheme.accent} font-black uppercase tracking-widest`}>Plan: {coach?.b2b_plan}</span>
+              <div className="flex items-center gap-4"><div className={`w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center border ${activeTheme.border}`}><CreditCard className={activeTheme.accent} size={24}/></div><div><h2 className="text-xl font-black uppercase tracking-tight">{copy('Licencia & Facturación', 'License & Billing')}</h2><p className="text-[11px] font-mono opacity-60 mt-1">{copy('Solicita modificaciones de tu plan B2B.', 'Request changes to your B2B plan.')}</p></div></div>
+              <span className={`text-[10px] bg-black/5 border ${activeTheme.border} px-4 py-2 rounded-full ${activeTheme.accent} font-black uppercase tracking-widest`}>Plan: {coach?.b2b_plan}</span>
             </div>
-            <form onSubmit={handleSendAdminRequest} className="space-y-6">
+            <form onSubmit={handleSendAdminRequest} >
+              <fieldset disabled={busy} className="space-y-6 min-w-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Acción Solicitada', 'Requested Action')}</label><select value={requestType} onChange={(e) => setRequestType(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}><option value="UPGRADE" className="text-black">{copy('Solicitar Upgrade de Plan', 'Request Plan Upgrade')}</option><option value="DOWNGRADE" className="text-black">{copy('Solicitar Downgrade', 'Request Downgrade')}</option><option value="PAUSE" className="text-black">{copy('Solicitar Pausa de Licencia', 'Request License Pause')}</option></select></div>
-                <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Plan Objetivo', 'Target Plan')}</label><select value={requestedPlan} onChange={(e) => setRequestedPlan(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}><option value="IGNICION" className="text-black">{copy('Plan Ignición (Base)', 'Ignition Plan (Base)')}</option><option value="EVOLUCION" className="text-black">{copy('Plan Evolución (Pro)', 'Evolution Plan (Pro)')}</option><option value="ELITE" className="text-black">{copy('Plan Élite (VIP)', 'Elite Plan (VIP)')}</option></select></div>
+                <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Acción Solicitada', 'Requested Action')}</label><select aria-label={copy('Acción solicitada', 'Requested action')} value={requestType} onChange={(e) => setRequestType(e.target.value)} className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}><option value="UPGRADE" className="text-black">{copy('Solicitar Upgrade de Plan', 'Request Plan Upgrade')}</option><option value="DOWNGRADE" className="text-black">{copy('Solicitar Downgrade', 'Request Downgrade')}</option><option value="PAUSE" className="text-black">{copy('Solicitar Pausa de Licencia', 'Request License Pause')}</option></select></div>
+                <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Plan Objetivo', 'Target Plan')}</label><select aria-label={copy('Plan objetivo', 'Target plan')} value={requestedPlan} onChange={(e) => setRequestedPlan(e.target.value)} className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none`}><option value="IGNICION" className="text-black">{copy('Plan Ignición (Base)', 'Ignition Plan (Base)')}</option><option value="EVOLUCION" className="text-black">{copy('Plan Evolución (Pro)', 'Evolution Plan (Pro)')}</option><option value="ELITE" className="text-black">{copy('Plan Élite (VIP)', 'Elite Plan (VIP)')}</option></select></div>
               </div>
-              <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Nota para el Administrador', 'Note for Administrator')}</label><textarea placeholder={copy('Explica tu caso...', 'Explain your request...')} value={requestNote} onChange={(e) => setRequestNote(e.target.value)} className={`w-full bg-black/50 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none h-24 resize-none`}/></div>
-              <button type="submit" disabled={sendingReq} className="bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">{sendingReq ? <Loader2 size={16} className="animate-spin"/> : <><Send size={16}/> {copy('Enviar Petición Formal', 'Submit Formal Request')}</>}</button>
+              <div><label className="text-[10px] font-black uppercase opacity-60 block mb-2">{copy('Nota para el Administrador', 'Note for Administrator')}</label><textarea aria-label={copy('Nota para el administrador', 'Note for administrator')} maxLength={1000} placeholder={copy('Explica tu caso...', 'Explain your request...')} value={requestNote} onChange={(e) => setRequestNote(e.target.value)} className={`w-full bg-black/5 border ${activeTheme.border} rounded-xl p-4 text-xs font-mono outline-none h-24 resize-none`}/></div>
+              <button type="submit" disabled={busy} className="bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white font-black uppercase text-[11px] tracking-widest px-8 py-4 rounded-xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2">{sendingReq ? <Loader2 size={16} className="animate-spin"/> : <><Send size={16}/> {copy('Enviar Petición Formal', 'Submit Formal Request')}</>}</button>
+            </fieldset>
             </form>
           </div>
         )}
 
+        </GenesisTabs>
       </main>
     </div>
   );
 }
+

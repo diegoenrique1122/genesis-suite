@@ -524,3 +524,23 @@ Inventario del árbol revisado; no implica una nueva comprobación de instalaci�
 - `supabase/migrations/20261024234025_genesis_nutrition_domain_a21.sql`
 - `supabase/migrations/20261030211351_genesis_nutrition_authoring_a22.sql`
 - `supabase/migrations/20261031000001_genesis_nutrition_selection_a23.sql`
+
+
+## Checkpoint adicional — E1 Coach Settings, 31 octubre 2026
+
+Continuación sobre desarrollo c1c383f y candidata publicada beta@81f4288; no hay
+reinicio de memoria ni cambio de línea base histórica. El despliegue de revisión
+en https://beta--genesis-os-pro.netlify.app/ ya está verificado.
+
+CoachSettings reacondicionado en las seis secciones existentes, estados reales
+de carga/error/reintento, marca Elite bloqueada correctamente en planes menores,
+preferencias/marca con retorno de fila confirmado, copia de enlace comprobada.
+El selector de comunicaciones no tenía efecto en Chat y se retira; datos y
+mensajería existente se conservan. El registro no consume ref: compartir registro
+ya no simula atribución de referidos. Se conserva la red histórica.
+
+Validado en navegador con datos ficticios y en contratos locales; autenticación,
+RLS y persistencia remota no se dan por aprobadas. La matriz sigue EN_REVISION en
+filas afectadas. Ver docs/GENESIS_BETA_E1_COACH_SETTINGS.md para pruebas y siguiente
+paso. Women’s/Disciplina, seis análisis, siete perfiles y no-R2 siguen vigentes.
+
