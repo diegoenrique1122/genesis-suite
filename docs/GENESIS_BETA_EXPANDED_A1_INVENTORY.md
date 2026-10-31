@@ -4,6 +4,24 @@ Date: 2026-10-24
 Audited source: 73b9db823895ff2cee278bfec21e1389974f1b30
 Branch: rebuild/core-architecture
 
+## Reconciliation notice — 2026-10-31
+
+Read [GENESIS_MASTER_CONTINUITY_RECONCILED.md](GENESIS_MASTER_CONTINUITY_RECONCILED.md)
+before using this inventory for scheduling or global progress reporting.
+
+The 1/8, 1/12 and 1/13 bars below count completed gates of a later roadmap;
+they exclude substantial earlier implementation and are withdrawn as global
+project-progress indicators. Previously completed foundations and partial
+implementations retain their credit.
+
+The 268–482-hour beta estimate and full-product ranges below are historical,
+provisional scenarios. They are suspended as operational forecasts pending a
+task-by-task reconciliation of existing work and residual acceptance criteria.
+The earlier ~70% / 40–65h and 22-session forecasts are historical too; none is
+restored as a current promise. Do not infer a reset of Genesis or repeat
+completed work from these numbers. The reconciled memory records the evidence,
+scope changes, remaining gaps and the immediate A2.5 continuation.
+
 ## Evidence boundary
 
 This checkpoint records a source-code inventory.
@@ -441,7 +459,7 @@ remains a design choice.
 5. Validate multi-coach isolation, cost per active athlete, and actual cleanup.
 6. Add opt-in Drive export after direct exports are reliable.
 
-### Master progress ledger (strict completed gates)
+### Historical gate ledger — not global project progress
 
 These bars count completed release gates, not percent of source code written.
 Partial work inside a gate is described below and does not count as complete.
@@ -461,11 +479,11 @@ Partial work inside a gate is described below and does not count as complete.
   The beta numerator and denominator stay unchanged.
 
 The four commercial gates and their weights require a later product audit.
-Update these bars only when a gate has evidence of completion; keep a
-separate in-progress view for work like A2.4. This is a conservative roadmap
-measure, not a delivery-date forecast.
+Retain these historical gate counts for traceability. Do not use them as
+current global progress bars. Use the reconciled implementation/validation/
+acceptance matrix and record completed work within each gate.
 
-### Work log and remaining effort at 22:00
+### Historical work log and provisional estimate at 22:00
 
 User-reported work window: 2026-10-30, 18:00-22:00 America/New_York.
 Elapsed: 4 hours, equivalent to two 2-hour work blocks. During this
