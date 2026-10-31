@@ -176,10 +176,17 @@ configuración, pero no equivale a la beta aceptada.
 No reducir artificialmente el presupuesto cambiando nombres o eliminando
 funciones no autorizadas. La V1 total no se abarata por mover endurance de fase.
 
-## Netlify: acción externa pendiente
+## Netlify: candidata publicada; aceptación pendiente
 
-No se encontró conector de Netlify en la búsqueda de plugins. No se ha verificado
-la cuenta, el proyecto ni un despliegue real en esta revisión.
+El 31 de octubre se verificó el proyecto genesis-os-pro y el despliegue exitoso
+de beta@81f4288, deploy 6ae602fb3d48f97d11ac98f8. Portal abierto y verificado:
+https://beta--genesis-os-pro.netlify.app/
+La rama de producción main se conserva. La configuración de rama/entorno ya está
+hecha: NO repetir su preparación. Ver GENESIS_BETA_NETLIFY_STATUS.md.
+La allowlist de Supabase Auth y los flujos autenticados siguen pendientes.
+
+Checklist original de configuración, conservado como referencia (no significa
+que los puntos ya verificados deban ejecutarse otra vez):
 
 Configurar en el proyecto Netlify ligado a este repo:
 1. Conservar producción/main; habilitar branch deploy para beta.
@@ -199,3 +206,18 @@ Fuentes:
 - https://docs.netlify.com/deploy/deploy-types/branch-deploys/
 - https://supabase.com/docs/guides/auth/redirect-urls
 - Código y contratos leídos en baseline 49dd61b.
+
+## Continuación E1 — Ajustes de coach reacondicionados
+
+Se implementó el primer bloque E1 sobre c1c383f, sin reiniciar la reconstrucción:
+seis pestañas accesibles, estados de carga/error/reintento y guardados confirmados
+de marca/preferencias. El selector communication_mode no era consumido por Chat:
+se retira el control engañoso, conservando los datos existentes y el acceso real
+a mensajería. Invitaciones comparte el registro real y no promete atribución de
+referidos inexistente. Ver GENESIS_BETA_E1_COACH_SETTINGS.md.
+
+Pruebas locales con fixtures y compilación aprobadas; matriz de aceptación real
+sigue en revisión. Ningún perfil completo se da por aprobado con este bloque.
+Próximo trabajo: E1 Super Admin y panel/detalle de atleta, luego cierre A2.5 y
+Women’s Performance/Disciplina/historial según el orden vigente.
+
