@@ -326,3 +326,128 @@ Status: code committed and pushed; authenticated end-to-end validation pending.
 
 Next: validate the authorized read path with real authenticated roles and program states,
 then implement coach authoring/review UI and the remaining controlled application cutover.
+
+## Master roadmap proposal - Athlete Memory Vault
+
+Planning date: 2026-10-30 (America/New_York).
+Status: approved idea for product planning; no schema or application implementation in this checkpoint.
+Scope: a post-beta product track. This track does not change the expanded beta release gates.
+
+### Product promise
+
+A coach should understand an athlete's progress from a trustworthy daily timeline,
+without opening a photo gallery. Photos are optional evidence, not the source of
+truth. Call the feature "Genesis Memory Vault" in planning; final product naming
+remains a design choice.
+
+### Daily ledger and weekly pulse
+
+- A program-scoped, athlete-owned daily record consolidates check-ins, training
+  completion, meals marked complete, steps, and recorded activities. Link to the
+  canonical Discipline, TrainerPro, nutrition and sport records; do not copy or
+  overwrite their authoritative events.
+- Distinguish planned, completed, self-reported, device-imported, and missing
+  observations. An unreported day is not automatically a failed day.
+- Show completed days against a declared schedule, meals marked complete against
+  scheduled meals, daily steps, and weekly totals with missing-day coverage.
+- Weekly distance sums recorded activity distances with their units and source.
+  Convert known km/miles exactly for display; never silently derive distance
+  from steps. An estimated step distance, if offered, must be labeled estimated.
+- Show prescribed plan calories and meal adherence separately. Show actual
+  calories consumed only when an athlete explicitly logs quantities/intake.
+  Meal-compliance checkboxes cannot prove calories consumed.
+- Weekly coach card: coverage, adherence trend, activity distance, steps,
+  training consistency, optional subjective recovery, and a short list of
+  follow-ups; no fabricated score or medical inference.
+- Read access follows the athlete/program/coach entitlement boundary, with
+  historical coach assignment and revocation handled explicitly.
+
+### Optional visual evidence with a retention clock
+
+- Private, access-controlled photos can be tagged front, side, back or other,
+  linked to athlete, program, capture date, consent and provenance. Preserve
+  original orientation; create a compact preview and enforce upload limits.
+- Default proposal: ordinary photos expire after 90 days, with coach and athlete
+  notices 30 and 7 days beforehand plus an in-app countdown. Retention must be
+  configurable by product policy and applicable obligations before launch.
+- A coach may pin selected progress photos within a bounded quota and a review
+  date, or export selected originals to the device. No silent indefinite
+  exception to storage limits. The athlete can see what was pinned and by whom.
+- Expiry worker removes the object through the Storage API, then verifies and
+  records a non-sensitive deletion receipt. Failed jobs retry and alert
+  operations; database metadata alone is not proof that bytes were deleted.
+- Photo deletion is separate from the compact daily history. Account deletion,
+  consent withdrawal, retention obligations and backups need explicit policy.
+  An export outside Genesis is controlled by the recipient thereafter.
+
+### Export and coach choice
+
+- One-click CSV and XLSX export of the daily ledger and weekly summaries,
+  with a data dictionary, units, timezone, source labels and export range.
+  Optional ZIP of selected photos and a manifest stays separate from Excel.
+- Start with direct device download. Later offer opt-in Google Drive export
+  through a narrow per-file OAuth scope, explicit destination, connection
+  revocation and clear quota responsibility. Google Drive is a coach-controlled
+  export destination, not Genesis's primary application database.
+- Notify before expiry with a preview of what will be deleted; show the last
+  successful export and any export error. Never imply an export succeeded
+  merely because it was requested.
+
+### Low-cost architecture and commercial guardrails
+
+- Reuse the existing Supabase project: canonical relational records in
+  Postgres, a private Storage bucket for photos, RLS and short-lived signed
+  access where appropriate, scheduled cleanup through Cron/Edge Functions.
+- Meter per-coach active athletes, photo count/bytes, download traffic and
+  export size; add tier quotas and alerts before any paid overage. Compress
+  uploads on the client without discarding originals when retention requires
+  them; avoid generating unnecessary variants.
+- Free hosting is appropriate for prototype scale, not an unlimited B2B
+  promise. At the reviewed pricing, Supabase Free includes 500 MB database,
+  1 GB file storage and 5 GB egress; all are shared project allowances.
+  Example: 100 coaches x 20 athletes x two 400 KB photos per month is about
+  1.6 GB of new photos monthly, before previews and downloads.
+- Storage provider abstraction can be evaluated later if measured traffic
+  warrants it. Avoid introducing a second provider before authorization,
+  deletion and export behavior work end to end on one provider.
+
+### Delivery gates
+
+1. Define consent, retention, tenant isolation, quotas and data dictionary.
+2. Implement daily ledger projections and coach weekly pulse from canonical
+   records; validate provenance and missing-data behavior.
+3. Implement private photo evidence, bounded pinning, access logs and deletion.
+4. Implement notices, direct exports, audit receipts and recovery for failures.
+5. Validate multi-coach isolation, cost per active athlete, and actual cleanup.
+6. Add opt-in Drive export after direct exports are reliable.
+
+### Master progress ledger (strict completed gates)
+
+These bars count completed release gates, not percent of source code written.
+Partial work inside a gate is described below and does not count as complete.
+
+- Expanded beta, excluding Memory Vault: **1/8 = 12.5%**  █░░░░░░░
+  Gate 1 remote schema/preservation audit closed. Gate 2 nutrition contracts
+  and El Arquitecto read integration advanced through A2.4; authenticated
+  REST, coach authoring UI and controlled cutover remain. Gates 3-8 remain:
+  recovery/read contracts, Women's consent/agendas, running/triathlon,
+  dashboards/charts, privacy/integration QA, deployed release candidate.
+- Full product without Memory Vault: **1/12 = 8.3%**  █░░░░░░░░░░░
+  The same eight beta gates plus four provisional commercial gates:
+  multi-coach tenancy and entitlements, self-service onboarding/billing,
+  production operations/support, and measured wearable/interoperability work.
+- Full product with Memory Vault: **1/13 = 7.7%**  █░░░░░░░░░░░░
+  Adds the Memory Vault delivery track above as one full-product gate.
+  The beta numerator and denominator stay unchanged.
+
+The four commercial gates and their weights require a later product audit.
+Update these bars only when a gate has evidence of completion; keep a
+separate in-progress view for work like A2.4. This is a conservative roadmap
+measure, not a delivery-date forecast.
+
+References checked during planning:
+- Supabase pricing: https://supabase.com/pricing
+- Private Storage buckets: https://supabase.com/docs/guides/storage/buckets/fundamentals
+- Storage access control: https://supabase.com/docs/guides/storage/security/access-control
+- Supabase Cron: https://supabase.com/docs/guides/cron
+- Google Drive limited file scope: https://developers.google.com/workspace/drive/api/guides/api-specific-auth
