@@ -544,3 +544,18 @@ RLS y persistencia remota no se dan por aprobadas. La matriz sigue EN_REVISION e
 filas afectadas. Ver docs/GENESIS_BETA_E1_COACH_SETTINGS.md para pruebas y siguiente
 paso. Women’s/Disciplina, seis análisis, siete perfiles y no-R2 siguen vigentes.
 
+## Línea base F0.4 (31 oct 2026)
+
+Medida en la rama audit/f1 (sobre beta@051217b), una ejecución por comando:
+
+- Lint completo (`npm run lint`): falla con 48 errores y 12 avisos, todos
+  heredados. Duración no medida con precisión (~79 s como máximo).
+- Pruebas (`npm run test`): pasan, 1,9 s.
+- Build (`npm run build`): pasa, 17,7 s (aviso de bundle grande preexistente).
+
+Decisión: `npm run verify` encadena `lint:changed`, `test` y `build`. El lint
+de verify revisa solo los archivos .js/.jsx/.mjs que cambian respecto a
+origin/beta (scripts/lint-changed.mjs); `npm run lint` queda para el lint
+completo. La deuda heredada no se corrige aquí: se limpia dentro de la fase que
+reconstruya cada pantalla. Los .mjs solo se comprueban en sintaxis, porque
+eslint.config.js aplica reglas únicamente a .js y .jsx.
