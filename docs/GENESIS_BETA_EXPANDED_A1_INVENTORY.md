@@ -304,3 +304,25 @@ No plan was selected remotely and no application screen was switched.
 Next: connect El Arquitecto to the authorized effective-plan read contract,
 then run authenticated end-to-end and concurrency validation.
 Athlete proposals, legacy import and existing pre-beta security gates remain pending.
+
+## A2.4 - El Arquitecto effective-plan read integration
+
+Validation date: 2026-10-31.
+Code commit: 2d3a328156f9de8d08463b7661d010a3a5cc7ac1.
+Status: code committed and pushed; authenticated end-to-end validation pending.
+
+- El Arquitecto now detects an athlete program with NUTRITION or BOTH service focus.
+- For that program, a read-only panel requests genesis_get_effective_nutrition_plan and renders its effective state, approved targets, meals and items.
+- The athlete can request everyday, training-day or rest-day presentation; the database resolves the effective version and meal set.
+- Loading, empty and request-error states are visible. No nutrition values are fabricated when the effective plan is absent.
+- The old macro/calendar presentation and legacy recalibration/generator actions are suppressed for athletes with a nutrition-capable program.
+- Profiles without such a program retain the existing path during the controlled transition.
+- Targeted ESLint and Vite production build passed locally (2093 modules); git diff --check passed.
+- The commit contains exactly src/pages/ElArquitecto.jsx and src/components/NutritionEffectivePlan.jsx.
+- The local branch and origin/rebuild/core-architecture matched with a clean worktree after push.
+- No database migration, remote plan selection, legacy JSON import or production user-plan activation was performed in A2.4.
+- REST login, authenticated athlete/coach end-to-end reads, multi-session concurrency and browser acceptance remain pending.
+- Athlete proposals and existing pre-beta security gates remain pending.
+
+Next: validate the authorized read path with real authenticated roles and program states,
+then implement coach authoring/review UI and the remaining controlled application cutover.
