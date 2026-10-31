@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import NutritionEffectivePlan from '../components/NutritionEffectivePlan';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  ArrowLeft, Utensils, Activity, Droplet, Flame, Zap, 
+  ArrowLeft, Utensils, Activity, Flame, Zap,
   Target, Beaker, Calendar, ShoppingCart, 
   ShieldCheck, FileText, FileSpreadsheet, ChevronDown, ChevronUp, Lock, Timer,
-  Bell, X, Info, Loader2, CheckCircle2, ShieldAlert, Scale
+  Bell, X, Info, Loader2, CheckCircle2, Scale
 } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
@@ -46,8 +47,6 @@ const DynamicIcon = ({ name, size = 20, className = "" }) => {
   return <IconComponent size={size} className={className} />;
 };
 
-const roundToHalf = (num) => Math.round(num * 2) / 2;
-
 // Base de datos de alimentos
 const FOOD_DATABASE = {
   proteins: [ { id: 'whey', name: 'Aislado de Suero (Whey)', bv: 'Inmediata' }, { id: 'egg_whites', name: 'Claras de Huevo', bv: 'Rápida' }, { id: 'white_fish', name: 'Pescado Blanco', bv: 'Rápida' }, { id: 'chicken', name: 'Pechuga de Pollo', bv: 'Media' }, { id: 'turkey', name: 'Pechuga de Pavo', bv: 'Media' }, { id: 'beef', name: 'Carne Magra de Res', bv: 'Lenta' }, { id: 'salmon', name: 'Salmón Salvaje', bv: 'Lenta' }, { id: 'cottage', name: 'Queso Cottage', bv: 'Ultra Lenta' } ],
@@ -64,6 +63,8 @@ export default function ElArquitecto() {
   const [coachName, setCoachName] = useState('Coach Élite');
   const [macros, setMacros] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 });
   const [customWeeklyCalendar, setCustomWeeklyCalendar] = useState(null);
+  const [nutritionProgramAvailable, setNutritionProgramAvailable] = useState(false);
+  const [nutritionProgramResolved, setNutritionProgramResolved] = useState(false);
   
   const [vipExpanded, setVipExpanded] = useState(true); 
   const [routineStatus, setRoutineStatus] = useState('NEW');
@@ -86,20 +87,15 @@ export default function ElArquitecto() {
   const [selectedAlertModal, setSelectedAlertModal] = useState(null);
   const [selectedToolModal, setSelectedToolModal] = useState(null);
 
-  useEffect(() => { 
-    fetchAthleteData(); 
-    
-    // ⚡ MAGIA REALTIME
-    const syncChannel = supabase.channel('athlete_sync')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'athletes_profile' }, (payload) => {
-         fetchAthleteData(); 
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(syncChannel); };
+  const calculateMacros = useCallback((weightKg, goal) => {
+    if (!weightKg) return;
+    let proMultiplier = 2.2; let fatMultiplier = 0.8; let carbMultiplier = 3.0;
+    if (goal === 'Pérdida de Grasa') { carbMultiplier = 1.5; proMultiplier = 2.5; } else if (goal === 'Ganancia Muscular') { carbMultiplier = 4.5; fatMultiplier = 1.0; }
+    const protein = Math.round(weightKg * proMultiplier); const fats = Math.round(weightKg * fatMultiplier); const carbs = Math.round(weightKg * carbMultiplier);
+    setMacros({ calories: Math.round((protein * 4) + (carbs * 4) + (fats * 9)), protein, carbs, fats });
   }, []);
 
-  const fetchAthleteData = async () => {
+  const fetchAthleteData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return navigate('/');
@@ -108,6 +104,22 @@ export default function ElArquitecto() {
 
       if (profile) {
         setAthlete(profile);
+        const { data: nutritionProgram, error: nutritionProgramError } = await supabase
+          .from('athlete_programs')
+          .select('id, service_focus')
+          .eq('athlete_id', profile.id)
+          .in('service_focus', ['NUTRITION', 'BOTH'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (nutritionProgramError) {
+          setNutritionProgramAvailable(true);
+          setNutritionProgramResolved(true);
+          throw nutritionProgramError;
+        }
+        const hasNutritionProgram = Boolean(nutritionProgram);
+        setNutritionProgramAvailable(hasNutritionProgram);
+        setNutritionProgramResolved(true);
         setRoutineStatus(profile.routine_status || 'NEW');
         
         if(profile.coach_id) {
@@ -129,13 +141,13 @@ export default function ElArquitecto() {
         }
 
         // 🧠 LÓGICA DE INTERCEPCIÓN (RECALIBRACIÓN -> LABORATORIO -> AUDITORÍA)
-        if (profile.routine_status === 'NEW') {
+        if (profile.routine_status === 'NEW' && !hasNutritionProgram) {
           // Si el coach reseteó al atleta, le pedimos sus datos primero
           setShowRecalibration(true);
           setRecalWeight(profile.weight || '');
           setRecalGoal(profile.goal || 'Pérdida de Grasa');
           setShowFoodLab(false);
-        } else if (profile.b2c_plan === 'ELITE' && !profile.food_preferences && profile.routine_status !== 'APPROVED') {
+        } else if (!hasNutritionProgram && profile.b2c_plan === 'ELITE' && !profile.food_preferences && profile.routine_status !== 'APPROVED') {
           // Si no es nuevo, pero no tiene comidas y no está aprobado, mostramos el laboratorio
           setShowRecalibration(false);
           setShowFoodLab(true);
@@ -152,18 +164,29 @@ export default function ElArquitecto() {
         }
       }
     } catch (error) { console.error("Error:", error); } finally { setLoading(false); }
-  };
+  }, [calculateMacros, navigate]);
 
-  const calculateMacros = (weightKg, goal) => {
-    if (!weightKg) return;
-    let proMultiplier = 2.2; let fatMultiplier = 0.8; let carbMultiplier = 3.0; 
-    if (goal === 'Pérdida de Grasa') { carbMultiplier = 1.5; proMultiplier = 2.5; } else if (goal === 'Ganancia Muscular') { carbMultiplier = 4.5; fatMultiplier = 1.0; }
-    const protein = Math.round(weightKg * proMultiplier); const fats = Math.round(weightKg * fatMultiplier); const carbs = Math.round(weightKg * carbMultiplier);
-    setMacros({ calories: Math.round((protein * 4) + (carbs * 4) + (fats * 9)), protein, carbs, fats });
-  };
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (active) void fetchAthleteData();
+    });
+    const syncChannel = supabase.channel('athlete_sync')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'athletes_profile' }, () => {
+        void fetchAthleteData();
+      })
+      .subscribe();
+    return () => {
+      active = false;
+      supabase.removeChannel(syncChannel);
+    };
+  }, [fetchAthleteData]);
+
+
 
   // ⚖️ GUARDAR RECALIBRACIÓN (Paso 1 del Reset)
   const handleUpdateBiometrics = async () => {
+    if (nutritionProgramAvailable) return alert('Tu programa nutricional se gestiona desde el plan aprobado por tu coach.');
     if (!recalWeight || !recalGoal) return alert("Completa tus datos biológicos.");
     setIsGeneratingDiet(true);
     try {
@@ -198,6 +221,7 @@ export default function ElArquitecto() {
 
   // 🧪 GENERAR DIETA DESDE LABORATORIO (Paso 2 del Reset)
   const handleCompileDiet = async () => {
+    if (nutritionProgramAvailable) return alert('Tu programa nutricional se gestiona desde el plan aprobado por tu coach.');
     if (selectedFoods.proteins.length < 2 || selectedFoods.carbs.length < 2 || selectedFoods.fats.length < 2) return alert("Selecciona al menos 2 opciones de cada categoría.");
     setIsGeneratingDiet(true);
     try {
@@ -219,7 +243,7 @@ export default function ElArquitecto() {
 
       days.forEach(day => {
         meals.forEach((m, idx) => {
-          let foodItem = ""; let scaleGrams = ""; let why = "";
+          let foodItem; let scaleGrams; let why;
           const randP = getRandom(userProts); const randC = getRandom(userCarbs); const randF = getRandom(userFats);
           if (idx === 0) { foodItem = `${randP} + ${randC} + ${randF}`; scaleGrams = `${Math.round(m.p*4)}g Proteína / ${Math.round(m.c*4)}g Carbo / ${Math.round(m.f*4)}g Grasa (Aprox)`; why = "Energía matutina según tus preferencias."; }
           else if (idx === 2) { foodItem = `${randP} + ${randC}`; scaleGrams = `${Math.round(m.p*4.5)}g Proteína / ${Math.round(m.c*4)}g Carbo`; why = "Absorción rápida Peri-Entrenamiento. Cero grasas intencional."; }
@@ -255,7 +279,7 @@ export default function ElArquitecto() {
       });
       if(datasetsArray.length === 0) return null;
       return { labels: labelsArray, datasets: datasetsArray };
-    } catch (e) { return null; }
+    } catch { return null; }
   };
 
   const dynamicChartOptions = {
@@ -275,7 +299,7 @@ export default function ElArquitecto() {
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans pb-24 relative overflow-hidden">
       
       {/* ⚖️ PANTALLA RECALIBRACIÓN BIOMÉTRICA (INTERCEPTOR CUANDO ES 'NEW') */}
-      {showRecalibration && (
+      {showRecalibration && !nutritionProgramAvailable && (
         <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4">
           <div className="max-w-md w-full bg-[#111] border border-blue-500/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(59,130,246,0.15)] relative">
             <div className="text-center mb-8">
@@ -309,7 +333,7 @@ export default function ElArquitecto() {
       )}
 
       {/* 🧪 LABORATORIO DE ALIMENTOS (POP-UP SECUESTRADOR - PASO 2) */}
-      {showFoodLab && !showRecalibration && (
+      {showFoodLab && !showRecalibration && !nutritionProgramAvailable && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-start p-4 overflow-y-auto">
           <div className="max-w-5xl w-full bg-[#111] border border-amber-500/30 rounded-3xl p-8 mt-10 mb-10 shadow-[0_0_50px_rgba(245,158,11,0.1)] relative">
             <div className="text-center mb-8">
@@ -405,7 +429,10 @@ export default function ElArquitecto() {
           </div>
         </div>
 
-        {/* MACROS GLOBALES */}
+        {nutritionProgramResolved && nutritionProgramAvailable ? <NutritionEffectivePlan athleteId={athlete?.id} /> : null}
+
+        {!nutritionProgramAvailable && <>
+        {/* MACROS GLOBALES (legacy solo si no hay programa nutricional versionado) */}
         <div className="bg-[#111] border border-neutral-800 rounded-3xl p-6 shadow-xl relative">
           {routineStatus !== 'APPROVED' && (
              <div className="absolute inset-0 z-20 bg-[#0a0a0a]/60 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl">
@@ -515,6 +542,8 @@ export default function ElArquitecto() {
             </div>
           )}
         </div>
+
+        </>}
 
         {/* 5️⃣ CAJA DE HERRAMIENTAS DINÁMICA (CREADAS POR EL COACH) */}
         <div>
