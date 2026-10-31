@@ -465,6 +465,45 @@ Update these bars only when a gate has evidence of completion; keep a
 separate in-progress view for work like A2.4. This is a conservative roadmap
 measure, not a delivery-date forecast.
 
+### Work log and remaining effort at 22:00
+
+User-reported work window: 2026-10-30, 18:00-22:00 America/New_York.
+Elapsed: 4 hours, equivalent to two 2-hour work blocks. During this
+window, the A2.4 El Arquitecto read integration was validated, committed
+and documented; the Memory Vault concept and its revised photo retention
+rules were added to this roadmap. The time was not tracked by subtask,
+so these two blocks cannot honestly be attributed entirely to beta coding.
+
+The following is the forward estimate as of the end of that window.
+It already includes the A2.4 progress; do not subtract the same four hours
+again. The previous 22-session estimate predates this expanded scope.
+
+| Remaining expanded-beta workstream | 2-hour blocks | Hours |
+| --- | ---: | ---: |
+| Nutrition authenticated flows, coach UI and controlled cutover | 12-22 | 24-44 |
+| TrainerPro visible flows and planned/actual history closure | 10-20 | 20-40 |
+| Discipline and recovery data/provenance | 12-22 | 24-44 |
+| Women's Performance consent, history and reviewed adaptation | 20-35 | 40-70 |
+| Running/endurance/triathlon planning, execution and manual progress | 30-55 | 60-110 |
+| Coach/Admin dashboards, charts, visual and mobile completion | 18-32 | 36-64 |
+| Entitlements, isolation, privacy and integration QA | 24-40 | 48-80 |
+| Deployed release candidate and beta acceptance | 8-15 | 16-30 |
+| **Total remaining** | **134-241** | **268-482** |
+
+Planning shorthand: about 135-240 focused 2-hour sessions (270-480
+hours). At five sessions per week this is about 27-48 weeks; at ten,
+about 14-24 weeks. These are ranges for one worker with usable access
+and do not include waiting for external approvals or unforeseen rework.
+The 1/8 release-gate bar is not a time-percentage estimate.
+
+Beyond beta, the provisional full-product scope adds about 190-370
+blocks (380-740 hours), including roughly 30-55 blocks (60-110 hours)
+for Memory Vault. Thus the forward full-product estimate is about
+324-611 blocks (648-1222 hours) including Memory Vault, or 294-556
+blocks (588-1112 hours) excluding it. Re-estimate after an end-to-end
+source and product audit; "complete" here means the current version-1
+product contract, not an end to future maintenance.
+
 References checked during planning:
 - Supabase pricing: https://supabase.com/pricing
 - Private Storage buckets: https://supabase.com/docs/guides/storage/buckets/fundamentals
