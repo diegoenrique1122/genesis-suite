@@ -330,8 +330,9 @@ then implement coach authoring/review UI and the remaining controlled applicatio
 ## Master roadmap proposal - Athlete Memory Vault
 
 Planning date: 2026-10-30 (America/New_York).
-Status: approved idea for product planning; no schema or application implementation in this checkpoint.
-Scope: a post-beta product track. This track does not change the expanded beta release gates.
+Status: refined idea for product planning; no schema or application implementation in this checkpoint.
+Scope: an additive post-beta product track. Existing athlete records, application flows
+and approved plans remain authoritative. This track does not change the beta gates.
 
 ### Product promise
 
@@ -362,23 +363,37 @@ remains a design choice.
 - Read access follows the athlete/program/coach entitlement boundary, with
   historical coach assignment and revocation handled explicitly.
 
-### Optional visual evidence with a retention clock
+### Visual evidence: 24-hour meals and baseline-to-latest progress
 
-- Private, access-controlled photos can be tagged front, side, back or other,
-  linked to athlete, program, capture date, consent and provenance. Preserve
-  original orientation; create a compact preview and enforce upload limits.
-- Default proposal: ordinary photos expire after 90 days, with coach and athlete
-  notices 30 and 7 days beforehand plus an in-app countdown. Retention must be
-  configurable by product policy and applicable obligations before launch.
-- A coach may pin selected progress photos within a bounded quota and a review
-  date, or export selected originals to the device. No silent indefinite
-  exception to storage limits. The athlete can see what was pinned and by whom.
-- Expiry worker removes the object through the Storage API, then verifies and
-  records a non-sensitive deletion receipt. Failed jobs retry and alert
-  operations; database metadata alone is not proof that bytes were deleted.
-- Photo deletion is separate from the compact daily history. Account deletion,
-  consent withdrawal, retention obligations and backups need explicit policy.
-  An export outside Genesis is controlled by the recipient thereafter.
+- This feature is additive: it does not remove existing records, screens,
+  training history, nutrition plans or the compact daily/weekly data history.
+  The photo policy applies to image objects and their disposable previews.
+- Meal photos are optional and private. Each becomes eligible for deletion
+  24 hours after upload; an hourly cleanup worker removes it and verifies
+  removal. Show the exact expiry time at upload. The meal-compliance event
+  survives photo deletion, with no retained thumbnail or public URL.
+- The first complete front, side and back set is the athlete's baseline.
+  Keep those three originals as the comparison reference while the athlete
+  account and required consent remain active; applicable deletion duties
+  still govern withdrawal, account closure and legal exceptions.
+- A coach chooses the progress-photo refresh cadence. Remind coach and
+  athlete as the next date approaches; the date is a prompt, not automatic
+  deletion of the currently displayed set.
+- Keep one current front/side/back set in addition to the baseline. On a
+  complete new set, validate all three uploads and metadata, switch the
+  current pointer atomically, then delete the old current set. A failed or
+  partial upload cannot erase the previous set. On the first capture, the
+  baseline and current pointers may refer to the same three objects.
+- Side-by-side comparison always shows the fixed baseline versus the latest
+  complete set, with capture dates and consistent orientation. Intermediate
+  sets are not promised as a historical gallery. Before replacement, offer
+  explicit download of the outgoing set to the device or optional Drive export;
+  the coach chooses whether to keep a personal archive.
+- Private access follows athlete/program/coach authorization and consent.
+  The cleanup worker uses the Storage API, verifies object removal and
+  records a non-sensitive receipt; failed deletions retry and alert operations.
+  Photo deletion never changes the canonical daily ledger. Backup retention
+  and exports outside Genesis require explicit policy and disclosure.
 
 ### Export and coach choice
 
@@ -389,9 +404,10 @@ remains a design choice.
   through a narrow per-file OAuth scope, explicit destination, connection
   revocation and clear quota responsibility. Google Drive is a coach-controlled
   export destination, not Genesis's primary application database.
-- Notify before expiry with a preview of what will be deleted; show the last
-  successful export and any export error. Never imply an export succeeded
-  merely because it was requested.
+- Show a live 24-hour countdown for meal photos. Progress-photo reminders
+  refer to the coach's refresh date, and an outgoing set is offered for
+  export before replacement. Show last successful export and any error;
+  never imply an export succeeded merely because it was requested.
 
 ### Low-cost architecture and commercial guardrails
 
@@ -405,8 +421,10 @@ remains a design choice.
 - Free hosting is appropriate for prototype scale, not an unlimited B2B
   promise. At the reviewed pricing, Supabase Free includes 500 MB database,
   1 GB file storage and 5 GB egress; all are shared project allowances.
-  Example: 100 coaches x 20 athletes x two 400 KB photos per month is about
-  1.6 GB of new photos monthly, before previews and downloads.
+  Example: 100 coaches x 20 athletes x six distinct 400 KB progress photos
+  (baseline plus latest) is about 4.8 GB of retained photos, before
+  transient meal photos, previews and downloads. First capture reuses its
+  three baseline objects as current, so it initially needs only three.
 - Storage provider abstraction can be evaluated later if measured traffic
   warrants it. Avoid introducing a second provider before authorization,
   deletion and export behavior work end to end on one provider.
@@ -416,8 +434,10 @@ remains a design choice.
 1. Define consent, retention, tenant isolation, quotas and data dictionary.
 2. Implement daily ledger projections and coach weekly pulse from canonical
    records; validate provenance and missing-data behavior.
-3. Implement private photo evidence, bounded pinning, access logs and deletion.
-4. Implement notices, direct exports, audit receipts and recovery for failures.
+3. Implement private meal photos with 24-hour expiry and baseline/current
+   progress sets with safe three-photo replacement, access logs and deletion.
+4. Implement refresh reminders, direct exports, audit receipts and recovery
+   for failed uploads or deletions.
 5. Validate multi-coach isolation, cost per active athlete, and actual cleanup.
 6. Add opt-in Drive export after direct exports are reliable.
 
