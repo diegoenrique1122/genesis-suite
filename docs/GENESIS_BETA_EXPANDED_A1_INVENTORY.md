@@ -253,3 +253,26 @@ No plan was activated, no legacy JSON was imported, and no application screen wa
 Next: authorized version selection and effective-plan reads, followed by
 Arquitecto integration and authenticated end-to-end validation.
 Athlete proposals and existing pre-beta security gates remain pending.
+
+## A2.3A - Selection and effective reads locally validated
+
+Validation date: 2026-10-30.
+Source baseline: dbb48e1a00a1cd1d618bfb0dfd10d3a1942f5913.
+Migration: 20261031000001_genesis_nutrition_selection_a23.sql.
+Status: embedded and local Supabase integration passed; remote installation pending.
+
+- 152 PASS checks on embedded PostgreSQL 17.5 / PGlite 0.3.14.
+- The full transactional suite passed in the existing local Supabase Docker lab.
+- Selection is restricted to approved versions and authorized Evolucion/Elite coaches or Super Admin.
+- Selection revisions reject stale clients, including switching back to an earlier selection.
+- Effective reads enforce athlete isolation, program lifecycle and version date windows.
+- Date boundaries, New York daylight-saving transitions and empty/future/expired states passed.
+- Training-day meals replace the full everyday set; rest days fall back to the full everyday set.
+- Full rollback and all seven legacy data digests passed.
+- Test: tools/local-lab/genesis_a23_nutrition_selection_transaction_test.sql.
+- REST login, multi-session concurrency and remote structural audit remain pending.
+- Application screens remain on their existing data path; no plan was selected remotely.
+
+Next: A2.3B - guarded remote dry-run and installation review.
+Then connect El Arquitecto to the authorized effective-plan read contract.
+Athlete proposals, legacy import and existing pre-beta security gates remain pending.
