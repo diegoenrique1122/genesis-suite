@@ -27,6 +27,16 @@ requieren calibración con jornadas reales. No sustituyen el avance acumulado
 por un porcentaje de puertas ni restauran las estimaciones antiguas.
 Las cifras y los alcances previos del cuerpo/anexos se conservan como historia.
 
+## Propuesta posterior de fotos — 31 octubre
+
+[Compresión y ciclo de vida](GENESIS_PHOTO_COMPRESSION_LIFECYCLE.md) registra
+la idea nueva: WebP en cliente con comprobación de formato/calidad, comidas
+15 días en lugar de 24 h, controles de físico cada 14 días y 7 días para
+descargar el juego sustituido, protegiendo base inicial y juego vigente.
+ZIP contiene fotos; Excel/CSV contiene datos e índice. El ahorro requiere
+medición. Propuesta no implementada; no se han borrado fotos ni cambiado
+presupuestos o alcance beta automáticamente. Supabase sigue como proveedor.
+
 ## Lectura obligatoria para continuar
 
 Leer este documento junto con GENESIS_BETA_EXPANDED_A1_INVENTORY.md y

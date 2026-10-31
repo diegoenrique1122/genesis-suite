@@ -4,6 +4,16 @@ Date: 2026-10-24
 Audited source: 73b9db823895ff2cee278bfec21e1389974f1b30
 Branch: rebuild/core-architecture
 
+## Later photo lifecycle proposal — 2026-10-31
+
+See [client compression and differentiated retention](GENESIS_PHOTO_COMPRESSION_LIFECYCLE.md).
+The proposed future meal-photo retention is now 15 days, superseding the earlier
+24-hour proposal below. Baseline and current body-progress sets are protected;
+the replaced set has a seven-day export grace period after successor validation.
+Default capture cadence is 14 days. Compression targets require measurement
+and browser fallback checks. This is documentation only: no deletion, provider
+migration, implementation or automatic beta-effort change occurred.
+
 ## Current scope update — 2026-10-31
 
 [Visual and numerical-history plan](GENESIS_BETA_VISUAL_ANALYTICS_PLAN.md)

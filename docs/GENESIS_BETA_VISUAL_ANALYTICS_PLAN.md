@@ -15,11 +15,12 @@ u otro proveedor externo. Esta exclusión no elimina datos ni capacidades actual
 El historial numérico deja de ser exclusivamente post-beta: se incorpora ahora a
 la beta ampliada como Panel de Inteligencia Biomecánica y Metabólica.
 El resto del antiguo Memory Vault no entra automáticamente en beta.
-La política de fotos acordada (comidas 24 h; primeras tres de progreso como base,
-más último juego completo) conserva su lugar como implementación posterior
-en Supabase, sin proveedor nuevo. “15 días” en el ejemplo actual se interpreta
-como ejemplo de borrado independiente del historial, no como reemplazo de
-la regla explícita anterior de 24 horas.
+La propuesta posterior registrada en GENESIS_PHOTO_COMPRESSION_LIFECYCLE.md
+actualiza el objetivo futuro: comidas 15 días, base inicial protegida y juego
+vigente, con 7 días de gracia para el juego sustituido tras validar su sucesor.
+La frecuencia de fotos de físico por defecto es 14 días. La retención permanece
+post-beta en Supabase; la compresión requiere dimensionar su incremento antes
+de añadirla a beta. No hay un nuevo proveedor.
 
 Este documento cambia el plan; no implementa pantallas ni tablas.
 Las estimaciones son juicio de ingeniería sobre código leído, no tiempos medidos.
