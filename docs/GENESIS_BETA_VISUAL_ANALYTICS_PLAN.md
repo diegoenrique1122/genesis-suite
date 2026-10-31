@@ -4,6 +4,15 @@ Fecha: 31 de octubre de 2026, America/New_York.
 Baseline revisado: d97aeea5722b61bec02fe64bed764d6c7f23d72b.
 Rama: rebuild/core-architecture.
 
+## Cambio posterior: protocolo urgente de salida
+
+El usuario trasladó Running/Ironman después de beta y pidió tarjetas con aviso
+“En desarrollo”. Leer GENESIS_BETA_EMERGENCY_RELEASE.md y su matriz de perfiles.
+Women's Performance, Disciplina, historial numérico y mejoras visuales continúan
+en beta. La estimación de 160–280 h de este documento queda como histórica para
+el alcance anterior; el protocolo propone ~130–225 h al retirar endurance.
+No se retiran datos ni capacidades existentes.
+
 ## Alcance de esta actualización
 
 Petición del usuario: recuperar los acuerdos de mejora de Super Admin, coach,

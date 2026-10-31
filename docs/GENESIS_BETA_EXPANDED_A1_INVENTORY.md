@@ -4,6 +4,19 @@ Date: 2026-10-24
 Audited source: 73b9db823895ff2cee278bfec21e1389974f1b30
 Branch: rebuild/core-architecture
 
+## Emergency release scope — latest 2026-10-31 instruction
+
+Read [the emergency release protocol](GENESIS_BETA_EMERGENCY_RELEASE.md).
+Running/Ironman implementation is now post-beta, with explicit “In development”
+cards. All seven profile families, professional visual surfaces, functional
+controls, Women's Performance, Discipline and numerical history remain beta scope.
+The initial 144-case review matrix is pending authenticated/mobile verification.
+A buildable review candidate is not an accepted public beta.
+
+The residual planning range is ~130–225 hours, superseding the earlier expanded
+beta range for this changed scope. Netlify configuration and a beta branch are
+prepared; no successful hosted deployment is claimed by this checkpoint.
+
 ## Later photo lifecycle proposal — 2026-10-31
 
 See [client compression and differentiated retention](GENESIS_PHOTO_COMPRESSION_LIFECYCLE.md).

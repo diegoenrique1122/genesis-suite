@@ -1,3 +1,4 @@
+import UpcomingSports from '../components/UpcomingSports';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -902,6 +903,7 @@ const fetchDashboardData = useCallback(async () => {
           </GenesisSurface>
         </div>
       )}
+      {activeTab === 'MY_APPS' ? <UpcomingSports /> : null}
     </GenesisAppShell>
   );
 }

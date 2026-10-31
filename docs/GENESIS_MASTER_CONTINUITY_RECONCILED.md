@@ -37,6 +37,20 @@ ZIP contiene fotos; Excel/CSV contiene datos e índice. El ahorro requiere
 medición. Propuesta no implementada; no se han borrado fotos ni cambiado
 presupuestos o alcance beta automáticamente. Supabase sigue como proveedor.
 
+## Protocolo urgente vigente — 31 octubre
+
+[GENESIS_BETA_EMERGENCY_RELEASE.md](GENESIS_BETA_EMERGENCY_RELEASE.md) es el
+alcance de salida más reciente: revisar todos los perfiles/pantallas y completar
+Women's Performance, Disciplina, nutrición, entrenamiento e historial numérico.
+Running/Ironman se desarrollan después de beta y ahora muestran avisos
+“En desarrollo”. La matriz inicial tiene 144 casos pendientes, no aprobaciones.
+
+Ramas: beta para candidata/revisión; rebuild/core-architecture para desarrollo;
+main conserva su función de producción. netlify.toml queda preparado, pero
+hosting, pruebas autenticadas y aceptación completa siguen pendientes.
+Estimación provisional actual: ~130–225 h para beta, derivada de retirar
+24–44 h de endurance de la base anterior. No es una fecha prometida.
+
 ## Lectura obligatoria para continuar
 
 Leer este documento junto con GENESIS_BETA_EXPANDED_A1_INVENTORY.md y
@@ -169,8 +183,9 @@ resultado esperado, resultado observado y fallo exacto; no volver a desarrollar
 las migraciones A2.1–A2.3 ni sustituir su batería aprobada por una nueva desde cero.
 
 Después, mantener el alcance de beta ampliada acordado: nutrición completa,
-TrainerPro, Disciplina/recuperación manual, Women's Performance, running/triatlón,
-coach/admin, aceptación integrada y despliegue controlado. La actualización del
+TrainerPro, Disciplina/recuperación manual, Women's Performance,
+coach/admin, aceptación integrada y despliegue controlado. Running/triatlón
+pasan después de beta por el protocolo urgente del 31 de octubre. La actualización del
 31 de octubre incorpora el historial numérico y panel analítico a beta; la nueva
 retención de fotos en Supabase queda posterior a beta y R2 está excluido.
 No retirar funcionalidades para hacer coincidir una estimación.

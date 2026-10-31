@@ -1,3 +1,4 @@
+import UpcomingSports from '../components/UpcomingSports';
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -36,7 +37,7 @@ export default function SuperAdminDashboard() {
     const saved = localStorage.getItem('genesis_admin_theme');
     return ADMIN_THEMES.find(t => t.id === saved) || ADMIN_THEMES[0];
   });
-  const [showThemeSelector, setShowThemeSelector] = useState(false);
+
 
   const [stats, setStats] = useState({ totalCoaches: 0, totalAthletes: 0, pendingCoaches: 0, pendingRequests: 0 });
   const [analyticsPlan, setAnalyticsPlan] = useState('ALL');
@@ -761,24 +762,13 @@ export default function SuperAdminDashboard() {
               <Globe size={16}/> {copy("Red Global", "Global Network")}
             </button>
             
-            <button onClick={() => setShowThemeSelector(!showThemeSelector)} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
+            <button type="button" aria-label={copy('Abrir ajustes de apariencia', 'Open appearance settings')} onClick={() => setActiveTab('SETTINGS')} className={`p-2 rounded-xl border ${activeTheme.border} hover:bg-black/10 transition-colors`}><Palette size={18}/></button>
             <LocaleToggle compact className="hidden sm:inline-flex" />
             <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors p-2"><LogOut size={20} /></button>
             </div>
           </div>
         </div>
       </nav>
-
-      {/* SELECTOR DE TEMAS OCULTO */}
-      {showThemeSelector && (
-        <div className={`${activeTheme.card} border-b ${activeTheme.border} px-6 py-4 shadow-xl flex gap-3 overflow-x-auto scrollbar-hide relative z-30`}>
-          {ADMIN_THEMES.map(t => (
-            <button key={t.id} onClick={() => changeTheme(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap border transition-all ${activeTheme.id === t.id ? `${t.bg} ${t.text} border-transparent shadow-lg scale-105` : `${activeTheme.card} ${activeTheme.border}`}`}>
-              {t.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       <main className="max-w-7xl mx-auto px-6 py-10 space-y-10 relative z-10">
 
@@ -1264,6 +1254,7 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         )}
+        {activeTab === 'MY_APPS' ? <UpcomingSports /> : null}
       </main>
 
       {/* --- WIDGET CHAT FLOTANTE (ESTILO FACEBOOK) --- */}
@@ -1304,3 +1295,4 @@ export default function SuperAdminDashboard() {
     </div>
   );
 }
+

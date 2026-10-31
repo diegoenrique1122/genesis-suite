@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# Enable the beta branch deploy in Netlify before using its URL for review.
+# Configure Supabase public client variables in Netlify, never in this file.
+[context.beta]
+  command = "npm run build"

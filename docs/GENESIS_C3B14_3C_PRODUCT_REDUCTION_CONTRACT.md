@@ -10,6 +10,15 @@
 - Supabase project: `kfcprkjhlcimdfcxputm`
 - Production branch `main` remains untouched.
 
+## Emergency release addendum — 2026-10-31
+
+GENESIS_BETA_EMERGENCY_RELEASE.md records the latest user instruction.
+Running/Ironman execution is post-beta. Its visible cards are an explicit status
+preview: clicking opens an “In development” notice and performs no sports-data
+operation. This narrow exception does not permit dead operational controls or
+mock measurements elsewhere. Women's Performance, Discipline, numerical history
+and all beta-visible operational flows still require full acceptance.
+
 ## Purpose
 
 This contract prevents product drift during the Genesis OS redesign.
