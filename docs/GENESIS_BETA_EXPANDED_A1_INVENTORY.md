@@ -4,6 +4,25 @@ Date: 2026-10-24
 Audited source: 73b9db823895ff2cee278bfec21e1389974f1b30
 Branch: rebuild/core-architecture
 
+## Current scope update — 2026-10-31
+
+[Visual and numerical-history plan](GENESIS_BETA_VISUAL_ANALYTICS_PLAN.md)
+is the latest user-directed addendum. Professional Super Admin/Coach/Athlete
+surfaces, removal of duplicated Appearance controls and nonfunctional buttons,
+and the coach's durable numeric history with six analytical views are beta scope.
+Reuse the existing shell, canonical records, per-set performance and monitoring.
+
+The numeric-history slice of Memory Vault is promoted to beta. New photo
+retention/rotation remains post-beta on Supabase; external image relocation
+or replication to Cloudflare R2 or another provider is excluded.
+Historical Memory Vault sections below must be read with this addendum.
+
+Residual planning estimate: 132–230 h base plus 20% integration reserve,
+rounded to 160–280 h for beta. V1 complete excluding R2: 370–650 h total
+from this review, including beta and a separately detailed post-beta allowance.
+These are provisional engineering estimates, not measured velocity or a
+committed date. The linked plan lists sources, residual tasks and confidence.
+
 ## Reconciliation notice — 2026-10-31
 
 Read [GENESIS_MASTER_CONTINUITY_RECONCILED.md](GENESIS_MASTER_CONTINUITY_RECONCILED.md)

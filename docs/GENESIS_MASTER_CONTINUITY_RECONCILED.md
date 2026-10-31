@@ -12,6 +12,21 @@ Memoria incorporada al repositorio por autorización explícita del usuario el
 reconciliación al inventario, conservando las cifras anteriores como históricas.
 El baseline de evidencia permanece fijado en 61037e6.
 
+## Actualización de alcance — historial y mejoras visuales en beta (31 octubre)
+
+Leer [GENESIS_BETA_VISUAL_ANALYTICS_PLAN.md](GENESIS_BETA_VISUAL_ANALYTICS_PLAN.md)
+para los acuerdos visuales recuperados, seis análisis numéricos, criterios de
+aceptación y desglose residual. El historial numérico y el Panel de Inteligencia
+Biomecánica y Metabólica entran en beta por petición explícita del usuario.
+El traslado/replicación de imágenes a R2 u otro proveedor externo queda excluido.
+
+Planificación provisional: beta 160–280 h (80–140 bloques de dos horas);
+V1 completa 370–650 h desde esta revisión, incluyendo beta. Ambos rangos
+incluyen reserva de integración; se basan en trabajo residual identificado y
+requieren calibración con jornadas reales. No sustituyen el avance acumulado
+por un porcentaje de puertas ni restauran las estimaciones antiguas.
+Las cifras y los alcances previos del cuerpo/anexos se conservan como historia.
+
 ## Lectura obligatoria para continuar
 
 Leer este documento junto con GENESIS_BETA_EXPANDED_A1_INVENTORY.md y
@@ -120,7 +135,7 @@ Una aceptación pendiente no convierte todo el módulo en trabajo por construir.
 | Women's Performance | Requisito original; componente legacy existente; contrato de sustitución aprobado | requisitos agosto; contrato septiembre; inventario octubre | Consentimiento, historial, revocación, lectura autorizada y recomendaciones revisadas; no certificar motor legacy. |
 | Running / resistencia / triatlón | Presente en contrato posterior; inventario A1 no identificó dominio/rutas dedicados | contrato de producto; inventario A1 | Implementación específica sobre Core existente; confirmar reutilización antes de estimar. |
 | Wearables / recovery | Métricas y preferencias existen; syncWearableData se identifica como mock | contrato e inventario A1 | Datos manuales trazables en beta; conectores reales pendientes según alcance acordado. |
-| Memory Vault | Propuesta posterior a beta documentada; no implementación de retención certificada | 29665dc2; d82bc2b9 | Historial liviano, fotos 24 h, baseline + último juego y exportación, después de beta. |
+| Memory Vault / panel numérico | Propuesta original post-beta; actualización 31 octubre promueve historial numérico y seis análisis a beta, sin implementación certificada todavía | 29665dc2; d82bc2b9; GENESIS_BETA_VISUAL_ANALYTICS_PLAN.md | Panel/historial/exportación en beta; retención y rotación nuevas de fotos después, en Supabase; R2 excluido. |
 
 Nota de fechas: el resumen de memoria recibido atribuía B.2 al 25 de octubre.
 Git fecha df848c10 el 8 de octubre UTC. Para cronología técnica prevalece Git.
@@ -145,8 +160,10 @@ las migraciones A2.1–A2.3 ni sustituir su batería aprobada por una nueva desd
 
 Después, mantener el alcance de beta ampliada acordado: nutrición completa,
 TrainerPro, Disciplina/recuperación manual, Women's Performance, running/triatlón,
-coach/admin, aceptación integrada y despliegue controlado. Memory Vault permanece
-posterior a beta. No retirar funcionalidades para hacer coincidir una estimación.
+coach/admin, aceptación integrada y despliegue controlado. La actualización del
+31 de octubre incorpora el historial numérico y panel analítico a beta; la nueva
+retención de fotos en Supabase queda posterior a beta y R2 está excluido.
+No retirar funcionalidades para hacer coincidir una estimación.
 
 ## Cómo evitar trabajo repetido y estimar lo que falta
 
@@ -211,7 +228,9 @@ notificaciones, preferencias, shell y amplias partes de Trainer/Disciplina ya
 existen. Nutrición A2.1–A2.3 tiene pruebas locales y auditorías documentadas;
 A2.4 integra lectura en Arquitecto. Pendiente inmediato A2.5 autenticada local.
 No usar 12,5 % como progreso global ni 268–482 h como pronóstico validado.
-Conservar cierres; estimar solo trabajo residual. Memory Vault es posterior a beta.
+Conservar cierres; estimar solo trabajo residual. El historial numérico entra en
+beta según GENESIS_BETA_VISUAL_ANALYTICS_PLAN.md; el ciclo nuevo de fotos queda
+post-beta en Supabase, sin R2.
 Registrar inicio/pausas/fin cuando el usuario realmente trabaje.
 La primera tabla maestra literal sigue como hueco documental identificado.
 
