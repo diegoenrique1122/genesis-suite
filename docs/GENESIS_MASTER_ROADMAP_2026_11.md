@@ -111,3 +111,14 @@ Criterios de todo cierre: evidencia, permisos, estados de carga/error, datos rea
 ## Identidad en la pestaña del navegador
 
 Sustituir el favicon violeta predeterminado por el logotipo oficial de Genesis Suite, y revisar el icono de aplicación instalada (manifest) cuando se disponga del archivo oficial. En la captura aportada solo aparece el icono actual; no se ha identificado un archivo oficial inequívoco en el repositorio. No sustituirlo por una marca inventada. Pendiente recibir o identificar el logo y verificar legibilidad a tamaños pequeños.
+
+
+## F0.2 — comprobación parcial de continuidad (12 noviembre 2026)
+
+- Antes de este registro, desarrollo apuntaba a f14ed71dca86bd7cd0e6c56aafefee968c8ccd0b; beta a 6764bbc4d9ed2f170605c1e0d633d8da4b6d1e2f y main a df96a0986cdda37e5ccff2f9c728a5243b597cc1. Beta y desarrollo divergen desde bdcbe4d81316d7fefbbdd241a5c4802aed68056c: cinco y cuatro commits respectivamente. No integrar automáticamente sin revisar diferencias.
+- CoachSettings.jsx tiene el mismo blob 995afd7f2f4742b65a2efef7052c8f764aeed255 en ambas ramas. Beta incorpora lint:changed, ausente en desarrollo; evaluar su integración y limitaciones antes de usarlo como puerta.
+- Netlify informa deploy beta 6ae7866423f7ddbc4abc1d62 READY con commit 6764bbc4d9ed2f170605c1e0d633d8da4b6d1e2f. Esto no certifica acceso autenticado ni aceptación beta.
+- El proyecto Supabase figura ACTIVE_HEALTHY, pero la consulta de migraciones falló por autenticación del usuario postgres (28P01). No se comprobó paridad de migraciones ni se alteró la base.
+- Docker existe en el ordenador del usuario, pero no en el entorno de trabajo remoto. No se ejecutaron pruebas Docker, build ni pruebas autenticadas en esta revisión.
+- Pendiente: reconciliar cambios de verificación entre ramas, restablecer lectura de migraciones, auditar fixtures y cierre A2.5 en laboratorio aislado, y establecer ponderación de F0. No se cierra la subfase ni se calcula porcentaje global.
+- La política posterior de fotos de comidas a 48 horas y protección de físico hasta respaldo ZIP confirmado prevalece sobre la propuesta previa de eliminación estricta en este documento. La regla posterior al respaldo y tratamiento de fotos iniciales y vigentes requieren diseño antes de activar cualquier purga.
