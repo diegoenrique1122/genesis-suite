@@ -122,3 +122,13 @@ Sustituir el favicon violeta predeterminado por el logotipo oficial de Genesis S
 - Docker existe en el ordenador del usuario, pero no en el entorno de trabajo remoto. No se ejecutaron pruebas Docker, build ni pruebas autenticadas en esta revisión.
 - Pendiente: reconciliar cambios de verificación entre ramas, restablecer lectura de migraciones, auditar fixtures y cierre A2.5 en laboratorio aislado, y establecer ponderación de F0. No se cierra la subfase ni se calcula porcentaje global.
 - La política posterior de fotos de comidas a 48 horas y protección de físico hasta respaldo ZIP confirmado prevalece sobre la propuesta previa de eliminación estricta en este documento. La regla posterior al respaldo y tratamiento de fotos iniciales y vigentes requieren diseño antes de activar cualquier purga.
+
+
+## F0.2 / A2.5 — preflight local comunicado (12 noviembre 2026)
+
+- Salidas aportadas por el usuario: rama local audit/f1 limpia en 07fb4f20946ea7288ff13333bceb91cc7b4598ec, con commits locales de herramientas y configuración del laboratorio; preservar y reconciliar antes de integrar. No se ha comprobado su publicación remota.
+- Docker 29.8.2 disponible; servicios genesis-local-lab saludables al momento de la revisión. Postgres 17.6, API local 127.0.0.1:54321. El volumen local y 27 tablas públicas existen; no se encontró historial supabase_migrations ni objetos de nutrición persistentes en postgres.
+- Los conteos son 3 usuarios, 2 atletas, 1 programa y 1 sesión. Los 3 perfiles (1 coach y 2 atletas) tienen cuentas Auth y contraseña configurada; no se probaron inicios de sesión. No se recopilaron credenciales.
+- Los hashes Git de A2.1, A2.2, A2.3 y la prueba A2.3 coinciden con desarrollo: 37375e1ddadb0a3554f5b0bef65b2a0406e68c0f, 086b64787f25f305bc0762a507dda1d4fbb47693, 4db005f696d49c2634c825f89052ef53c791d4dd y fda969a3e8d315b75ead4f8fbc8418231c9fe3b4, respectivamente.
+- La prueba histórica A2.3 inserta migraciones en una transacción y hace rollback; por ello la ausencia actual de objetos de nutrición es compatible con ese procedimiento y no prueba pérdida ni fallo. A2.5 REST autenticada, concurrencia y aceptación visual siguen pendientes. No se ejecutaron migraciones ni pruebas en esta revisión.
+- Para probar REST, los objetos deben ser visibles desde sesiones de API; las migraciones no confirmadas de una transacción ajena no bastan. Diseñar entorno aislado y verificable antes de aplicar cambios, preservando el laboratorio y sus credenciales. La opción experimental de múltiples stacks requiere CLI >=2.119.0; el proyecto tiene fijada 2.116.0, por lo que no se asume disponible ni se actualiza automáticamente.
