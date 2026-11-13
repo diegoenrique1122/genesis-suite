@@ -544,3 +544,8 @@ RLS y persistencia remota no se dan por aprobadas. La matriz sigue EN_REVISION e
 filas afectadas. Ver docs/GENESIS_BETA_E1_COACH_SETTINGS.md para pruebas y siguiente
 paso. Women’s/Disciplina, seis análisis, siete perfiles y no-R2 siguen vigentes.
 
+
+
+## Actualización vigente — mapa maestro 12 noviembre 2026
+
+Consultar [GENESIS_MASTER_ROADMAP_2026_11.md](GENESIS_MASTER_ROADMAP_2026_11.md). Sustituye las decisiones previas sobre inmersión y retención, conserva los cierres históricos y detalla el conflicto pendiente sobre las fotos iniciales antes de cualquier purga. Su adopción es documental; no supone implementación.
